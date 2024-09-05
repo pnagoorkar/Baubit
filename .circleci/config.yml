@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build_and_pack:
     docker:
-      - image: $DOCKER_HUB_USERNAME/block:base
+      - image: $DOCKER_HUB_USERNAME/baubit:base
         auth:
             username: $DOCKER_HUB_USERNAME
             password: $DOCKER_HUB_PASSWORD
