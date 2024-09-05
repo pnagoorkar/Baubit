@@ -1,0 +1,114 @@
+version: 2.1
+
+jobs:
+  build_and_pack:
+    docker:
+      - image: $DOCKER_HUB_USERNAME/block:base
+        auth:
+            username: $DOCKER_HUB_USERNAME
+            password: $DOCKER_HUB_PASSWORD
+    steps:     
+      - checkout
+      # Step 1: Check for config.yml changes.
+      - run:
+          name: Check for config.yml changes
+          command: |            
+              # Capture the list of changed files
+              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+
+              # Check if only .circleci/config.yml was changed
+              if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
+                  echo "Only .circleci/config.yml was changed. Skipping build."
+                  circleci-agent step halt
+              else
+                  echo "Changes detected outside of .circleci/config.yml. Proceeding with build."
+              fi
+
+      # Step 2: Add github as a nuget package source
+      - run:
+          name: Add github as a nuget package source
+          command: |
+            dotnet nuget add source --username $GITHUB_USERNAME --password $GITHUB_PAT --store-password-in-clear-text --name github "$GITHUB_NUGET_PKG_SOURCE_URL"
+
+      # Step 3: Test
+      - run:
+          name: Build
+          command: |
+            SOLUTION_FOLDER="Baubit"
+            PROJECT_NAME="Baubit"
+            PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
+                            
+            dotnet build ${PROJECT_FILE} --configuration Release --nowarn:9999
+
+
+      # Step 4: Test
+      - run:
+          name: Test
+          command: |
+            SOLUTION_FOLDER="Baubit"
+            SOLUTION_FILE="${SOLUTION_FOLDER}.sln"
+                
+            dotnet test ${SOLUTION_FILE} --nowarn:9999
+
+
+      # Step 5: Pack and publish
+      - run:
+          name: Pack_and_publish
+          command: |
+
+            SOLUTION_FOLDER="Baubit"
+            PROJECT_NAME="Baubit"
+            PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
+            
+            YEAR=$(date +%Y)
+            WEEK=$(date +%V)
+
+            # List all tags matching the pattern "v${YEAR}.${WEEK}.*"
+            TAG_LIST=$(git tag -l "v${YEAR}.${WEEK}.*")
+
+            if [ -z "$TAG_LIST" ]; then
+              echo "No build found for v${YEAR}.${WEEK}.*"
+              echo "Setting build of the week to 1"
+              BUILD_OF_THE_WEEK=1
+            else
+              EXTRACTED_NUMBERS=$(echo "$TAG_LIST" | grep -o "[0-9]\+$")
+
+              SORTED_NUMBERS=$(echo "$EXTRACTED_NUMBERS" | sort -nr)
+
+              PREVIOUS_BUILD_OF_THE_WEEK=$(echo "$SORTED_NUMBERS" | head -n1)
+              echo "Previous build of the week: $PREVIOUS_BUILD_OF_THE_WEEK"
+
+              BUILD_OF_THE_WEEK=$((PREVIOUS_BUILD_OF_THE_WEEK + 1))
+            fi
+
+            echo "Build of the week - $BUILD_OF_THE_WEEK"
+            CURRENT_VERSION="${YEAR}.${WEEK}.${BUILD_OF_THE_WEEK}"
+            BUILD_TAG="v${CURRENT_VERSION}"
+            echo "Current version tag - $BUILD_TAG"
+
+            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" --output ./nupkgs --nowarn:9999
+
+            dotnet nuget push ./nupkgs/${PROJECT_NAME}.${CURRENT_VERSION}.nupkg --source "github"
+
+            git config --global user.email "$GITHUB_EMAIL"
+            git config --global user.name "CircleCI"
+            git tag -a "$BUILD_TAG" -m "Build $BUILD_TAG"
+            git push origin "$BUILD_TAG"
+            echo "Tagged commit with $BUILD_TAG"
+
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build_and_pack:
+          context:
+            - Context_Prashant
+          filters:
+            tags:
+              ignore: /.*/ #ignore any builds triggered by tags
+            branches:
+              only:
+                - master
+      
+      
