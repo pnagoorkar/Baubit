@@ -49,7 +49,7 @@ namespace Baubit.Configuration
             {
                 for (int i = 0; i < metaConfiguration.JsonUriStrings.Count; i++)
                 {
-                    metaConfiguration.JsonUriStrings[i] = metaConfiguration.JsonUriStrings[i].Replace(kvp.Key, kvp.Value);
+                    metaConfiguration.JsonUriStrings[i] = Path.GetFullPath(metaConfiguration.JsonUriStrings[i].Replace(kvp.Key, kvp.Value));
                 }
             }
             return metaConfiguration;
