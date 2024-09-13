@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Version>$(PackageVersion)</Version> <!-- For NuGet package version -->
+    <AssemblyVersion>$(PackageVersion)</AssemblyVersion> <!-- For the Assembly version -->
+    <FileVersion>$(PackageVersion)</FileVersion> <!-- For the file version (optional) -->
+    <InformationalVersion>$(PackageVersion)</InformationalVersion><!-- For the informational version (optional) -->
   </PropertyGroup>
 
   <!-- Build as exe if configured -->
