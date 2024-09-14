@@ -66,11 +66,8 @@ namespace Baubit
 
         static async void Main(string[] args)
         {
-            var buldHostResult = await Hosting.Operations.BuldHost.RunAsync(new Hosting.BuildHost.Context(args));
-            if (buldHostResult.Success == true)
-            {
-                await buldHostResult.Value!.RunAsync();
-            }
+            var result = await CLI.Operations.CLIOperation.RunAsync(new CLI.CLIOperation.Context(args));
+            Environment.Exit(result.Success == true ? 0 : 1);
         }
 
         private static Assembly? Default_Resolving(AssemblyLoadContext context, AssemblyName assemblyName)

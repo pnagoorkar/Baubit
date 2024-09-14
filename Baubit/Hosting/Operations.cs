@@ -2,6 +2,7 @@
 {
     public static class Operations
     {
-        public static BuildHost BuldHost = BuildHost.GetInstance();
+        public static BuildHost BuildHost = BuildHost.GetInstance();
+        public static HostApplication HostApplication = HostApplication.GetInstance();
     }
 }
