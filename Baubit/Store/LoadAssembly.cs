@@ -34,7 +34,34 @@ namespace Baubit.Store
                     }
                 }
 
-                foreach(var dependency in searchResult.Value!.Dependencies)
+                #region LoadAssembliesOnlyIfTheNameAndVersionAreNotAlreadyLoaded
+                //var loadableDependencies = searchResult.Value!
+                //                                       .Dependencies
+                //                                       .Where(dep => !AppDomain.CurrentDomain
+                //                                                               .GetAssemblies()
+                //                                                               .Any(assembly => assembly!
+                //                                                                                .GetName()!
+                //                                                                                .Name!
+                //                                                                                .Equals(dep.AssemblyName.Name,
+                //                                                                                        StringComparison.OrdinalIgnoreCase) &&
+                //                                                                                        assembly!.GetName()!
+                //                                                                                                 .Version!
+                //                                                                                                 .ToString()
+                //                                                                                                 .Equals(dep.AssemblyName.Version.ToString(),
+                //                                                                                                         StringComparison.OrdinalIgnoreCase)));
+                #endregion
+
+                var loadableDependencies = searchResult.Value!
+                                                       .Dependencies
+                                                       .Where(dep => !dep!.AssemblyName!.Name!.Equals(nameof(Baubit)))
+                                                       .Where(dep => !AppDomain.CurrentDomain
+                                                                               .GetAssemblies()
+                                                                               .Any(assembly => assembly!
+                                                                                                .GetName()!
+                                                                                                .Name!
+                                                                                                .Equals(dep.AssemblyName.Name,
+                                                                                                        StringComparison.OrdinalIgnoreCase)));
+                foreach (var dependency in loadableDependencies)
                 {
                     var nestedDependencyLoadResult = await Operations.LoadAssembly.RunAsync(new Context(dependency.AssemblyName, context.TargetFramework, context.DownloadIfRequired));
                     switch (nestedDependencyLoadResult.Success)

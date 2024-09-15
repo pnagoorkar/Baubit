@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35208.52
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Baubit", "Baubit\Baubit.csproj", "{A82825C8-F7E6-4559-B7E4-9EAB1B1F328A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Baubit", "Baubit\Baubit.csproj", "{A82825C8-F7E6-4559-B7E4-9EAB1B1F328A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Baubit.Test", "Baubit.Test\Baubit.Test.csproj", "{1D97A06D-6885-42D3-AF9E-FFE2C9AD394E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Baubit.Test", "Baubit.Test\Baubit.Test.csproj", "{1D97A06D-6885-42D3-AF9E-FFE2C9AD394E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BaubitCLI", "BaubitCLI\BaubitCLI.csproj", "{2C9CD545-8C96-49D5-A1BC-6ECC5080A8F8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{1D97A06D-6885-42D3-AF9E-FFE2C9AD394E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1D97A06D-6885-42D3-AF9E-FFE2C9AD394E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1D97A06D-6885-42D3-AF9E-FFE2C9AD394E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C9CD545-8C96-49D5-A1BC-6ECC5080A8F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C9CD545-8C96-49D5-A1BC-6ECC5080A8F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C9CD545-8C96-49D5-A1BC-6ECC5080A8F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C9CD545-8C96-49D5-A1BC-6ECC5080A8F8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

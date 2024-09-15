@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text.Json;
@@ -27,14 +26,22 @@ namespace Baubit
 
         internal static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
 
-        public static JsonSerializerOptions IndentedJsonWithCamelCase = new JsonSerializerOptions { WriteIndented = true, 
-                                                                                                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        public static JsonSerializerOptions IndentedJsonWithCamelCase = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
         static Application()
         {
             AssemblyLoadContext.Default.Resolving += Default_Resolving;
             DetermineTargetFramework();
             DetermineOSPlatform();
+        }
+
+        public static void Initialize()
+        {
+
         }
 
         private static void DetermineTargetFramework()
@@ -64,19 +71,36 @@ namespace Baubit
             }
         }
 
-        static async void Main(string[] args)
+        static void Main(string[] args)
         {
-            var result = await CLI.Operations.CLIOperation.RunAsync(new CLI.CLIOperation.Context(args));
+            args = ["host", @"C:\Users\prash\Baubit\BaubitCli\hostSettings.json"];
+            var result = CLI.Operations.CLIOperation.RunAsync(new CLI.CLIOperation.Context(args)).GetAwaiter().GetResult();
             Environment.Exit(result.Success == true ? 0 : 1);
         }
 
+        private static List<BaubitAssemblyLoadContext> baubitAssemblyLoadContexts = new List<BaubitAssemblyLoadContext>();
         private static Assembly? Default_Resolving(AssemblyLoadContext context, AssemblyName assemblyName)
         {
-            var currentAssembly = AppDomain.CurrentDomain
-                                           .GetAssemblies()
-                                           .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) && 
-                                                           assembly.GetName().Version.Equals(assemblyName.Version));
+            if (assemblyName.Name.Equals(nameof(Baubit))) return Assembly.GetExecutingAssembly();
 
+            //var target = baubitAssemblyLoadContexts.FirstOrDefault(c => c.Assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) &&
+            //                                                            c.Assembly.GetName().Version.Equals(assemblyName.Version));
+
+            //if (target != null)
+            //{
+            //    return target.Assembly;
+            //}
+            //else
+            //{
+            //    var ctxt = new BaubitAssemblyLoadContext();
+            //    ctxt.LoadFromAssemblyPath("");
+            //}
+
+            var currentAssembly = AppDomain.CurrentDomain
+                                       .GetAssemblies()
+                                       .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) &&
+                                                                   assembly.GetName().Version >= assemblyName.Version);
+            
             if (currentAssembly != null) return currentAssembly;
 
             var loadResult = Store.Operations
@@ -85,6 +109,17 @@ namespace Baubit
                                   .GetAwaiter()
                                   .GetResult();
             return loadResult.Value;
+        }
+    }
+    public class BaubitAssemblyLoadContext : AssemblyLoadContext
+    {
+        public Assembly Assembly { get; private set; }
+        public BaubitAssemblyLoadContext() : base(isCollectible: true) { }
+
+        protected override Assembly Load(AssemblyName assemblyName)
+        {
+            // Custom logic to resolve assemblies
+            return null;
         }
     }
 }

@@ -1,0 +1,6 @@
+{
+  "serviceProviderMetaFactoryType": "Baubit.Autofac.ServiceProviderMetaFactory, Baubit.Autofac, Version=2024.37.2",
+  "hostApplicationBuilderSettings": {
+    "applicationName": "MyRandomApplication"
+  }
+}

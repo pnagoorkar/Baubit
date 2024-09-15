@@ -1,5 +1,7 @@
-﻿using Baubit.DI;
+﻿using Baubit.Configuration;
+using Baubit.DI;
 using Baubit.Operation;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace Baubit.Hosting
@@ -20,12 +22,13 @@ namespace Baubit.Hosting
         {
             try
             {
-                var host = Host.CreateEmptyApplicationBuilder(context.HostApplicationBuilderSettings);
+                var hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(context.HostApplicationBuilderSettings);
+                hostApplicationBuilder.Configuration.AddConfiguration(context.Configuration!);
                 var serviceProviderMetaFactoryConcreteType = Type.GetType(context.ServiceProviderMetaFactoryType!);
                 var serviceProviderMetaFactory = (IServiceProviderMetaFactory)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
-                serviceProviderMetaFactory.UseConfiguredServiceProviderFactory(host);
-                await host.Build()
-                          .RunAsync();
+                serviceProviderMetaFactory.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
+                var host = hostApplicationBuilder.Build();
+                await host.RunAsync();
 
                 return new Result(true, null);
             }
@@ -39,6 +42,8 @@ namespace Baubit.Hosting
         {
             public string ServiceProviderMetaFactoryType { get; init; }
             public HostApplicationBuilderSettings HostApplicationBuilderSettings { get; init; }
+            public MetaConfiguration AppConfiguration { get; init; }
+            public IConfiguration? Configuration { get => AppConfiguration?.Load(); }
 
             public Context(HostApplicationBuilderSettings hostApplicationBuilderSettings)
             {

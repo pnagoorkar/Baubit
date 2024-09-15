@@ -66,7 +66,7 @@ namespace Baubit.Store
             result = null;
             readResourceResult = Resource.Operations
                              .ReadEmbeddedResource
-                             .RunAsync(new Resource.ReadEmbeddedResource.Context($"{this.GetType().Namespace}.CSProjTemplate.txt",
+                             .RunAsync(new Resource.ReadEmbeddedResource.Context($"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt",
                                                                                  Assembly.GetExecutingAssembly()))
                              .GetAwaiter()
                              .GetResult();
