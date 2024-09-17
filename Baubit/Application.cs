@@ -2,8 +2,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text.Json;
-using FluentResults;
-using FluentResults.Extensions;
 
 namespace Baubit
 {
@@ -71,21 +69,6 @@ namespace Baubit
             {
                 OSPlatform = null;
             }
-        }
-
-        static void Main(string[] args)
-        {
-            SomeMethod().GetAwaiter().GetResult().Bind(str => Result.Ok(0));
-
-            args = ["host", @"C:\Users\prash\Baubit\BaubitCli\hostSettings.json"];
-            var result = CLI.Operations.CLIOperation.RunAsync(new CLI.CLIOperation.Context(args)).GetAwaiter().GetResult();
-            Environment.Exit(result.Success == true ? 0 : 1);
-        }
-
-        static async Task<Result<string>> SomeMethod()
-        {
-            await Task.Yield();
-            return default;
         }
 
         private static List<BaubitAssemblyLoadContext> baubitAssemblyLoadContexts = new List<BaubitAssemblyLoadContext>();
