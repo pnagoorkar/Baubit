@@ -1,28 +1,19 @@
-﻿using Baubit.Operation;
+﻿using FluentResults;
 using System.Diagnostics;
 
 namespace Baubit.Process
 {
-    public sealed class RunProcess : IOperation<RunProcess.Context, RunProcess.Result>
+    public static partial class Operations
     {
-        private RunProcess()
-        {
-
-        }
-        private static RunProcess _singletonInstance = new RunProcess();
-        public static RunProcess GetInstance()
-        {
-            return _singletonInstance;
-        }
-        public async Task<Result> RunAsync(Context context)
+        public static async Task<Result> RunProcessAsync(ProcessRunContext context)
         {
             try
             {
                 using (System.Diagnostics.Process process = System.Diagnostics.Process.Start(context.StartInfo))
                 {
-                    if (process == null) return new Result(new Exception("Failed to start process.."));
+                    if (process == null) return Result.Fail(new ProcessFailedToStart());
 
-                    if(context.OutputDataEventHandler != null)
+                    if (context.OutputDataEventHandler != null)
                     {
                         process.OutputDataReceived += context.OutputDataEventHandler;
                         process.BeginOutputReadLine();
@@ -35,42 +26,67 @@ namespace Baubit.Process
 
                     await process.WaitForExitAsync();
 
-                    if (process.ExitCode == 0) return new Result(true, null);
-                    else return new Result(false, null, null);
+                    if (process.ExitCode == 0) return Result.Ok();
+                    else return Result.Fail(new ProcessExitedWithNonZeroReturnCodeError(context.StartInfo, process.ExitCode));
                 }
             }
-            catch (Exception e)
+            catch (Exception exp)
             {
-                return new Result(e);
-            }
-        }
-
-        public sealed class Context : IContext
-        {
-            public ProcessStartInfo StartInfo { get; init; }
-            public DataReceivedEventHandler? OutputDataEventHandler { get; init; }
-            public DataReceivedEventHandler? ErrorDataEventHandler { get; init; }
-            public Context(ProcessStartInfo startInfo, DataReceivedEventHandler? outputDataEventHandler, DataReceivedEventHandler? errorDataEventHandler)
-            {
-                StartInfo = startInfo;
-                OutputDataEventHandler = outputDataEventHandler;
-                ErrorDataEventHandler = errorDataEventHandler;
-            }
-        }
-
-        public sealed class Result : AResult<string>
-        {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, string? value) : base(success, value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
+                return Result.Fail(new ExceptionalError(exp));
             }
         }
     }
+
+    public class ProcessRunContext
+    {
+        public ProcessStartInfo StartInfo { get; init; }
+        public DataReceivedEventHandler? OutputDataEventHandler { get; init; }
+        public DataReceivedEventHandler? ErrorDataEventHandler { get; init; }
+        public ProcessRunContext(ProcessStartInfo startInfo, DataReceivedEventHandler? outputDataEventHandler, DataReceivedEventHandler? errorDataEventHandler)
+        {
+            StartInfo = startInfo;
+            OutputDataEventHandler = outputDataEventHandler;
+            ErrorDataEventHandler = errorDataEventHandler;
+        }
+    }
+
+    public class ProcessFailedToStart :IError
+    {
+        public List<IError> Reasons { get; }
+
+        public string Message => "Failed to start process..";
+
+        public Dictionary<string, object> Metadata { get; }
+    }
+
+    public class ProcessExitedWithNonZeroReturnCodeError : IError
+    {
+        public List<IError> Reasons { get; }
+
+        public string Message => "Process exited with non zero code";
+
+        public Dictionary<string, object> Metadata { get; }
+
+        public ProcessStartInfo StartInfo { get; init; }
+        public int ReturnCode { get; init; }
+
+        public ProcessExitedWithNonZeroReturnCodeError(ProcessStartInfo startInfo, int returnCode)
+        {
+            StartInfo = startInfo;
+            ReturnCode = returnCode;
+        }
+    }
+
+    //public class ProcessRunResult
+    //{
+    //    public string Output { get; init; }
+    //    public string Error { get; init; }
+    //    public int? ReturnCode { get; init; }
+    //    public ProcessRunResult(string output, string error, int? returnCode = null)
+    //    {
+    //        Output = output;
+    //        Error = error;
+    //        ReturnCode = returnCode;
+    //    }
+    //}
 }

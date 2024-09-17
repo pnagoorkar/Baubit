@@ -26,12 +26,6 @@ namespace Baubit
 
         internal static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
 
-        public static JsonSerializerOptions IndentedJsonWithCamelCase = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
         static Application()
         {
             AssemblyLoadContext.Default.Resolving += Default_Resolving;

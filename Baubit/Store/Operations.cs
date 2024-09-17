@@ -1,8 +1,7 @@
-﻿using FluentResults;
-
+﻿
 namespace Baubit.Store
 {
-    public static class Operations
+    public static partial class Operations
     {
         public static Search Search = Search.GetInstance();
         public static LoadAssembly LoadAssembly = LoadAssembly.GetInstance();

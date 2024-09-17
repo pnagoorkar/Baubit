@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Reflection;
+using FluentResults;
 
 namespace Baubit.Store
 {
@@ -195,6 +196,41 @@ namespace Baubit.Store
             public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
             {
             }
+        }
+    }
+
+    public static partial class Operations
+    {
+        public async Task<Result<Package>> DetermineAssemblyDependenciesAsync(Context context)
+        {
+            try
+            {
+
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+    }
+
+    public class AssemblyDependencyDeterminationContext
+    {
+        public AssemblyName AssemblyName { get; init; }
+        public string TargetFramework { get; init; }
+        public string PackageDeterminationWorkspace { get; init; }
+        public string TempProjFileName { get; init; }
+        public string TempProjBuildOutputFolder { get; init; }
+        public string ProjectAssetsJsonFile { get; init; }
+        public AssemblyDependencyDeterminationContext(AssemblyName assemblyName, string targetFramework)
+        {
+            AssemblyName = assemblyName;
+            TargetFramework = targetFramework;
+            PackageDeterminationWorkspace = Path.Combine(Path.GetTempPath(), $"PackageDeterminationWorkspace_{AssemblyName.Name}");
+            TempProjFileName = Path.Combine(PackageDeterminationWorkspace, $"TempProject_{AssemblyName.Name}.csproj");
+            TempProjBuildOutputFolder = Path.Combine(PackageDeterminationWorkspace, "release");
+            ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
         }
     }
 }
