@@ -1,14 +1,15 @@
 ﻿using Baubit.Compression;
 using Baubit.Operation;
 using Baubit.Process;
+using FluentResults;
+using FluentResults.Extensions;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using static Baubit.Store.DownloadPackage;
 
 namespace Baubit.Store
 {
-    public sealed class DownloadPackage : IOperation<Context, Result>
+    public sealed class DownloadPackage : IOperation<DownloadPackage.Context, DownloadPackage.Result>
     {
         private DownloadPackage()
         {
@@ -274,6 +275,31 @@ namespace Baubit.Store
             public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
             {
             }
+        }
+    }
+
+    public static partial class Operations
+    {
+        public static async Task<Result<List<string>> DownloadPackageAsync(PackageDownloadContext context)
+        {
+            return await FileSystem.Operations.DeleteDirectoryRecursivelyAndRecreateAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath), true)
+                                              .Bind(() => { });
+        }
+    }
+
+    public class PackageDownloadContext
+    {
+        public AssemblyName AssemblyName { get; init; }
+        public string TargetFramework { get; init; }
+        public string TargetFolder { get; init; }
+        public string TempDownloadPath { get; init; }
+
+        public PackageDownloadContext(AssemblyName assemblyName, string targetFramework, string targetFolder)
+        {
+            AssemblyName = assemblyName;
+            TargetFramework = targetFramework;
+            TargetFolder = targetFolder;
+            TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
         }
     }
 }
