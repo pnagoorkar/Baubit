@@ -1,4 +1,6 @@
 ﻿using Baubit.Operation;
+using FluentResults;
+using System.Collections;
 using System.IO.Compression;
 using System.Linq.Expressions;
 
@@ -87,6 +89,82 @@ namespace Baubit.Compression
 
             public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
             {
+            }
+        }
+    }
+
+    public static class ExtractFilesFromArchive2
+    {
+        public static async Task<Result<List<string>>> RunAsync(Context context)
+        {
+            return Result.Try(() =>
+            {
+                List<string> extractedFiles = new List<string>();
+                foreach (var entry in context.Entries)
+                {
+                    string destinationFileName = context.RetainPaths ? Path.GetFullPath(entry.FullName, context.Destination) : Path.Combine(context.Destination, entry.Name);
+                    entry.ExtractToFile(destinationFileName, overwrite: context.Overwrite);
+                    extractedFiles.Add(destinationFileName);
+                }
+                return extractedFiles;
+            });
+        }
+
+        public sealed class Context : IContext
+        {
+            public IEnumerable<ZipArchiveEntry> Entries { get; init; }
+            public string Destination { get; init; }
+            public bool RetainPaths { get; init; }
+            public bool Overwrite { get; init; }
+
+            public Context(IEnumerable<ZipArchiveEntry> entries,
+                           string destination,
+                           bool retainPaths,
+                           bool overwrite)
+            {
+                Entries = entries;
+                Destination = destination;
+                RetainPaths = retainPaths;
+                Overwrite = overwrite;
+            }
+        }
+    }
+
+    public static class ReadZipArchiveEntries
+    {
+        public static async Task<Result<IEnumerable<ZipArchiveEntry>>> RunAsync(Context context)
+        {
+            await Task.Yield();
+            return Result.Try(() => context.Source.EnumerateAsync(context.Criteria));
+        }
+
+        public sealed class Context : IContext
+        {
+            public string Source { get; init; }
+            public Expression<Func<ZipArchiveEntry, bool>> Criteria { get; init; }
+
+            public Context(string source,
+                           Expression<Func<ZipArchiveEntry, bool>> criteria)
+            {
+                Source = source;
+                Criteria = criteria;
+            }
+        }
+    }
+
+    public static class ZipArchiveExtensions
+    {
+        public static IEnumerable<ZipArchiveEntry> EnumerateAsync(this string zipFile, Expression<Func<ZipArchiveEntry, bool>> criteria)
+        {
+            using (FileStream fileStream = new FileStream(zipFile, FileMode.Open))
+            {
+                using (ZipArchive archive = new ZipArchive(fileStream, ZipArchiveMode.Read))
+                {
+                    foreach (ZipArchiveEntry entry in archive.Entries.Where(criteria.Compile()))
+                    {
+                        yield return entry;
+                    }
+                }
             }
         }
     }

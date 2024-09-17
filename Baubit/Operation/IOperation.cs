@@ -1,5 +1,11 @@
-﻿namespace Baubit.Operation
+﻿using FluentResults;
+
+namespace Baubit.Operation
 {
+    public interface IOperation2<TContext, TResult> where TContext : IContext
+    {
+        public Task<Result<TResult>> RunAsync(TContext context);
+    }
     public interface IOperation
     {
 

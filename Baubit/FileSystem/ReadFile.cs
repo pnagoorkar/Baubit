@@ -1,4 +1,5 @@
 ﻿using Baubit.Operation;
+using FluentResults;
 
 namespace Baubit.FileSystem
 {
@@ -47,6 +48,23 @@ namespace Baubit.FileSystem
 
             public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
             {
+            }
+        }
+    }
+
+    public static class ReadFile2
+    {
+        public static async Task<Result<string>> RunAsync(Context context)
+        {
+            return await Result.Try(() => File.ReadAllTextAsync(context.Path));
+        }
+
+        public sealed class Context : IContext
+        {
+            public string Path { get; init; }
+            public Context(string path)
+            {
+                Path = path;
             }
         }
     }

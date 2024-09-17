@@ -1,4 +1,6 @@
-﻿namespace Baubit.Store
+﻿using FluentResults;
+
+namespace Baubit.Store
 {
     public static class Operations
     {

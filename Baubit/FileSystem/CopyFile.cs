@@ -1,4 +1,5 @@
 ﻿using Baubit.Operation;
+using FluentResults;
 
 namespace Baubit.FileSystem
 {
@@ -57,6 +58,35 @@ namespace Baubit.FileSystem
 
             public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
             {
+            }
+        }
+    }
+
+    public static class CopyFile2
+    {
+        public static async Task<Result> RunAsync(Context context)
+        {
+            try
+            {
+                await Task.Yield();
+                File.Copy(context.Source, context.Destination, context.Overwrite);
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+        public class Context
+        {
+            public string Source { get; init; }
+            public string Destination { get; init; }
+            public bool Overwrite { get; init; }
+            public Context(string source, string destination, bool overwrite = false)
+            {
+                Source = source;
+                Destination = destination;
+                Overwrite = overwrite;
             }
         }
     }

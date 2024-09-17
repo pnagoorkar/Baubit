@@ -1,9 +1,9 @@
 ﻿using Baubit.Operation;
-using static Baubit.FileSystem.DeleteDirectory;
+using FluentResults;
 
 namespace Baubit.FileSystem
 {
-    public sealed class DeleteDirectory : IOperation<Context, Result>
+    public sealed class DeleteDirectory : IOperation<DeleteDirectory.Context, .Result>
     {
         private DeleteDirectory()
         {
@@ -50,6 +50,38 @@ namespace Baubit.FileSystem
 
             public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
             {
+            }
+        }
+    }
+
+    public static class DeleteDirectory2
+    {
+        public static async Task<Result> RunAsync(Context context)
+        {
+            try
+            {
+                await Task.Yield();
+                if (Directory.Exists(context.Path))
+                {
+                    Directory.Delete(context.Path, context.Recursive);
+                }
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+
+        public sealed class Context
+        {
+            public string Path { get; init; }
+            public bool Recursive { get; init; }
+            public Context(string path, bool recursive)
+            {
+                Path = path;
+                Recursive = recursive;
             }
         }
     }
