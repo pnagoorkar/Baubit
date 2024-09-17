@@ -1,20 +1,11 @@
-﻿using Baubit.Operation;
+﻿using FluentResults;
 using System.Reflection;
 
 namespace Baubit.Resource
 {
-    public class ReadEmbeddedResource : IOperation<ReadEmbeddedResource.Context, ReadEmbeddedResource.Result>
+    public static partial class  Operations
     {
-        private ReadEmbeddedResource()
-        {
-
-        }
-        private static ReadEmbeddedResource _singletonInstance = new ReadEmbeddedResource();
-        public static ReadEmbeddedResource GetInstance()
-        {
-            return _singletonInstance;
-        }
-        public async Task<Result> RunAsync(Context context)
+        public static async Task<Result<string>> ReadEmbeddedResourceAsync(EmbeddedResourceReadContext context)
         {
             try
             {
@@ -22,47 +13,40 @@ namespace Baubit.Resource
                 {
                     if (stream == null)
                     {
-                        throw new FileNotFoundException("Resource not found", context.FullyQualifiedResourceName);
+                        return Result.Fail(new ResourceNotFound());
                     }
 
                     using (StreamReader reader = new StreamReader(stream))
                     {
-                        var str = await reader.ReadToEndAsync();
-                        return new Result(true, str);
+                        return Result.Ok(await reader.ReadToEndAsync());
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception exp)
             {
-                return new Result(ex);
+                return Result.Fail(new ExceptionalError(exp));
             }
         }
+    }
 
-        public sealed class Context : IContext
+    public class EmbeddedResourceReadContext
+    {
+        public string FullyQualifiedResourceName { get; init; }
+        public Assembly Assembly { get; init; }
+
+        public EmbeddedResourceReadContext(string fullyQualifiedResourceName, Assembly assembly)
         {
-            public string FullyQualifiedResourceName { get; init; }
-            public Assembly Assembly { get; init; }
-
-            public Context(string fullyQualifiedResourceName, Assembly assembly)
-            {
-                FullyQualifiedResourceName = fullyQualifiedResourceName;
-                Assembly = assembly;
-            }
+            FullyQualifiedResourceName = fullyQualifiedResourceName;
+            Assembly = assembly;
         }
+    }
 
-        public sealed class Result : AResult<string>
-        {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
+    public class ResourceNotFound : IError
+    {
+        public List<IError> Reasons { get; }
 
-            public Result(bool? success, string? value) : base(success, value)
-            {
-            }
+        public string Message => "Resource not found !";
 
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
-        }
+        public Dictionary<string, object> Metadata { get; }
     }
 }

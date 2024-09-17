@@ -1,47 +1,27 @@
-﻿using Baubit.Operation;
+﻿using FluentResults;
 using Microsoft.Extensions.Configuration;
 
 namespace Baubit.Configuration
 {
-    public sealed class LoadFromJsonFile : IOperation<LoadFromJsonFile.Context, LoadFromJsonFile.Result>
+    public static partial class Operations
     {
-        private LoadFromJsonFile()
+        public static async Task<Result<IConfiguration>> LoadFromJsonFileAsync(ConfiguratonLoadContext context)
         {
-
-        }
-        private static LoadFromJsonFile _singletonInstance = new LoadFromJsonFile();
-        public static LoadFromJsonFile GetInstance()
-        {
-            return _singletonInstance;
-        }
-        public async Task<Result> RunAsync(Context context)
-        {
-            var configuration = new ConfigurationBuilder().AddJsonFile(context.JsonFilePath).Build();
-            return new Result(true, configuration);
-        }
-
-        public sealed class Context : IContext
-        {
-            public string JsonFilePath { get; init; }
-            public Context(string jsonFilePath)
+            return await Result.Try((Func<Task<IConfiguration>>)(async () =>
             {
-                JsonFilePath = jsonFilePath;
-            }
+                await Task.Yield();
+                return new ConfigurationBuilder().AddJsonFile(context.JsonFilePath).Build();
+            }));
         }
+    }
 
-        public sealed class Result : AResult<IConfiguration>
+    public class ConfiguratonLoadContext
+    {
+        public string JsonFilePath { get; init; }
+        public ConfiguratonLoadContext(string jsonFilePath)
         {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, IConfiguration? value) : base(success, value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
+            JsonFilePath = jsonFilePath;
         }
+
     }
 }

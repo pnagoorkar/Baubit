@@ -1,42 +1,73 @@
-﻿using Baubit.Operation;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Reflection;
 using FluentResults;
+using FluentResults.Extensions;
 
 namespace Baubit.Store
 {
-    public class DetermineAssemblyDependencies : IOperation<DetermineAssemblyDependencies.Context, DetermineAssemblyDependencies.Result>
+    public static partial class Operations
     {
-        private DetermineAssemblyDependencies()
-        {
-
-        }
-        private static DetermineAssemblyDependencies _singletonInstance = new DetermineAssemblyDependencies();
-        public static DetermineAssemblyDependencies GetInstance()
-        {
-            return _singletonInstance;
-        }
-        public async Task<Result> RunAsync(Context context)
+        public static async Task<Result<Package>> DetermineAssemblyDependenciesAsync(AssemblyDependencyDeterminationContext context)
         {
             try
             {
-                if (!TryReadCSProjTemplate(context, out var readResourceResult, out var result)) return result;
+                return await Resource.Operations.ReadEmbeddedResourceAsync(new Resource.EmbeddedResourceReadContext($"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt",
+                                                                                                                       Assembly.GetExecutingAssembly()))
+                                                .Bind(template => BuildCSProjFile(template, context))
+                                                .Bind(template => WriteCSProjectToFile(template, context))
+                                                .Bind(() => BuildProject(context))
+                                                .Bind(() => Configuration.Operations.LoadFromJsonFileAsync(new Configuration.ConfiguratonLoadContext(context.ProjectAssetsJsonFile)))
+                                                .Bind(configuration => BuildPackageFromProjectAssetsConfiguration(configuration, context));
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
 
-                string csProjTemplate = readResourceResult.Value
-                                                          .Replace("<TARGET_FRAMEWORK>", context.TargetFramework)
-                                                          .Replace("<PACKAGE_NAME>", context.AssemblyName.Name)
-                                                          .Replace("<PACKAGE_VERSION>", context.AssemblyName.Version.ToString());
+        private static Result<string> BuildCSProjFile(string template, AssemblyDependencyDeterminationContext context)
+        {
+            return Result.Try(() => template.Replace("<TARGET_FRAMEWORK>", context.TargetFramework)
+                                            .Replace("<PACKAGE_NAME>", context.AssemblyName.Name)
+                                            .Replace("<PACKAGE_VERSION>", context.AssemblyName.Version!.ToString()));
+        }
 
-                if (!TryCreateTempDirectory(context, out result)) return result;
+        private static Result WriteCSProjectToFile(string template, AssemblyDependencyDeterminationContext context)
+        {
+            return FileSystem.Operations
+                             .CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.PackageDeterminationWorkspace))
+                             .GetAwaiter()
+                             .GetResult()
+                             .Bind(() => Result.Try(() => File.WriteAllText(context.TempProjFileName, template)));
+        }
 
-                File.WriteAllText(context.TempProjFileName, csProjTemplate);
+        private static async Task<Result> BuildProject(AssemblyDependencyDeterminationContext context)
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "dotnet",
+                    Arguments = $"build {context.TempProjFileName} --configuration Debug --output {context.TempProjBuildOutputFolder}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                return await Process.Operations.RunProcessAsync(new Process.ProcessRunContext(startInfo, null, null));
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
 
-                if (!TryDotnetBuild(context, out result)) return result;
-
-                var projectAssets = new ConfigurationBuilder().AddJsonFile(context.ProjectAssetsJsonFile).Build();
-
-                var targetFrameworkTargets = projectAssets.GetSection("targets")
+        private static async Task<Result<Package>> BuildPackageFromProjectAssetsConfiguration(IConfiguration configuration, AssemblyDependencyDeterminationContext context)
+        {
+            try
+            {
+                var targetFrameworkTargets = configuration.GetSection("targets")
                                                           .GetChildren()
                                                           .FirstOrDefault(child => child.Key.Equals(context.TargetFramework));
 
@@ -45,109 +76,33 @@ namespace Baubit.Store
 
                 if (TryConvertingConfigSectionToPackage(rootAssemblyTarget, targetFrameworkTargets.GetChildren().ToArray(), out var package))
                 {
-                    return new Result(true, package);
+                    return Result.Ok(package);
                 }
                 else
                 {
-                    return new Result(false, "", null);
+                    return Result.Fail(new UnableToBuildPackageFromProjectAssetsJson());
                 }
             }
-            catch (Exception ex)
+            catch (Exception exp)
             {
-                return new Result(ex);
-            }
-            finally
-            {
-                //TryDeleteTempDirectory(context);
+                return Result.Fail(new ExceptionalError(exp));
             }
         }
 
-        private bool TryReadCSProjTemplate(Context context, out Resource.ReadEmbeddedResource.Result readResourceResult, out Result result)
-        {
-            result = null;
-            readResourceResult = Resource.Operations
-                             .ReadEmbeddedResource
-                             .RunAsync(new Resource.ReadEmbeddedResource.Context($"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt",
-                                                                                 Assembly.GetExecutingAssembly()))
-                             .GetAwaiter()
-                             .GetResult();
-            switch (readResourceResult.Success)
-            {
-                default:
-                    result = new Result(new Exception("", readResourceResult.Exception));
-                    break;
-                case false:
-                    result = new Result(false, "", readResourceResult);
-                    break;
-                case true: break;
-            }
-            return readResourceResult.Success == true;
-        }
-
-        private bool TryCreateTempDirectory(Context context, out Result result)
-        {
-            result = null;
-            var createDirectoryResult = FileSystem.Operations.CreateDirectory.RunAsync(new FileSystem.CreateDirectory.Context(context.PackageDeterminationWorkspace)).GetAwaiter().GetResult();
-            switch (createDirectoryResult.Success)
-            {
-                default:
-                    result = new Result(new Exception("", createDirectoryResult.Exception));
-                    break;
-                case false:
-                    result = new Result(false, "", createDirectoryResult);
-                    break;
-                case true: break;
-            }
-            return createDirectoryResult.Success == true;
-        }
-
-        private bool TryDeleteTempDirectory(Context context)
-        {
-            var deleteDirectoryResult = FileSystem.Operations
-                                                  .DeleteDirectory
-                                                  .RunAsync(new FileSystem.DeleteDirectory.Context(context.PackageDeterminationWorkspace, true))
-                                                  .GetAwaiter()
-                                                  .GetResult();
-            return deleteDirectoryResult.Success == true;
-        }
-
-        private bool TryDotnetBuild(Context context, out Result result)
-        {
-            result = null;
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"build {context.TempProjFileName} --configuration Debug --output {context.TempProjBuildOutputFolder}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            var runProcessResult = Process.Operations.RunProcess.RunAsync(new Process.RunProcess.Context(startInfo, null, null)).GetAwaiter().GetResult();
-            switch (runProcessResult.Success)
-            {
-                default:
-                    result = new Result(new Exception("", runProcessResult.Exception));
-                    break;
-                case false:
-                    result = new Result(false, "", runProcessResult);
-                    break;
-                case true: break;
-            }
-            return runProcessResult.Success == true;
-        }
-
-        public bool TryConvertingConfigSectionToPackage(IConfigurationSection rootConfigurationSection, 
-                                                        IConfigurationSection[] targetFrameworkTargets, 
-                                                        out Package package)
+        public static bool TryConvertingConfigSectionToPackage(IConfigurationSection rootConfigurationSection,
+                                                               IConfigurationSection[] targetFrameworkTargets,
+                                                               out Package package)
         {
             var keyParts = rootConfigurationSection.Key.Split('/');
+
             var dllRelativePath = rootConfigurationSection.GetChildren()
                                                       .FirstOrDefault(child => child.Key.Equals("runtime"))?
                                                       .GetChildren()
                                                       .FirstOrDefault()?
                                                       .Key;
+
             List<Package> dependencies = new List<Package>();
+
             foreach (var deps in rootConfigurationSection.GetSection("dependencies").GetChildren())
             {
                 var depConfigSection = targetFrameworkTargets.FirstOrDefault(child => child.Key.StartsWith($"{deps.Key}/", StringComparison.OrdinalIgnoreCase));
@@ -158,59 +113,10 @@ namespace Baubit.Store
             }
 
             package = new Package(new AssemblyName { Name = keyParts[0], Version = new Version(keyParts[1]) },
-                                  dllRelativePath, 
+                                  dllRelativePath,
                                   dependencies.ToArray());
 
             return true;
-        }
-
-        public sealed class Context : IContext
-        {
-            public AssemblyName AssemblyName { get; init; }
-            public string TargetFramework { get; init; }
-            public string PackageDeterminationWorkspace { get; init; }
-            public string TempProjFileName { get; init; }
-            public string TempProjBuildOutputFolder { get; init; }
-            public string ProjectAssetsJsonFile { get; init; }
-            public Context(AssemblyName assemblyName, string targetFramework)
-            {
-                AssemblyName = assemblyName;
-                TargetFramework = targetFramework;
-                PackageDeterminationWorkspace = Path.Combine(Path.GetTempPath(), $"PackageDeterminationWorkspace_{AssemblyName.Name}");
-                TempProjFileName = Path.Combine(PackageDeterminationWorkspace, $"TempProject_{AssemblyName.Name}.csproj");
-                TempProjBuildOutputFolder = Path.Combine(PackageDeterminationWorkspace, "release");
-                ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
-            }
-        }
-
-        public sealed class Result : AResult<Package>
-        {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, Package? value) : base(success, value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
-        }
-    }
-
-    public static partial class Operations
-    {
-        public async Task<Result<Package>> DetermineAssemblyDependenciesAsync(Context context)
-        {
-            try
-            {
-
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
         }
 
     }
@@ -232,5 +138,15 @@ namespace Baubit.Store
             TempProjBuildOutputFolder = Path.Combine(PackageDeterminationWorkspace, "release");
             ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
         }
+    }
+
+    public class UnableToBuildPackageFromProjectAssetsJson : IError
+    {
+        public List<IError> Reasons { get; }
+
+        public string Message => "Failed to build Package from project assets Json !";
+
+        public Dictionary<string, object> Metadata { get; }
+
     }
 }
