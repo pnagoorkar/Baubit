@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-using FluentResults;
-using FluentResults.Extensions;
+﻿using FluentResults;
 
 namespace Baubit.Store
 {
@@ -10,13 +8,9 @@ namespace Baubit.Store
         {
             try
             {
-                Application.BaubitStoreRegistryAccessor.WaitOne();
-
                 PackageRegistry registry = null;
 
-                var readResult = await FileSystem.Operations
-                                                 .ReadFileAsync(new FileSystem.FileReadContext(context.RegistryFilePath))
-                                                 .Bind(jsonString => Serialization.Operations<PackageRegistry>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry>(jsonString)));
+                var readResult = PackageRegistry.ReadFrom(context.RegistryFilePath);
 
                 if (readResult.IsSuccess)
                 {
@@ -51,16 +45,11 @@ namespace Baubit.Store
                     registry.Add(context.TargetFramework, packages);
                 }
 
-                return Result.Try(() => File.WriteAllText(context.RegistryFilePath, 
-                                                          JsonSerializer.Serialize(registry, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase)));
+                return registry.WriteTo(context.RegistryFilePath);
             }
             catch (Exception exp)
             {
                 return Result.Fail(new ExceptionalError(exp));
-            }
-            finally
-            {
-                Application.BaubitStoreRegistryAccessor.ReleaseMutex();
             }
 
         }

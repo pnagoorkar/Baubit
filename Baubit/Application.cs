@@ -22,8 +22,6 @@ namespace Baubit
         public static string TargetFramework { get; private set; }
         public static OSPlatform? OSPlatform { get; private set; }
 
-        internal static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
-
         static Application()
         {
             DetermineTargetFramework();

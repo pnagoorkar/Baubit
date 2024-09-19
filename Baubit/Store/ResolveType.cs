@@ -11,15 +11,76 @@ namespace Baubit.Store
             try
             {
                 await Task.Yield();
-                var type = Type.GetType(context.AssemblyQualifiedName, ResolveAssembly, (assembly, aqn, ignoreCase) => assembly.GetType(aqn, false, ignoreCase));
-                if (type != null)
+
+                Result<Assembly> searchAndLoadResult = null;
+
+                Func<AssemblyName, Assembly?> assemblyResolver = assemblyName =>
                 {
-                    return Result.Ok(type);
+                    searchAndLoadResult = SearchDownloadAndLoadAssembly(assemblyName).GetAwaiter().GetResult();
+
+                    return searchAndLoadResult.IsSuccess ? searchAndLoadResult.Value : null;
+                };
+
+                var type = Type.GetType(context.AssemblyQualifiedName, assemblyResolver, (assembly, aqn, ignoreCase) => assembly.GetType(aqn, false, ignoreCase));
+                if (type == null)
+                {
+                    return Result.Fail($"Unable to resolve type: {context.AssemblyQualifiedName}").WithReasons(searchAndLoadResult!.Reasons);
                 }
                 else
                 {
-                    return Result.Fail("");
+                    return Result.Ok(type).WithReasons(searchAndLoadResult!.Reasons);
                 }
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        private static async Task<Result<Assembly>> SearchDownloadAndLoadAssembly(AssemblyName assemblyName)
+        {
+            try
+            {
+                var result = new Result<Assembly>();
+                Package package = null;
+                var searchResult = await Store.Operations
+                                              .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework));
+
+                if (searchResult.IsSuccess)
+                {
+                    package = searchResult.Value;
+                    result.Reasons.Add(new AssemblyFoundInLocalStore());
+                }
+                else
+                {
+                    result.Reasons.Add(new AssemblyNotFoundInLocalStore());
+                    var downloadResult = await Store.Operations
+                                                    .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true));
+
+                    if (downloadResult.IsSuccess)
+                    {
+                        package = downloadResult.Value;
+                        result.Reasons.Add(new AssemblyDownlodedToLocalStore());
+                    }
+                    else
+                    {
+                        result.Reasons.Add(new AssemblyCouldNotBeDownloaded());
+                    }
+                }
+                if (package == null)
+                {
+                    result = result.WithError("");
+                }
+                else
+                {
+                    var loadResult = await Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default));
+                    if (loadResult.IsSuccess)
+                    {
+                        result = result.WithSuccess("").WithValue(loadResult.Value);
+                    }
+                }
+
+                return result;
             }
             catch (Exception exp)
             {
@@ -72,5 +133,33 @@ namespace Baubit.Store
         {
             AssemblyQualifiedName = assemblyQualifiedName;
         }
+    }
+
+    public class AssemblyFoundInLocalStore : IReason
+    {
+        public string Message { get => "Assembly found in local store !"; }
+
+        public Dictionary<string, object> Metadata { get; }
+    }
+
+    public class AssemblyDownlodedToLocalStore : IReason
+    {
+        public string Message { get => "Assembly downloaded to local store !"; }
+
+        public Dictionary<string, object> Metadata { get; }
+    }
+
+    public class AssemblyNotFoundInLocalStore : IReason
+    {
+        public string Message { get => "Assembly not found in local store !"; }
+
+        public Dictionary<string, object> Metadata { get; }
+    }
+
+    public class AssemblyCouldNotBeDownloaded : IReason
+    {
+        public string Message { get => "Assembly could not be downloaded local store !"; }
+
+        public Dictionary<string, object> Metadata { get; }
     }
 }

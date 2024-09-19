@@ -11,19 +11,12 @@ namespace Baubit.Store
         {
             try
             {
-                Application.BaubitStoreRegistryAccessor.WaitOne();
-                return await FileSystem.Operations
-                                       .ReadFileAsync(new FileSystem.FileReadContext(context.RegistryFilePath))
-                                       .Bind(jsonString => Serialization.Operations<PackageRegistry>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry>(jsonString)))
-                                       .Bind(registry => FindPackageInRegistry(registry, context));
+                await Task.Yield();
+                return PackageRegistry.ReadFrom(context.RegistryFilePath).Bind(registry => FindPackageInRegistry(registry, context));
             }
             catch (Exception exp)
             {
                 return Result.Fail(new ExceptionalError(exp));
-            }
-            finally
-            {
-                Application.BaubitStoreRegistryAccessor.ReleaseMutex();
             }
         }
 
