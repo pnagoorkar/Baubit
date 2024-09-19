@@ -43,6 +43,13 @@ namespace Baubit.Store
             {
                 var result = new Result<Assembly>();
 
+                //when assemblies are packaged along with the executable, versions are bound to be null.
+                //it may be assumed that the sought dll is in the current directory, but check before loading
+                if (assemblyName.Version == null && File.Exists(Path.Combine(Environment.CurrentDirectory, $"{assemblyName.Name}.dll")))
+                {
+                    var loadFromCWDResult = Result.Try(() => AssemblyLoadContext.Default.LoadFromAssemblyName(assemblyName));
+                }                
+
                 var existing = AssemblyLoadContext.Default
                                                   .Assemblies
                                                   .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
