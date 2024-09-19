@@ -16,12 +16,6 @@ namespace Baubit.Store
 
                 Func<AssemblyName, Assembly?> assemblyResolver = assemblyName =>
                 {
-                    var existing = AssemblyLoadContext.Default
-                                                      .Assemblies
-                                                      .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
-
-                    if (existing != null) return existing;
-
                     searchAndLoadResult = SearchDownloadAndLoadAssembly(assemblyName).GetAwaiter().GetResult();
 
                     return searchAndLoadResult.IsSuccess ? searchAndLoadResult.Value : null;
@@ -48,43 +42,54 @@ namespace Baubit.Store
             try
             {
                 var result = new Result<Assembly>();
-                Package package = null;
-                var searchResult = await Store.Operations
-                                              .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework));
 
-                if (searchResult.IsSuccess)
+                var existing = AssemblyLoadContext.Default
+                                                  .Assemblies
+                                                  .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
                 {
-                    package = searchResult.Value;
-                    result.Reasons.Add(new AssemblyFoundInLocalStore());
-                }
-                else
-                {
-                    result.Reasons.Add(new AssemblyNotFoundInLocalStore());
-                    var downloadResult = await Store.Operations
-                                                    .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true));
+                    Package package = null;
+                    var searchResult = await Store.Operations
+                                                  .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework));
 
-                    if (downloadResult.IsSuccess)
+                    if (searchResult.IsSuccess)
                     {
-                        package = downloadResult.Value;
-                        result.Reasons.Add(new AssemblyDownlodedToLocalStore());
+                        package = searchResult.Value;
+                        result.Reasons.Add(new AssemblyFoundInLocalStore());
                     }
                     else
                     {
-                        result.Reasons.Add(new AssemblyCouldNotBeDownloaded());
+                        result.Reasons.Add(new AssemblyNotFoundInLocalStore());
+                        var downloadResult = await Store.Operations
+                                                        .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true));
+
+                        if (downloadResult.IsSuccess)
+                        {
+                            package = downloadResult.Value;
+                            result.Reasons.Add(new AssemblyDownlodedToLocalStore());
+                        }
+                        else
+                        {
+                            result.Reasons.Add(new AssemblyCouldNotBeDownloaded());
+                        }
                     }
-                }
-                if (package == null)
-                {
-                    result = result.WithError("");
+                    if (package == null)
+                    {
+                        result = result.WithError("");
+                    }
+                    else
+                    {
+                        var loadResult = await Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default));
+                        if (loadResult.IsSuccess)
+                        {
+                            result = result.WithSuccess("").WithValue(loadResult.Value);
+                        }
+                    }
                 }
                 else
                 {
-                    var loadResult = await Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default));
-                    if (loadResult.IsSuccess)
-                    {
-                        result = result.WithSuccess("").WithValue(loadResult.Value);
-                    }
-                }
+                    result = result.WithSuccess("").WithValue(existing).WithReason(new AssemblyFoundLoadedInDefaultAssemblyLoadContext());
+                }                
 
                 return result;
             }
@@ -139,6 +144,13 @@ namespace Baubit.Store
         {
             AssemblyQualifiedName = assemblyQualifiedName;
         }
+    }
+
+    public class AssemblyFoundLoadedInDefaultAssemblyLoadContext : IReason
+    {
+        public string Message { get => "Assembly found loaded in default AssemblyLoadContext !"; }
+
+        public Dictionary<string, object> Metadata { get; }
     }
 
     public class AssemblyFoundInLocalStore : IReason
