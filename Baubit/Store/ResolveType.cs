@@ -16,6 +16,12 @@ namespace Baubit.Store
 
                 Func<AssemblyName, Assembly?> assemblyResolver = assemblyName =>
                 {
+                    var existing = AssemblyLoadContext.Default
+                                                      .Assemblies
+                                                      .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
+
+                    if (existing != null) return existing;
+
                     searchAndLoadResult = SearchDownloadAndLoadAssembly(assemblyName).GetAwaiter().GetResult();
 
                     return searchAndLoadResult.IsSuccess ? searchAndLoadResult.Value : null;
