@@ -18,15 +18,14 @@ namespace Baubit.Test.Store.Operations.DownloadPackage
                                    $"{assemblyName.Name}.dll");
 
             if (Directory.Exists(packageRoot)) Directory.Delete(packageRoot, true);
-            
+
             var downloadResult = await Baubit.Store
                                             .Operations
-                                            .DownloadPackage
-                                            .RunAsync(new Baubit.Store.DownloadPackage.Context(assemblyName, 
-                                                                                              Application.TargetFramework, 
-                                                                                              Application.BaubitRootPath));
-            Assert.True(downloadResult.Success);
-            Assert.Contains(downloadResult.Value, val => val.EndsWith($"{assemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase));
+                                            .DownloadPackageAsync(new Baubit.Store.PackageDownloadContext(assemblyName,
+                                                                                                          Application.TargetFramework,
+                                                                                                          Application.BaubitRootPath));
+            Assert.True(downloadResult.IsSuccess);
+            Assert.EndsWith(downloadResult.Value.AssemblyName.Name, $"{assemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

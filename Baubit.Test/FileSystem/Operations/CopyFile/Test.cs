@@ -1,17 +1,21 @@
-﻿namespace Baubit.Test.FileSystem.Operations.CopyFile
+﻿using FluentResults;
+
+namespace Baubit.Test.FileSystem.Operations.CopyFile
 {
     public class Test
     {
         [Fact]
-        public async void SuccessfulCopyResultsInASuccessfulResult()
+        public async void CanCopyFiles()
         {
             string fileName = "SomeFile.txt";
             string fileContents = "Some random content";
             File.WriteAllText(fileName, fileContents);
             Assert.True(File.Exists(fileName));
+
             var destination = Path.Combine(Environment.CurrentDirectory, "CopyFileSubFolder", fileName);
-            var copyResult = await Baubit.FileSystem.Operations.CopyFile.RunAsync(new Baubit.FileSystem.CopyFile.Context(fileName, destination, true));
-            Assert.True(copyResult.Success);
+            var copyResult = await Baubit.FileSystem.Operations.CopyFileAsync(new Baubit.FileSystem.FileCopyContext(fileName, destination, true));
+
+            Assert.True(copyResult.IsSuccess);
             Assert.True(File.Exists(destination));
         }
         [Fact]
@@ -27,10 +31,10 @@
 
             if (Directory.Exists(destinationDirectory)) Directory.Delete(destinationDirectory, true);
 
-            var copyResult = await Baubit.FileSystem.Operations.CopyFile.RunAsync(new Baubit.FileSystem.CopyFile.Context(fileName, destination, true, false));
+            var copyResult = await Baubit.FileSystem.Operations.CopyFileAsync(new Baubit.FileSystem.FileCopyContext(fileName, destination, true));
 
-            Assert.Null(copyResult.Success);
-            Assert.IsType<DirectoryNotFoundException>(copyResult.Exception);
+            Assert.False(copyResult.IsSuccess);
+            Assert.Contains(copyResult.Errors, error => error is ExceptionalError expError && expError.Exception is DirectoryNotFoundException);
         }
     }
 }

@@ -9,7 +9,5 @@ namespace Baubit.Serialization
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
-        public static DeserializeXMLFromFile<T> DeserializeXMLFromFile = DeserializeXMLFromFile<T>.GetInstance();
-        public static DeserializeXMLString<T> DeserializeXMLString = DeserializeXMLString<T>.GetInstance();
     }
 }

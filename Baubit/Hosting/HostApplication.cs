@@ -14,7 +14,7 @@ namespace Baubit.Hosting
             {
                 var hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(context.HostApplicationBuilderSettings);
                 hostApplicationBuilder.Configuration.AddConfiguration(context.Configuration!);
-                var serviceProviderMetaFactoryConcreteType = Type.GetType(context.ServiceProviderMetaFactoryType!);
+                var serviceProviderMetaFactoryConcreteType = Type.GetType(context.ServiceProviderFactoryRegistrarType!);
                 var serviceProviderMetaFactory = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
                 serviceProviderMetaFactory.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
                 var host = hostApplicationBuilder.Build();
@@ -31,7 +31,7 @@ namespace Baubit.Hosting
 
     public class ApplicationHostingContext
     {
-        public string ServiceProviderMetaFactoryType { get; init; }
+        public string ServiceProviderFactoryRegistrarType { get; init; }
         public HostApplicationBuilderSettings HostApplicationBuilderSettings { get; init; }
         public MetaConfiguration AppConfiguration { get; init; }
         public IConfiguration? Configuration { get => AppConfiguration?.Load(); }

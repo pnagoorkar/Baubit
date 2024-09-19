@@ -87,8 +87,6 @@ namespace Baubit
 
         }
 
-        private static AssemblyLoadContext AppALC = new AssemblyLoadContext("AppALC");
-
         private static Assembly? ResolveAssembly(AssemblyName assemblyName)
         {
             Package package = null;
@@ -116,7 +114,7 @@ namespace Baubit
             {
                 return null;
             }
-            var loadResult = Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AppALC)).GetAwaiter().GetResult();
+            var loadResult = Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default)).GetAwaiter().GetResult();
             if (loadResult.IsSuccess)
             {
                 return loadResult.Value;

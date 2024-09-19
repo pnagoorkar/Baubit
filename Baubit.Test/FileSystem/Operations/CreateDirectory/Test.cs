@@ -6,8 +6,8 @@
         public async void SuccessfulCreateResultsInASuccessfulResult()
         {
             var path = Path.Combine(Environment.CurrentDirectory, "Subfolder");
-            var createResult = await Baubit.FileSystem.Operations.CreateDirectory.RunAsync(new Baubit.FileSystem.CreateDirectory.Context(path));
-            Assert.True(createResult.Success);
+            var createResult = await Baubit.FileSystem.Operations.CreateDirectoryAsync(new Baubit.FileSystem.DirectoryCreateContext(path));
+            Assert.True(createResult.IsSuccess);
         }
     }
 }

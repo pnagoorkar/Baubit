@@ -1,5 +1,4 @@
-﻿using Baubit.Operation;
-using FluentResults;
+﻿using FluentResults;
 
 namespace Baubit.FileSystem
 {
@@ -11,7 +10,7 @@ namespace Baubit.FileSystem
         }
     }
 
-    public class FileReadContext : IContext
+    public class FileReadContext 
     {
         public string Path { get; init; }
         public FileReadContext(string path)
