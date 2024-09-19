@@ -3,6 +3,7 @@ using System.Reflection;
 
 namespace Baubit.Test.CLI.Host
 {
+    [Trait("Runtime", "Shared")]
     public class Test
     {
         //private static string baubitExe = string.Empty;

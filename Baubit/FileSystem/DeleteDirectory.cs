@@ -1,56 +1,38 @@
-﻿using Baubit.Operation;
-using static Baubit.FileSystem.DeleteDirectory;
+﻿using FluentResults;
 
 namespace Baubit.FileSystem
 {
-    public sealed class DeleteDirectory : IOperation<Context, Result>
+    public static partial class Operations
     {
-        private DeleteDirectory()
+        public static async Task<Result> DeleteDirectoryAsync(DirectoryDeleteContext context)
         {
-
-        }
-        private static DeleteDirectory _singletonInstance = new DeleteDirectory();
-        public static DeleteDirectory GetInstance()
-        {
-            return _singletonInstance;
-        }
-        public async Task<Result> RunAsync(Context context)
-        {
-            try
+            return await Result.Try((Func<Task>)(async () =>
             {
+                await Task.Yield();
                 Directory.Delete(context.Path, context.Recursive);
-                return new Result(true, null);
-            }
-            catch (Exception ex)
-            {
-                return new Result(ex);
-            }
+            }));
         }
-
-        public sealed class Context : IContext
+        public static async Task<Result> DeleteDirectoryIfExistsAsync(DirectoryDeleteContext context)
         {
-            public string Path { get; init; }
-            public bool Recursive { get; init; }
-            public Context(string path, bool recursive)
+            return await Result.Try((Func<Task>)(async () =>
             {
-                Path = path;
-                Recursive = recursive;
-            }
+                await Task.Yield();
+                if (Directory.Exists(context.Path))
+                {
+                    Directory.Delete(context.Path, context.Recursive);
+                }
+            }));
         }
+    }
 
-        public sealed class Result : AResult
+    public class DirectoryDeleteContext
+    {
+        public string Path { get; init; }
+        public bool Recursive { get; init; }
+        public DirectoryDeleteContext(string path, bool recursive)
         {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, object? value) : base(success, value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
+            Path = path;
+            Recursive = recursive;
         }
     }
 }

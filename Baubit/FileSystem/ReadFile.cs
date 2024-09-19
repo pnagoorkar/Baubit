@@ -1,53 +1,41 @@
-﻿using Baubit.Operation;
+﻿using FluentResults;
 
 namespace Baubit.FileSystem
 {
-    public class ReadFile : IOperation<ReadFile.Context, ReadFile.Result>
+    public static partial class Operations
     {
-        private ReadFile()
+        public static async Task<Result<string>> ReadFileAsync(FileReadContext context)
         {
-
+            if (!File.Exists(context.Path))
+            {
+                return Result.Fail(new FileDoesNotExist(context));
+            }
+            return await Result.Try(() => File.ReadAllTextAsync(context.Path));
         }
-        private static ReadFile _singletonInstance = new ReadFile();
-        public static ReadFile GetInstance()
+    }
+
+    public class FileReadContext
+    {
+        public string Path { get; init; }
+        public FileReadContext(string path)
         {
-            return _singletonInstance;
+            Path = path;
         }
-        public async Task<Result> RunAsync(Context context)
+    }
+
+    public class FileDoesNotExist : IError
+    {
+        public List<IError> Reasons { get; }
+
+        public string Message { get; } = "File does not exist !";
+
+        public Dictionary<string, object> Metadata { get; }
+
+        public FileReadContext FileReadContext { get; init; }
+
+        public FileDoesNotExist(FileReadContext fileReadContext)
         {
-            try
-            {
-                var fileContents = await File.ReadAllTextAsync(context.Path);
-                return new Result(true, fileContents);
-            }
-            catch (Exception ex)
-            {
-                return new Result(ex);
-            }
-        }
-
-        public sealed class Context : IContext
-        {
-            public string Path { get; init; }
-            public Context(string path)
-            {
-                Path = path;
-            }
-        }
-
-        public sealed class Result : AResult<string>
-        {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, string? value) : base(success, value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
+            FileReadContext  = fileReadContext;
         }
     }
 }

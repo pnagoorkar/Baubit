@@ -1,69 +1,44 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI;
-using Baubit.Operation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using FluentResults;
 
 namespace Baubit.Hosting
 {
-    public class HostApplication : IOperation<HostApplication.Context, HostApplication.Result>
+    public static partial class Operations
     {
-        private HostApplication()
-        {
-
-        }
-        private static HostApplication _singletonInstance = new HostApplication();
-        public static HostApplication GetInstance()
-        {
-            return _singletonInstance;
-        }
-
-        public async Task<Result> RunAsync(Context context)
+        public static async Task<Result> HostApplicationAsync(ApplicationHostingContext context)
         {
             try
             {
                 var hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(context.HostApplicationBuilderSettings);
                 hostApplicationBuilder.Configuration.AddConfiguration(context.Configuration!);
-                var serviceProviderMetaFactoryConcreteType = Type.GetType(context.ServiceProviderMetaFactoryType!);
-                var serviceProviderMetaFactory = (IServiceProviderMetaFactory)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
+                var serviceProviderMetaFactoryConcreteType = Type.GetType(context.ServiceProviderFactoryRegistrarType!);
+                var serviceProviderMetaFactory = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
                 serviceProviderMetaFactory.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
                 var host = hostApplicationBuilder.Build();
                 await host.RunAsync();
 
-                return new Result(true, null);
+                return Result.Ok();
             }
             catch (Exception exp)
             {
-                return new Result(exp);
+                return Result.Fail(new ExceptionalError(exp));
             }
         }
+    }
 
-        public sealed class Context : IContext
+    public class ApplicationHostingContext
+    {
+        public string ServiceProviderFactoryRegistrarType { get; init; }
+        public HostApplicationBuilderSettings HostApplicationBuilderSettings { get; init; }
+        public MetaConfiguration AppConfiguration { get; init; }
+        public IConfiguration? Configuration { get => AppConfiguration?.Load(); }
+
+        public ApplicationHostingContext(HostApplicationBuilderSettings hostApplicationBuilderSettings)
         {
-            public string ServiceProviderMetaFactoryType { get; init; }
-            public HostApplicationBuilderSettings HostApplicationBuilderSettings { get; init; }
-            public MetaConfiguration AppConfiguration { get; init; }
-            public IConfiguration? Configuration { get => AppConfiguration?.Load(); }
-
-            public Context(HostApplicationBuilderSettings hostApplicationBuilderSettings)
-            {
-                HostApplicationBuilderSettings = hostApplicationBuilderSettings;
-            }
-        }
-
-        public sealed class Result : AResult
-        {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, object? value) : base(success, value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
+            HostApplicationBuilderSettings = hostApplicationBuilderSettings;
         }
     }
 }

@@ -1,15 +1,37 @@
-﻿namespace Baubit.Test.Store.Operations.LoadAssembly
+﻿using Baubit.Store;
+using FluentResults.Extensions;
+using System.Reflection;
+using System.Runtime.Loader;
+using Xunit.Abstractions;
+
+namespace Baubit.Test.Store.Operations.LoadAssembly
 {
+    [Trait("TestName", nameof(Baubit.Test.Store.Operations.LoadAssembly))]
     public class Test
     {
-        [Theory]
-        //[InlineData("Autofac.Configuration.ConfigurationModule, Autofac.Configuration, Version=7.0.0")]
-        [InlineData("Autofac.Module, Autofac, Version=8.1.0")]
-        public async void CanLoadAssembliesDynamically(string typeName)
+        private ITestOutputHelper testOutputHelper;
+        public Test(ITestOutputHelper testOutputHelper)
         {
-            var x = Application.TargetFramework; // initializing the application for handling assembly resolution event
-            var type = Type.GetType(typeName);
-            Assert.NotNull(type);
+            this.testOutputHelper = testOutputHelper;
+        }
+        [Fact]
+        public async void CanLoadAssembliesDynamically()
+        {
+            var assemblyName = new AssemblyName { Name = "Autofac.Configuration", Version = new Version("7.0.0") };
+
+            var loadResult = await Baubit.FileSystem
+                                             .Operations
+                                             .DeleteDirectoryIfExistsAsync(new Baubit.FileSystem.DirectoryDeleteContext(Application.BaubitRootPath, true))
+                                             .Bind(() => Baubit.Store
+                                                               .Operations
+                                                               .DownloadPackageAsync(new Baubit.Store.PackageDownloadContext(assemblyName,
+                                                                                                                             Application.TargetFramework,
+                                                                                                                             Application.BaubitRootPath, true)))
+                                             .Bind(package => Baubit.Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default)));
+
+            Assert.True(loadResult.IsSuccess);
+            Assert.NotNull(loadResult.Value);
+            Assert.Contains(loadResult.Value.ExportedTypes, type => type.AssemblyQualifiedName!.Contains("Autofac.Configuration.ConfigurationModule"));
         }
     }
 }

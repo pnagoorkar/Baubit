@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using FluentResults;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -6,7 +7,49 @@ namespace Baubit.Store
 {
     public class PackageRegistry : Dictionary<string, List<Package>>
     {
+        static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
 
+        public static Result<PackageRegistry> ReadFrom(string filePath)
+        {
+            try
+            {
+                BaubitStoreRegistryAccessor.WaitOne();
+                return FileSystem.Operations
+                                 .ReadFileAsync(new FileSystem.FileReadContext(filePath))
+                                 .GetAwaiter()
+                                 .GetResult()
+                                 .Bind(jsonString => Serialization.Operations<PackageRegistry>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry>(jsonString)))
+                                 .GetAwaiter()
+                                 .GetResult();
+
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+            finally
+            {
+                BaubitStoreRegistryAccessor.ReleaseMutex();
+            }
+        }
+
+        public Result WriteTo(string filePath)
+        {
+            try
+            {
+                BaubitStoreRegistryAccessor.WaitOne();
+                File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+            finally
+            {
+                BaubitStoreRegistryAccessor.ReleaseMutex();
+            }
+        }
     }
     public record Package
     {

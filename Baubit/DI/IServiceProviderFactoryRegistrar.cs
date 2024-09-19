@@ -2,7 +2,7 @@
 
 namespace Baubit.DI
 {
-    public interface IServiceProviderMetaFactory
+    public interface IServiceProviderFactoryRegistrar
     {
         public IHostApplicationBuilder UseConfiguredServiceProviderFactory(IHostApplicationBuilder hostApplicationBuilder);
     }

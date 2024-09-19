@@ -1,7 +1,5 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Loader;
-using System.Text.Json;
 
 namespace Baubit
 {
@@ -24,24 +22,10 @@ namespace Baubit
         public static string TargetFramework { get; private set; }
         public static OSPlatform? OSPlatform { get; private set; }
 
-        internal static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
-
-        public static JsonSerializerOptions IndentedJsonWithCamelCase = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
         static Application()
         {
-            AssemblyLoadContext.Default.Resolving += Default_Resolving;
             DetermineTargetFramework();
             DetermineOSPlatform();
-        }
-
-        public static void Initialize()
-        {
-
         }
 
         private static void DetermineTargetFramework()
@@ -69,57 +53,6 @@ namespace Baubit
             {
                 OSPlatform = null;
             }
-        }
-
-        static void Main(string[] args)
-        {
-            args = ["host", @"C:\Users\prash\Baubit\BaubitCli\hostSettings.json"];
-            var result = CLI.Operations.CLIOperation.RunAsync(new CLI.CLIOperation.Context(args)).GetAwaiter().GetResult();
-            Environment.Exit(result.Success == true ? 0 : 1);
-        }
-
-        private static List<BaubitAssemblyLoadContext> baubitAssemblyLoadContexts = new List<BaubitAssemblyLoadContext>();
-        private static Assembly? Default_Resolving(AssemblyLoadContext context, AssemblyName assemblyName)
-        {
-            if (assemblyName.Name.Equals(nameof(Baubit))) return Assembly.GetExecutingAssembly();
-
-            //var target = baubitAssemblyLoadContexts.FirstOrDefault(c => c.Assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) &&
-            //                                                            c.Assembly.GetName().Version.Equals(assemblyName.Version));
-
-            //if (target != null)
-            //{
-            //    return target.Assembly;
-            //}
-            //else
-            //{
-            //    var ctxt = new BaubitAssemblyLoadContext();
-            //    ctxt.LoadFromAssemblyPath("");
-            //}
-
-            var currentAssembly = AppDomain.CurrentDomain
-                                       .GetAssemblies()
-                                       .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) &&
-                                                                   assembly.GetName().Version >= assemblyName.Version);
-            
-            if (currentAssembly != null) return currentAssembly;
-
-            var loadResult = Store.Operations
-                                  .LoadAssembly
-                                  .RunAsync(new Store.LoadAssembly.Context(assemblyName, Application.TargetFramework, true))
-                                  .GetAwaiter()
-                                  .GetResult();
-            return loadResult.Value;
-        }
-    }
-    public class BaubitAssemblyLoadContext : AssemblyLoadContext
-    {
-        public Assembly Assembly { get; private set; }
-        public BaubitAssemblyLoadContext() : base(isCollectible: true) { }
-
-        protected override Assembly Load(AssemblyName assemblyName)
-        {
-            // Custom logic to resolve assemblies
-            return null;
         }
     }
 }
