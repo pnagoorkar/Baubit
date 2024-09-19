@@ -3,7 +3,7 @@
     public class Test
     {
         [Fact]
-        public async void SuccessfulCreateResultsInASuccessfulResult()
+        public async void CanCreateDirectories()
         {
             var path = Path.Combine(Environment.CurrentDirectory, "Subfolder");
             var createResult = await Baubit.FileSystem.Operations.CreateDirectoryAsync(new Baubit.FileSystem.DirectoryCreateContext(path));

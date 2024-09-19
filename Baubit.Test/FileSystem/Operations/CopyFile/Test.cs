@@ -1,4 +1,5 @@
 ﻿using FluentResults;
+using FluentResults.Extensions;
 
 namespace Baubit.Test.FileSystem.Operations.CopyFile
 {
@@ -12,12 +13,19 @@ namespace Baubit.Test.FileSystem.Operations.CopyFile
             File.WriteAllText(fileName, fileContents);
             Assert.True(File.Exists(fileName));
 
-            var destination = Path.Combine(Environment.CurrentDirectory, "CopyFileSubFolder", fileName);
-            var copyResult = await Baubit.FileSystem.Operations.CopyFileAsync(new Baubit.FileSystem.FileCopyContext(fileName, destination, true));
+            var destinationDirectory = Path.Combine(Environment.CurrentDirectory, "CopyFileSubFolder");
+
+            var destinationFile = Path.Combine(destinationDirectory, fileName);
+
+            var copyResult = await Baubit.FileSystem
+                                         .Operations.DeleteDirectoryIfExistsAsync(new Baubit.FileSystem.DirectoryDeleteContext(destinationDirectory, true))
+                                         .Bind(() => Baubit.FileSystem.Operations.CreateDirectoryAsync(new Baubit.FileSystem.DirectoryCreateContext(destinationDirectory)))
+                                         .Bind(() => Baubit.FileSystem.Operations.CopyFileAsync(new Baubit.FileSystem.FileCopyContext(fileName, destinationFile, true)));
 
             Assert.True(copyResult.IsSuccess);
-            Assert.True(File.Exists(destination));
+            Assert.True(File.Exists(destinationFile));
         }
+
         [Fact]
         public async void HandlesExceptionsGracefully()
         {

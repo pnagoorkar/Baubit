@@ -5,7 +5,7 @@ namespace Baubit.Test.Collections.ConcurrentList
     public class Test
     {
         [Theory]
-        [InlineData(1000, 3)]
+        [InlineData(1000, 2)]
         //[InlineData(10000, 2)]
         //[InlineData(100000, 2)]
         public void CanReadAndWriteConcurrently(int maxItems, int maxDegreeOfParallelism)

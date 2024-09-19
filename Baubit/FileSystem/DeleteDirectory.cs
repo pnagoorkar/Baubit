@@ -9,6 +9,14 @@ namespace Baubit.FileSystem
             return await Result.Try((Func<Task>)(async () =>
             {
                 await Task.Yield();
+                Directory.Delete(context.Path, context.Recursive);
+            }));
+        }
+        public static async Task<Result> DeleteDirectoryIfExistsAsync(DirectoryDeleteContext context)
+        {
+            return await Result.Try((Func<Task>)(async () =>
+            {
+                await Task.Yield();
                 if (Directory.Exists(context.Path))
                 {
                     Directory.Delete(context.Path, context.Recursive);

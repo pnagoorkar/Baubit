@@ -11,7 +11,8 @@ namespace Baubit.Store
     {
         public static async Task<Result<Package>> DownloadPackageAsync(PackageDownloadContext context)
         {
-            return await FileSystem.Operations.DeleteDirectoryRecursivelyAndRecreateAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath), true)
+            return await FileSystem.Operations.DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.TempDownloadPath, true))
+                                              .Bind(() => FileSystem.Operations.CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath)))
                                               .Bind(() => TryBuildNugetInstallCommand(context))
                                               .Bind(startInfo => TryDownloadNugetPackage(startInfo, context))
                                               .Bind(nugetPackageFile => Compression.Operations
@@ -20,6 +21,7 @@ namespace Baubit.Store
                                                                                                                                           entry => entry.FullName.EndsWith($"{context.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
                                                                                                                                           overwrite: true)))
                                               .Bind(dllFiles => Store.Operations.DetermineAssemblyDependenciesAsync(new AssemblyDependencyDeterminationContext(context.AssemblyName, context.TargetFramework)))
+                                              .Bind(package => DownloadDepenciesIfConfigured(package, context))
                                               .Bind(package => Store.Operations.AddToRegistryAsync(new RegistryAddContext(Application.BaubitPackageRegistry, package, context.TargetFramework))
                                               .Bind(() => Result.Try((Func<Task<Package>>)(async () => { await Task.Yield(); return package; }))));
         }
@@ -72,10 +74,12 @@ namespace Baubit.Store
                 var errorDataHandler = new DataReceivedEventHandler((sender, e) => { tempProcessErrorMessage = string.Concat(tempProcessErrorMessage, e.Data); });
 
                 var runProcessContext = new Process.ProcessRunContext(processStartInfo, outputDataHandler, errorDataHandler);
-                return await Process.Operations
-                                    .RunProcessAsync(runProcessContext)
-                                    .Bind(() => ExtractDownloadFolderPathFromProcessOutput(tempProcessOutputLine))
-                                    .Bind(downloadedFolder => Result.Try(() => Path.Combine(context.TempDownloadPath, downloadedFolder, $"{downloadedFolder}.nupkg")));
+                return await FileSystem.Operations
+                                       .DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.TempDownloadPath, true))
+                                       .Bind(() => Process.Operations
+                                       .RunProcessAsync(runProcessContext)
+                                       .Bind(() => ExtractDownloadFolderPathFromProcessOutput(tempProcessOutputLine))
+                                       .Bind(downloadedFolder => Result.Try(() => Path.Combine(context.TempDownloadPath, downloadedFolder, $"{downloadedFolder}.nupkg"))));
             }
             catch (Exception exp)
             {
@@ -88,6 +92,37 @@ namespace Baubit.Store
             return await Regex.Operations.ExtractAsync(new Regex.RegexExtractContext(output, PackageDownloadContext.AddedPackageLinePattern))
                                          .Bind(values => Result.Try(() => values.Skip(1).First()));
         }
+
+        private static async Task<Result<Package>> DownloadDepenciesIfConfigured(Package package, PackageDownloadContext context)
+        {
+            try
+            {
+                if (context.DownloadDependencies)
+                {
+                    foreach (var dependency in package.Dependencies)
+                    {
+                        if (File.Exists(dependency.DllFile))
+                        {
+                            continue;
+                        }
+                        var dependencyContext = new PackageDownloadContext(dependency.AssemblyName, context.TargetFramework, context.TargetFolder, context.DownloadDependencies);
+
+                        await TryBuildNugetInstallCommand(dependencyContext).Bind(startInfo => TryDownloadNugetPackage(startInfo, dependencyContext))
+                                                                            .Bind(nugetPackageFile => Compression.Operations
+                                                                            .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
+                                                                                                                                   Path.Combine(dependencyContext.TargetFolder, dependencyContext.AssemblyName.Name, dependencyContext.AssemblyName.Version.ToString()),
+                                                                                                                                   entry => entry.FullName.EndsWith($"{dependencyContext.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
+                                                                                                                                   overwrite: true)))
+                                                                            .Bind(dllFiles => DownloadDepenciesIfConfigured(dependency, dependencyContext));
+                    }
+                }
+                return Result.Ok(package);
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
     }
 
     public class PackageDownloadContext
@@ -96,13 +131,15 @@ namespace Baubit.Store
         public string TargetFramework { get; init; }
         public string TargetFolder { get; init; }
         public string TempDownloadPath { get; init; }
+        public bool DownloadDependencies { get; init; }
         public const string AddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
 
-        public PackageDownloadContext(AssemblyName assemblyName, string targetFramework, string targetFolder)
+        public PackageDownloadContext(AssemblyName assemblyName, string targetFramework, string targetFolder, bool downloadDependencies)
         {
             AssemblyName = assemblyName;
             TargetFramework = targetFramework;
             TargetFolder = targetFolder;
+            DownloadDependencies = downloadDependencies;
             TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
         }
     }

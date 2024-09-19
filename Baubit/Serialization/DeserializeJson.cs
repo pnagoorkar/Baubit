@@ -1,5 +1,4 @@
-﻿using Baubit.Store;
-using FluentResults;
+﻿using FluentResults;
 using System.Text.Json;
 
 namespace Baubit.Serialization
@@ -8,10 +7,10 @@ namespace Baubit.Serialization
     {
         public static async Task<Result<T>> DeserializeJson(JsonDeserializationContext<T> context)
         {
-            return await Result.Try((Func<Task>)(async () => 
+            return await Result.Try((Func<Task<T>>)(async () => 
             { 
                 await Task.Yield(); 
-                JsonSerializer.Deserialize<PackageRegistry>(context.JsonString, Operations<T>.IndentedJsonWithCamelCase); 
+                return JsonSerializer.Deserialize<T>(context.JsonString, Operations<T>.IndentedJsonWithCamelCase)!; 
             }));
         }
     }

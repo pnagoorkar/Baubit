@@ -5,7 +5,7 @@ namespace Baubit.Test.FileSystem.Operations.DeleteDirectory
     public class Test
     {
         [Fact]
-        public async void SuccessfulDeleteResultsInASuccessfulResult()
+        public async void CanDeleteDirectories()
         {
             var path = Path.Combine(Environment.CurrentDirectory, "DeleteDirectorySubfolder");
             Directory.CreateDirectory(path);

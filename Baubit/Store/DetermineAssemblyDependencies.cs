@@ -33,14 +33,14 @@ namespace Baubit.Store
                                             .Replace("<PACKAGE_VERSION>", context.AssemblyName.Version!.ToString()));
         }
 
-        private static Result WriteCSProjectToFile(string template, AssemblyDependencyDeterminationContext context)
+        private static async Task<Result> WriteCSProjectToFile(string template, AssemblyDependencyDeterminationContext context)
         {
-            return FileSystem.Operations
-                             .CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.PackageDeterminationWorkspace))
-                             .GetAwaiter()
-                             .GetResult()
-                             .Bind(() => Result.Try(() => File.WriteAllText(context.TempProjFileName, template)));
-        }
+            return await FileSystem.Operations
+                                   .DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.PackageDeterminationWorkspace, true))
+                                   .Bind(() => FileSystem.Operations
+                                                         .CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.PackageDeterminationWorkspace)))
+                                                         .Bind(() => Result.Try((Func<Task>)(async () => { await Task.Yield(); File.WriteAllText(context.TempProjFileName, template); })));
+        }                          
 
         private static async Task<Result> BuildProject(AssemblyDependencyDeterminationContext context)
         {

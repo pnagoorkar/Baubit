@@ -1,8 +1,5 @@
-﻿using Baubit.Store;
-using FluentResults;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Loader;
 
 namespace Baubit
 {
@@ -33,11 +30,6 @@ namespace Baubit
             DetermineOSPlatform();
         }
 
-        public static void Initialize()
-        {
-
-        }
-
         private static void DetermineTargetFramework()
         {
             var frameworkDesc = RuntimeInformation.FrameworkDescription;
@@ -63,77 +55,6 @@ namespace Baubit
             {
                 OSPlatform = null;
             }
-        }
-
-        public static async Task<Result<Type>> ResolveTypeAsync(string assemblyQualifiedName)
-        {
-            try
-            {
-                await Task.Yield();
-                var type = Type.GetType(assemblyQualifiedName, ResolveAssembly, (assembly, aqn, ignoreCase) => assembly.GetType(aqn, false, ignoreCase));
-                if (type != null)
-                {
-                    return Result.Ok(type);
-                }
-                else
-                {
-                    return Result.Fail("");
-                }
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-
-        }
-
-        private static Assembly? ResolveAssembly(AssemblyName assemblyName)
-        {
-            Package package = null;
-            var searchResult = Store.Operations
-                                    .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework))
-                                    .GetAwaiter()
-                                    .GetResult();
-            if (searchResult.IsSuccess)
-            {
-                package = searchResult.Value;
-            }
-            else
-            {
-                var downloadResult = Store.Operations
-                                          .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath))
-                                          .GetAwaiter()
-                                          .GetResult();
-
-                if (downloadResult.IsSuccess)
-                {
-                    package = downloadResult.Value;
-                }
-            }
-            if (package == null)
-            {
-                return null;
-            }
-            var loadResult = Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default)).GetAwaiter().GetResult();
-            if (loadResult.IsSuccess)
-            {
-                return loadResult.Value;
-            }
-            else
-            {
-                return null;
-            }
-        }
-    }
-    public class BaubitAssemblyLoadContext : AssemblyLoadContext
-    {
-        public Assembly Assembly { get; private set; }
-        public BaubitAssemblyLoadContext() : base(isCollectible: true) { }
-
-        protected override Assembly Load(AssemblyName assemblyName)
-        {
-            // Custom logic to resolve assemblies
-            return null;
         }
     }
 }
