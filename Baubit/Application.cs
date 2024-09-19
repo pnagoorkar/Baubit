@@ -1,7 +1,8 @@
-﻿using System.Reflection;
+﻿using Baubit.Store;
+using FluentResults;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using System.Text.Json;
 
 namespace Baubit
 {
@@ -28,7 +29,6 @@ namespace Baubit
 
         static Application()
         {
-            AssemblyLoadContext.Default.Resolving += Default_Resolving;
             DetermineTargetFramework();
             DetermineOSPlatform();
         }
@@ -65,37 +65,66 @@ namespace Baubit
             }
         }
 
-        private static List<BaubitAssemblyLoadContext> baubitAssemblyLoadContexts = new List<BaubitAssemblyLoadContext>();
-        private static Assembly? Default_Resolving(AssemblyLoadContext context, AssemblyName assemblyName)
+        public static async Task<Result<Type>> ResolveTypeAsync(string assemblyQualifiedName)
         {
-            if (assemblyName.Name.Equals(nameof(Baubit))) return Assembly.GetExecutingAssembly();
+            try
+            {
+                await Task.Yield();
+                var type = Type.GetType(assemblyQualifiedName, ResolveAssembly, (assembly, aqn, ignoreCase) => assembly.GetType(aqn, false, ignoreCase));
+                if (type != null)
+                {
+                    return Result.Ok(type);
+                }
+                else
+                {
+                    return Result.Fail("");
+                }
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
 
-            //var target = baubitAssemblyLoadContexts.FirstOrDefault(c => c.Assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) &&
-            //                                                            c.Assembly.GetName().Version.Equals(assemblyName.Version));
+        }
 
-            //if (target != null)
-            //{
-            //    return target.Assembly;
-            //}
-            //else
-            //{
-            //    var ctxt = new BaubitAssemblyLoadContext();
-            //    ctxt.LoadFromAssemblyPath("");
-            //}
+        private static AssemblyLoadContext AppALC = new AssemblyLoadContext("AppALC");
 
-            var currentAssembly = AppDomain.CurrentDomain
-                                       .GetAssemblies()
-                                       .FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase) &&
-                                                                   assembly.GetName().Version >= assemblyName.Version);
-            
-            if (currentAssembly != null) return currentAssembly;
+        private static Assembly? ResolveAssembly(AssemblyName assemblyName)
+        {
+            Package package = null;
+            var searchResult = Store.Operations
+                                    .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework))
+                                    .GetAwaiter()
+                                    .GetResult();
+            if (searchResult.IsSuccess)
+            {
+                package = searchResult.Value;
+            }
+            else
+            {
+                var downloadResult = Store.Operations
+                                          .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath))
+                                          .GetAwaiter()
+                                          .GetResult();
 
-            var loadResult = Store.Operations
-                                  .LoadAssembly
-                                  .RunAsync(new Store.LoadAssembly.Context(assemblyName, Application.TargetFramework, true))
-                                  .GetAwaiter()
-                                  .GetResult();
-            return loadResult.Value;
+                if (downloadResult.IsSuccess)
+                {
+                    package = downloadResult.Value;
+                }
+            }
+            if (package == null)
+            {
+                return null;
+            }
+            var loadResult = Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AppALC)).GetAwaiter().GetResult();
+            if (loadResult.IsSuccess)
+            {
+                return loadResult.Value;
+            }
+            else
+            {
+                return null;
+            }
         }
     }
     public class BaubitAssemblyLoadContext : AssemblyLoadContext

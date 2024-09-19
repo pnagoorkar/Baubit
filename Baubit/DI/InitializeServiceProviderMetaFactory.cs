@@ -9,7 +9,7 @@ namespace Baubit.DI
         {
             var serviceProviderMetaFactoryTypeAQN = context.Configuration["serviceProviderMetaFactory"];
             var serviceProviderMetaFactoryConcreteType = Type.GetType(serviceProviderMetaFactoryTypeAQN!);
-            var serviceProviderMetaFactory = (IServiceProviderMetaFactory)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
+            var serviceProviderMetaFactory = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
             return new Result(true, serviceProviderMetaFactory);
         }
 
@@ -22,13 +22,13 @@ namespace Baubit.DI
             }
         }
 
-        public sealed class Result : AResult<IServiceProviderMetaFactory>
+        public sealed class Result : AResult<IServiceProviderFactoryRegistrar>
         {
             public Result(Exception? exception) : base(exception)
             {
             }
 
-            public Result(bool? success, IServiceProviderMetaFactory? value) : base(success, value)
+            public Result(bool? success, IServiceProviderFactoryRegistrar? value) : base(success, value)
             {
             }
 

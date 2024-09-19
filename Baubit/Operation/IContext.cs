@@ -1,6 +1,6 @@
-﻿namespace Baubit.Operation
-{
-    public interface IContext
-    {
-    }
-}
+﻿//namespace Baubit.Operation
+//{
+//    public interface IContext
+//    {
+//    }
+//}

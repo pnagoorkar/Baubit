@@ -1,30 +1,26 @@
-﻿using Baubit.Operation;
-using System.Text.Json;
+﻿using System.Text.Json;
+using FluentResults;
+using FluentResults.Extensions;
 
 namespace Baubit.Store
 {
-    public sealed class AddToRegistry : IOperation<AddToRegistry.Context, AddToRegistry.Result>
+    public static partial class Operations
     {
-        private AddToRegistry()
-        {
-
-        }
-        private static AddToRegistry _singletonInstance = new AddToRegistry();
-        public static AddToRegistry GetInstance()
-        {
-            return _singletonInstance;
-        }
-        public async Task<Result> RunAsync(Context context)
+        public static async Task<Result> AddToRegistryAsync(RegistryAddContext context)
         {
             try
             {
-                await Task.Yield();
                 Application.BaubitStoreRegistryAccessor.WaitOne();
+
                 PackageRegistry registry = null;
-                if (File.Exists(context.RegistryFilePath))
+
+                var readResult = await FileSystem.Operations
+                                                 .ReadFileAsync(new FileSystem.FileReadContext(context.RegistryFilePath))
+                                                 .Bind(jsonString => Serialization.Operations<PackageRegistry>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry>(jsonString)));
+
+                if (readResult.IsSuccess)
                 {
-                    var registryContents = File.ReadAllText(context.RegistryFilePath);
-                    registry = JsonSerializer.Deserialize<PackageRegistry>(registryContents, Application.IndentedJsonWithCamelCase);
+                    registry = readResult.Value;
                 }
                 else
                 {
@@ -36,9 +32,9 @@ namespace Baubit.Store
 
                 if (registry.ContainsKey(context.TargetFramework))
                 {
-                    foreach(var p in packages)
+                    foreach (var p in packages)
                     {
-                        if(registry[context.TargetFramework].Any(package => package.AssemblyName.Name.Equals(context.Package.AssemblyName.Name, 
+                        if (registry[context.TargetFramework].Any(package => package.AssemblyName.Name.Equals(context.Package.AssemblyName.Name,
                                                                                                              StringComparison.OrdinalIgnoreCase) &&
                                                                              package.AssemblyName.Version.Equals(context.Package.AssemblyName.Version)))
                         {
@@ -54,42 +50,32 @@ namespace Baubit.Store
                 {
                     registry.Add(context.TargetFramework, packages);
                 }
-                File.WriteAllText(context.RegistryFilePath, JsonSerializer.Serialize(registry, Application.IndentedJsonWithCamelCase));
-                return new Result(true, true);
+
+                return Result.Try(() => File.WriteAllText(context.RegistryFilePath, 
+                                                          JsonSerializer.Serialize(registry, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase)));
             }
-            catch (Exception ex)
+            catch (Exception exp)
             {
-                return new Result(ex);
+                return Result.Fail(new ExceptionalError(exp));
             }
-            finally { Application.BaubitStoreRegistryAccessor.ReleaseMutex(); }
+            finally
+            {
+                Application.BaubitStoreRegistryAccessor.ReleaseMutex();
+            }
+
         }
+    }
 
-        public sealed class Context : IContext
+    public class RegistryAddContext
+    {
+        public string RegistryFilePath { get; init; }
+        public Package Package { get; init; }
+        public string TargetFramework { get; init; }
+        public RegistryAddContext(string registryFilePath, Package package, string targetFramework)
         {
-            public string RegistryFilePath { get; init; }
-            public Package Package { get; init; }
-            public string TargetFramework { get; init; }
-            public Context(string registryFilePath, Package package, string targetFramework)
-            {
-                RegistryFilePath = registryFilePath;
-                Package = package;
-                TargetFramework = targetFramework;
-            }
-        }
-
-        public sealed class Result : AResult<bool>
-        {
-            public Result(Exception? exception) : base(exception)
-            {
-            }
-
-            public Result(bool? success, bool? value) : base(success, value.Value)
-            {
-            }
-
-            public Result(bool? success, string? failureMessage, object? failureSupplement) : base(success, failureMessage, failureSupplement)
-            {
-            }
+            RegistryFilePath = registryFilePath;
+            Package = package;
+            TargetFramework = targetFramework;
         }
     }
 }

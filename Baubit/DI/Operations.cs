@@ -1,6 +1,6 @@
 ﻿namespace Baubit.DI
 {
-    public static class Operations
+    public static partial class Operations
     {
     }
 }
