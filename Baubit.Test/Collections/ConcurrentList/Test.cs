@@ -2,6 +2,7 @@
 
 namespace Baubit.Test.Collections.ConcurrentList
 {
+    [Trait("Runtime", "Shared")]
     public class Test
     {
         [Theory]

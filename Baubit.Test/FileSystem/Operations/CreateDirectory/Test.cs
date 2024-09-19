@@ -1,5 +1,6 @@
 ﻿namespace Baubit.Test.FileSystem.Operations.CreateDirectory
 {
+    [Trait("Runtime", "Shared")]
     public class Test
     {
         [Fact]

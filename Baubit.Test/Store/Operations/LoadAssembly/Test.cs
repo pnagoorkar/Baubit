@@ -2,11 +2,18 @@
 using FluentResults.Extensions;
 using System.Reflection;
 using System.Runtime.Loader;
+using Xunit.Abstractions;
 
 namespace Baubit.Test.Store.Operations.LoadAssembly
 {
+    [Trait("TestName", nameof(Baubit.Test.Store.Operations.LoadAssembly))]
     public class Test
     {
+        private ITestOutputHelper testOutputHelper;
+        public Test(ITestOutputHelper testOutputHelper)
+        {
+            this.testOutputHelper = testOutputHelper;
+        }
         [Fact]
         public async void CanLoadAssembliesDynamically()
         {

@@ -3,6 +3,7 @@ using FluentResults.Extensions;
 
 namespace Baubit.Test.FileSystem.Operations.CopyFile
 {
+    [Trait("Runtime", "Shared")]
     public class Test
     {
         [Fact]

@@ -2,6 +2,7 @@
 
 namespace Baubit.Test.FileSystem.Operations.DeleteDirectory
 {
+    [Trait("Runtime", "Shared")]
     public class Test
     {
         [Fact]

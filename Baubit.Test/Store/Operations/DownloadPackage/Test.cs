@@ -1,11 +1,18 @@
 ﻿using FluentResults.Extensions;
 using System.Reflection;
+using Xunit.Abstractions;
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace Baubit.Test.Store.Operations.DownloadPackage
 {
+    [Trait("TestName", nameof(Baubit.Test.Store.Operations.DownloadPackage))]
     public class Test
     {
+        private ITestOutputHelper testOutputHelper;
+        public Test(ITestOutputHelper testOutputHelper)
+        {
+            this.testOutputHelper = testOutputHelper;
+        }
         [Fact]
         public async void CanDownloadPackages()
         {
@@ -19,6 +26,7 @@ namespace Baubit.Test.Store.Operations.DownloadPackage
                                                                .DownloadPackageAsync(new Baubit.Store.PackageDownloadContext(assemblyName,
                                                                                                                              Application.TargetFramework,
                                                                                                                              Application.BaubitRootPath, false)));
+
             Assert.True(downloadResult.IsSuccess);
             Assert.True(File.Exists(downloadResult.Value.DllFile));
         }
