@@ -8,7 +8,7 @@ namespace Baubit.Store
 {
     public static partial class Operations
     {
-        public static async Task<Result<List<Package2>>> DetermineDownloadablePackagesAsync(DownloadablePackagesDeterminationContext context)
+        public static async Task<Result<List<Package>>> DetermineDownloadablePackagesAsync(DownloadablePackagesDeterminationContext context)
         {
             try
             {
@@ -63,14 +63,14 @@ namespace Baubit.Store
             }
         }
 
-        private static async Task<Result<List<Package2>>> BuildPackageFromProjectAssetsConfiguration(IConfiguration configuration, DownloadablePackagesDeterminationContext context)
+        private static async Task<Result<List<Package>>> BuildPackageFromProjectAssetsConfiguration(IConfiguration configuration, DownloadablePackagesDeterminationContext context)
         {
             try
             {
                 var targetFrameworkTargets = configuration.GetSection("targets")
                                                           .GetChildren()
                                                           .FirstOrDefault(child => child.Key.Equals(context.TargetFramework));
-                var packages = new List<Package2>();
+                var packages = new List<Package>();
                 var res = await BuildPackageAndDependenciesForAssembly($"{context.AssemblyName.Name}/{context.AssemblyName.Version}", targetFrameworkTargets!, packages);
 
                 if(res.IsSuccess)
@@ -90,7 +90,7 @@ namespace Baubit.Store
 
         private static async Task<Result> BuildPackageAndDependenciesForAssembly(string assemblyKey,
                                                                                  IConfigurationSection targetFrameworkTargets,
-                                                                                 List<Package2> result)
+                                                                                 List<Package> result)
         {
             var assemblyConfigurationSection = targetFrameworkTargets!.GetChildren()
                                                                       .FirstOrDefault(child => child.Key.StartsWith(assemblyKey!, StringComparison.OrdinalIgnoreCase));
@@ -111,7 +111,7 @@ namespace Baubit.Store
                 var depResult = await BuildPackageAndDependenciesForAssembly(dependency, targetFrameworkTargets, result);
                 if (!depResult.IsSuccess) return Result.Fail("").WithReasons(depResult.Reasons);
             }
-            result.Add(new Package2(assemblyKey, dllRelativePath, dependencies));
+            result.Add(new Package(assemblyKey, dllRelativePath, dependencies));
             return Result.Ok();
         }
     }

@@ -1,4 +1,5 @@
-﻿using FluentResults.Extensions;
+﻿using Baubit.Store;
+using FluentResults.Extensions;
 using System.Reflection;
 using Xunit.Abstractions;
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
@@ -28,7 +29,8 @@ namespace Baubit.Test.Store.Operations.DownloadPackage
                                                                                                                              Application.BaubitRootPath, false)));
 
             Assert.True(downloadResult.IsSuccess);
-            Assert.True(File.Exists(downloadResult.Value.DllFile));
+            Assert.NotNull(downloadResult.Value.Package);
+            Assert.True(File.Exists(downloadResult.Value.Package.DllFile));
         }
     }
 }

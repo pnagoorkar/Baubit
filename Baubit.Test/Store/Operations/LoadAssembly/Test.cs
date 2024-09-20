@@ -27,7 +27,7 @@ namespace Baubit.Test.Store.Operations.LoadAssembly
                                                                .DownloadPackageAsync(new Baubit.Store.PackageDownloadContext(assemblyName,
                                                                                                                              Application.TargetFramework,
                                                                                                                              Application.BaubitRootPath, true)))
-                                             .Bind(package => Baubit.Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default)));
+                                             .Bind(downloadResult => Baubit.Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(downloadResult.Package, downloadResult.Registry, Application.TargetFramework, AssemblyLoadContext.Default)));
 
             Assert.True(loadResult.IsSuccess);
             Assert.NotNull(loadResult.Value);

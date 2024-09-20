@@ -56,23 +56,26 @@ namespace Baubit.Store
                 if (existing == null)
                 {
                     Package package = null;
-                    var searchResult = await Store.Operations
-                                                  .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework));
+                    PackageRegistry registry = null;
+                    var searchResult = await Store.Operations.SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework));
 
                     if (searchResult.IsSuccess)
                     {
-                        package = searchResult.Value;
+                        registry = searchResult.Value.Registry;
+                        package = searchResult.Value.Package;
                         result.Reasons.Add(new AssemblyFoundInLocalStore());
                     }
                     else
                     {
                         result.Reasons.Add(new AssemblyNotFoundInLocalStore());
+                        var download2Result = await Store.Operations.DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true));
                         var downloadResult = await Store.Operations
                                                         .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true));
 
                         if (downloadResult.IsSuccess)
                         {
-                            package = downloadResult.Value;
+                            registry = downloadResult.Value.Registry;
+                            package = downloadResult.Value.Package;
                             result.Reasons.Add(new AssemblyDownlodedToLocalStore());
                         }
                         else
@@ -86,7 +89,7 @@ namespace Baubit.Store
                     }
                     else
                     {
-                        var loadResult = await Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default));
+                        var loadResult = await Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, registry, Application.TargetFramework, AssemblyLoadContext.Default));
                         if (loadResult.IsSuccess)
                         {
                             result = result.WithSuccess("").WithValue(loadResult.Value);

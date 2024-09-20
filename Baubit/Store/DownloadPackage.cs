@@ -9,57 +9,46 @@ namespace Baubit.Store
 {
     public static partial class Operations
     {
-        public static async Task<Result<List<Package2>>> DownloadPackageAsync2(PackageDownloadContext context)
+        public static async Task<Result<DownloadResult>> DownloadPackageAsync(PackageDownloadContext context)
         {
             return await Store.Operations
                               .DetermineDownloadablePackagesAsync(new DownloadablePackagesDeterminationContext(context.AssemblyName, context.TargetFramework))
-                              .Bind(packages => Download(packages, context));
-
-            //return await FileSystem.Operations.DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.TempDownloadPath, true))
-            //                                  .Bind(() => FileSystem.Operations.CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath)))
-            //                                  .Bind(() => TryBuildNugetInstallCommand(context))
-            //                                  .Bind(startInfo => TryDownloadNugetPackage(startInfo, context))
-            //                                  .Bind(nugetPackageFile => Compression.Operations
-            //                                                                       .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
-            //                                                                                                                              Path.Combine(context.TargetFolder, context.AssemblyName.Name, context.AssemblyName.Version.ToString()),
-            //                                                                                                                              entry => entry.FullName.EndsWith($"{context.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
-            //                                                                                                                              overwrite: true)))
-            //                                  .Bind(dllFiles => Store.Operations.DetermineAssemblyDependenciesAsync(new AssemblyDependencyDeterminationContext(context.AssemblyName, context.TargetFramework)))
-            //                                  .Bind(package => DownloadDepenciesIfConfigured(package, context))
-            //                                  .Bind(package => Store.Operations.AddToRegistryAsync(new RegistryAddContext(Application.BaubitPackageRegistry, package, context.TargetFramework))
-            //                                  .Bind(() => Result.Try((Func<Task<Package>>)(async () => { await Task.Yield(); return package; }))));
+                              .Bind(packages => Download(packages, context))
+                              .Bind(packages => AddToRegistryAsync(packages, new RegistryAddContext(Application.BaubitPackageRegistry, null, context.TargetFramework)))
+                              .Bind(registry => Result.Try(() => new DownloadResult(registry, registry[context.TargetFramework].First(package => package.AssemblyName.GetPersistableAssemblyName().Equals(context.AssemblyName.GetPersistableAssemblyName(), StringComparison.OrdinalIgnoreCase)))));
         }
-        public static async Task<Result<Package>> DownloadPackageAsync(PackageDownloadContext context)
-        {
-            return await FileSystem.Operations.DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.TempDownloadPath, true))
-                                              .Bind(() => FileSystem.Operations.CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath)))
-                                              .Bind(() => TryBuildNugetInstallCommand(context))
-                                              .Bind(startInfo => TryDownloadNugetPackage(startInfo, context))
-                                              .Bind(nugetPackageFile => Compression.Operations
-                                                                                   .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
-                                                                                                                                          Path.Combine(context.TargetFolder, context.AssemblyName.Name, context.AssemblyName.Version.ToString()),
-                                                                                                                                          entry => entry.FullName.EndsWith($"{context.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
-                                                                                                                                          overwrite: true)))
-                                              .Bind(dllFiles => Store.Operations.DetermineAssemblyDependenciesAsync(new AssemblyDependencyDeterminationContext(context.AssemblyName, context.TargetFramework)))
-                                              .Bind(package => DownloadDepenciesIfConfigured(package, context))
-                                              .Bind(package => Store.Operations.AddToRegistryAsync(new RegistryAddContext(Application.BaubitPackageRegistry, package, context.TargetFramework))
-                                              .Bind(() => Result.Try((Func<Task<Package>>)(async () => { await Task.Yield(); return package; }))));
-        }
+        //public static async Task<Result<Package1>> DownloadPackageAsync(PackageDownloadContext context)
+        //{
+        //    return await FileSystem.Operations.DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.TempDownloadPath, true))
+        //                                      .Bind(() => FileSystem.Operations.CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath)))
+        //                                      .Bind(() => TryBuildNugetInstallCommand(context))
+        //                                      .Bind(startInfo => TryDownloadNugetPackage(startInfo, context))
+        //                                      .Bind(nugetPackageFile => Compression.Operations
+        //                                                                           .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
+        //                                                                                                                                  Path.Combine(context.TargetFolder, context.AssemblyName.Name, context.AssemblyName.Version.ToString()),
+        //                                                                                                                                  entry => entry.FullName.EndsWith($"{context.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
+        //                                                                                                                                  overwrite: true)))
+        //                                      .Bind(dllFiles => Store.Operations.DetermineAssemblyDependenciesAsync(new AssemblyDependencyDeterminationContext(context.AssemblyName, context.TargetFramework)))
+        //                                      .Bind(package => DownloadDepenciesIfConfigured(package, context))
+        //                                      .Bind(package => Store.Operations.AddToRegistryAsync(new RegistryAddContext(Application.BaubitPackageRegistry, package, context.TargetFramework))
+        //                                      .Bind(() => Result.Try((Func<Task<Package1>>)(async () => { await Task.Yield(); return package; }))));
+        //}
 
-        private static async Task<Result<List<Package2>>> Download(List<Package2> packages, PackageDownloadContext context)
+        private static async Task<Result<List<Package>>> Download(List<Package> packages, PackageDownloadContext context)
         {
-            IEnumerable<Package2> downloadables = context.DownloadDependencies ? packages : packages.Where(package => package.AssemblyName.GetPersistableAssemblyName().Equals(context.AssemblyName.GetPersistableAssemblyName(), StringComparison.OrdinalIgnoreCase));
+            IEnumerable<Package> downloadables = context.DownloadDependencies ? packages : packages.Where(package => package.AssemblyName.GetPersistableAssemblyName().Equals(context.AssemblyName.GetPersistableAssemblyName(), StringComparison.OrdinalIgnoreCase));
 
             foreach (var downloadable in downloadables)
             {
-                var result = await FileSystem.Operations.DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.TempDownloadPath, true))
-                                                        .Bind(() => FileSystem.Operations.CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.TempDownloadPath)))
-                                                        .Bind(() => TryBuildNugetInstallCommand(context))
-                                                        .Bind(startInfo => TryDownloadNugetPackage(startInfo, context))
+                var downloadableContext = new PackageDownloadContext(downloadable.AssemblyName, context.TargetFramework, context.TargetFolder, context.DownloadDependencies);
+                var result = await FileSystem.Operations.DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(downloadableContext.TempDownloadPath, true))
+                                                        .Bind(() => FileSystem.Operations.CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(downloadableContext.TempDownloadPath)))
+                                                        .Bind(() => TryBuildNugetInstallCommand(downloadableContext))
+                                                        .Bind(startInfo => TryDownloadNugetPackage(startInfo, downloadableContext))
                                                         .Bind(nugetPackageFile => Compression.Operations
                                                                                              .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
-                                                                                                                                                    Path.Combine(context.TargetFolder, context.AssemblyName.Name, context.AssemblyName.Version.ToString()),
-                                                                                                                                                    entry => entry.FullName.EndsWith($"{context.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
+                                                                                                                                                    Path.Combine(downloadableContext.TargetFolder, downloadableContext.AssemblyName.Name, downloadableContext.AssemblyName.Version.ToString()),
+                                                                                                                                                    entry => entry.FullName.EndsWith($"{downloadableContext.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
                                                                                                                                                     overwrite: true)));
                 if (!result.IsSuccess) return Result.Fail("").WithReasons(result.Reasons);
             }
@@ -133,38 +122,38 @@ namespace Baubit.Store
                                          .Bind(values => Result.Try(() => values.Skip(1).First()));
         }
 
-        private static async Task<Result<Package>> DownloadDepenciesIfConfigured(Package package, PackageDownloadContext context)
-        {
-            try
-            {
-                if (context.DownloadDependencies)
-                {
-                    foreach (var dependency in package.Dependencies)
-                    {
-                        if (File.Exists(dependency.DllFile))
-                        {
-                            continue;
-                        }
-                        var dependencyContext = new PackageDownloadContext(dependency.AssemblyName, context.TargetFramework, context.TargetFolder, context.DownloadDependencies);
+        //private static async Task<Result<Package1>> DownloadDepenciesIfConfigured(Package1 package, PackageDownloadContext context)
+        //{
+        //    try
+        //    {
+        //        if (context.DownloadDependencies)
+        //        {
+        //            foreach (var dependency in package.Dependencies)
+        //            {
+        //                if (File.Exists(dependency.DllFile))
+        //                {
+        //                    continue;
+        //                }
+        //                var dependencyContext = new PackageDownloadContext(dependency.AssemblyName, context.TargetFramework, context.TargetFolder, context.DownloadDependencies);
 
-                        await TryBuildNugetInstallCommand(dependencyContext).Bind(startInfo => TryDownloadNugetPackage(startInfo, dependencyContext))
-                                                                            .Bind(nugetPackageFile => Compression.Operations
-                                                                            .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
-                                                                                                                                   Path.Combine(dependencyContext.TargetFolder, dependencyContext.AssemblyName.Name, dependencyContext.AssemblyName.Version.ToString()),
-                                                                                                                                   entry => entry.FullName.EndsWith($"{dependencyContext.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
-                                                                                                                                   overwrite: true)))
-                                                                            .Bind(dllFiles => DownloadDepenciesIfConfigured(dependency, dependencyContext));
-                    }
-                }
-                return Result.Ok(package);
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-        }
+        //                await TryBuildNugetInstallCommand(dependencyContext).Bind(startInfo => TryDownloadNugetPackage(startInfo, dependencyContext))
+        //                                                                    .Bind(nugetPackageFile => Compression.Operations
+        //                                                                    .ExtractFilesFromZipArchive(new ZipExtractFilesContext(nugetPackageFile,
+        //                                                                                                                           Path.Combine(dependencyContext.TargetFolder, dependencyContext.AssemblyName.Name, dependencyContext.AssemblyName.Version.ToString()),
+        //                                                                                                                           entry => entry.FullName.EndsWith($"{dependencyContext.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase),
+        //                                                                                                                           overwrite: true)))
+        //                                                                    .Bind(dllFiles => DownloadDepenciesIfConfigured(dependency, dependencyContext));
+        //            }
+        //        }
+        //        return Result.Ok(package);
+        //    }
+        //    catch (Exception exp)
+        //    {
+        //        return Result.Fail(new ExceptionalError(exp));
+        //    }
+        //}
 
-        private static async Task<Result<List<Package2>>> DownloadDependenciesIfConfigured(List<Package2> packages, PackageDownloadContext context)
+        private static async Task<Result<List<Package>>> DownloadDependenciesIfConfigured(List<Package> packages, PackageDownloadContext context)
         {
             try
             {
@@ -218,5 +207,17 @@ namespace Baubit.Store
         public string Message => "Undefined OS for Nuget Install !";
 
         public Dictionary<string, object> Metadata { get; }
+    }
+
+
+    public class DownloadResult
+    {
+        public PackageRegistry Registry { get; init; }
+        public Package Package { get; init; }
+        public DownloadResult(PackageRegistry registry, Package package)
+        {
+            this.Registry = registry;
+            this.Package = package;
+        }
     }
 }

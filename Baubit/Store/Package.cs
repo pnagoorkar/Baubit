@@ -1,12 +1,91 @@
 ﻿using FluentResults;
 using System;
+using System.Linq;
 using System.Reflection;
-using System.Reflection.PortableExecutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Baubit.Store
 {
+    //public class PackageRegistry1 : Dictionary<string, List<Package1>>
+    //{
+    //    static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
+
+    //    public static Result<PackageRegistry1> ReadFrom(string filePath)
+    //    {
+    //        try
+    //        {
+    //            BaubitStoreRegistryAccessor.WaitOne();
+    //            return FileSystem.Operations
+    //                             .ReadFileAsync(new FileSystem.FileReadContext(filePath))
+    //                             .GetAwaiter()
+    //                             .GetResult()
+    //                             .Bind(jsonString => Serialization.Operations<PackageRegistry1>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry1>(jsonString)))
+    //                             .GetAwaiter()
+    //                             .GetResult();
+
+    //        }
+    //        catch (Exception exp)
+    //        {
+    //            return Result.Fail(new ExceptionalError(exp));
+    //        }
+    //        finally
+    //        {
+    //            BaubitStoreRegistryAccessor.ReleaseMutex();
+    //        }
+    //    }
+
+    //    public Result WriteTo(string filePath)
+    //    {
+    //        try
+    //        {
+    //            BaubitStoreRegistryAccessor.WaitOne();
+    //            File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry1>.IndentedJsonWithCamelCase));
+    //            return Result.Ok();
+    //        }
+    //        catch (Exception exp)
+    //        {
+    //            return Result.Fail(new ExceptionalError(exp));
+    //        }
+    //        finally
+    //        {
+    //            BaubitStoreRegistryAccessor.ReleaseMutex();
+    //        }
+    //    }
+    //}
+    //public record Package1
+    //{
+    //    [JsonConverter(typeof(AssemblyNameJsonConverter))]
+    //    public AssemblyName AssemblyName { get; init; }
+    //    public string DllRelativePath { get; init; }
+    //    [JsonIgnore]
+    //    public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
+    //    public Package1[] Dependencies { get; init; }
+
+    //    [Obsolete("For use with serialization/deserialization only !")]
+    //    public Package1()
+    //    {
+
+    //    }
+
+    //    public Package1(AssemblyName assemblyName,
+    //                   string dllRelativePath,
+    //                   Package1[] dependencies)
+    //    {
+    //        AssemblyName = assemblyName;
+    //        DllRelativePath = dllRelativePath;
+    //        Dependencies = dependencies;
+    //    }
+    //    public Package1(string assemblyName,
+    //                   string dllRelativePath,
+    //                   string version,
+    //                   string dllFile,
+    //                   Package1[] dependencies) : this(new AssemblyName($"{assemblyName}, Version={version}"), dllRelativePath, dependencies)
+    //    {
+
+    //    }
+    //}
+
     public class PackageRegistry : Dictionary<string, List<Package>>
     {
         static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
@@ -40,6 +119,14 @@ namespace Baubit.Store
             try
             {
                 BaubitStoreRegistryAccessor.WaitOne();
+                foreach (var key in Keys)
+                {
+                    this[key] = this[key].DistinctBy(package => package.AssemblyName.GetPersistableAssemblyName())
+                                         .OrderBy(package => package.AssemblyName.Name)
+                                         .ThenBy(package => package.AssemblyName.Version)
+                                         .ThenBy(package => package.Dependencies)
+                                         .ToList();
+                }
                 File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
                 return Result.Ok();
             }
@@ -52,41 +139,10 @@ namespace Baubit.Store
                 BaubitStoreRegistryAccessor.ReleaseMutex();
             }
         }
+
     }
+
     public record Package
-    {
-        [JsonConverter(typeof(AssemblyNameJsonConverter))]
-        public AssemblyName AssemblyName { get; init; }
-        public string DllRelativePath { get; init; }
-        [JsonIgnore]
-        public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
-        public Package[] Dependencies { get; init; }
-
-        [Obsolete("For use with serialization/deserialization only !")]
-        public Package()
-        {
-
-        }
-
-        public Package(AssemblyName assemblyName,
-                       string dllRelativePath,
-                       Package[] dependencies)
-        {
-            AssemblyName = assemblyName;
-            DllRelativePath = dllRelativePath;
-            Dependencies = dependencies;
-        }
-        public Package(string assemblyName,
-                       string dllRelativePath,
-                       string version,
-                       string dllFile,
-                       Package[] dependencies) : this(new AssemblyName($"{assemblyName}, Version={version}"), dllRelativePath, dependencies)
-        {
-
-        }
-    }
-
-    public record Package2
     {
         [JsonConverter(typeof(AssemblyNameJsonConverter))]
         public AssemblyName AssemblyName { get; init; }
@@ -96,12 +152,12 @@ namespace Baubit.Store
         public string[] Dependencies { get; init; }
 
         [Obsolete("For use with serialization/deserialization only !")]
-        public Package2()
+        public Package()
         {
 
         }
 
-        public Package2(string assemblyName,
+        public Package(string assemblyName,
                        string dllRelativePath, 
                        string[] dependencies)
         {
@@ -115,19 +171,19 @@ namespace Baubit.Store
 
     public static class PackageExtensions
     {
-        public static bool TryFlatteningPackage(this Package package, List<Package> list)
-        {
-            if (list == null) list = new List<Package>();
-            if (!list.Any(p => package.AssemblyName.Name.Equals(p.AssemblyName.Name, StringComparison.OrdinalIgnoreCase) && package.AssemblyName.Version.Equals(p.AssemblyName.Version)))
-            {
-                list.Add(package);
-                foreach (var dep in package.Dependencies)
-                {
-                    dep.TryFlatteningPackage(list);
-                }
-            }
-            return true;
-        }
+        //public static bool TryFlatteningPackage(this Package1 package, List<Package1> list)
+        //{
+        //    if (list == null) list = new List<Package1>();
+        //    if (!list.Any(p => package.AssemblyName.Name.Equals(p.AssemblyName.Name, StringComparison.OrdinalIgnoreCase) && package.AssemblyName.Version.Equals(p.AssemblyName.Version)))
+        //    {
+        //        list.Add(package);
+        //        foreach (var dep in package.Dependencies)
+        //        {
+        //            dep.TryFlatteningPackage(list);
+        //        }
+        //    }
+        //    return true;
+        //}
 
         public static string GetPersistableAssemblyName(this AssemblyName assemblyName)
         {

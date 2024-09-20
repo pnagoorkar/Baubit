@@ -1,18 +1,18 @@
 ﻿using System.Reflection;
 using FluentResults;
-using FluentResults.Extensions;
 
 namespace Baubit.Store
 {
 
     public static partial class Operations
     {
-        public static async Task<Result<Package>> SearchPackageAsync(PackageSearchContext context)
+        public static async Task<Result<SearchResult>> SearchPackageAsync(PackageSearchContext context)
         {
             try
             {
                 await Task.Yield();
-                return PackageRegistry.ReadFrom(context.RegistryFilePath).Bind(registry => FindPackageInRegistry(registry, context));
+                return PackageRegistry.ReadFrom(context.RegistryFilePath)
+                                      .Bind(registry => FindPackageInRegistry(registry, context));
             }
             catch (Exception exp)
             {
@@ -20,7 +20,7 @@ namespace Baubit.Store
             }
         }
 
-        private static Result<Package> FindPackageInRegistry(PackageRegistry packageRegistry, PackageSearchContext context)
+        private static Result<SearchResult> FindPackageInRegistry(PackageRegistry packageRegistry, PackageSearchContext context)
         {
             try
             {
@@ -32,7 +32,7 @@ namespace Baubit.Store
                 }
                 else
                 {
-                    return Result.Ok(package);
+                    return Result.Ok(new SearchResult(packageRegistry, package));
                 }
             }
             catch (Exception exp)
@@ -52,6 +52,17 @@ namespace Baubit.Store
             RegistryFilePath = registryFilePath;
             AssemblyName = assemblyName;
             TargetFramework = targetFramework;
+        }
+    }
+
+    public class SearchResult
+    {
+        public PackageRegistry Registry { get; init; }
+        public Package Package { get; init; }
+        public SearchResult(PackageRegistry registry, Package package)
+        {
+            this.Registry = registry;
+            this.Package = package;
         }
     }
 }
