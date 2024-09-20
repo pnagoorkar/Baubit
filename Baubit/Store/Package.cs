@@ -171,20 +171,6 @@ namespace Baubit.Store
 
     public static class PackageExtensions
     {
-        //public static bool TryFlatteningPackage(this Package1 package, List<Package1> list)
-        //{
-        //    if (list == null) list = new List<Package1>();
-        //    if (!list.Any(p => package.AssemblyName.Name.Equals(p.AssemblyName.Name, StringComparison.OrdinalIgnoreCase) && package.AssemblyName.Version.Equals(p.AssemblyName.Version)))
-        //    {
-        //        list.Add(package);
-        //        foreach (var dep in package.Dependencies)
-        //        {
-        //            dep.TryFlatteningPackage(list);
-        //        }
-        //    }
-        //    return true;
-        //}
-
         public static string GetPersistableAssemblyName(this AssemblyName assemblyName)
         {
             return $"{assemblyName.Name}/{assemblyName.Version}";
@@ -196,70 +182,6 @@ namespace Baubit.Store
             return new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
         }
     }
-
-    //public class PackageRegistryJsonConverter : JsonConverter<PackageRegistry>
-    //{
-    //    public override PackageRegistry? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    //    {
-    //        using var jsonDocument = JsonDocument.ParseValue(ref reader);
-
-    //        using var memoryStream = new MemoryStream();
-    //        using (var utf8JsonWriter = new Utf8JsonWriter(memoryStream))
-    //        {
-    //            jsonDocument.WriteTo(utf8JsonWriter);
-    //        }
-
-    //        memoryStream.Seek(0, SeekOrigin.Begin);
-
-    //        IConfiguration configuration = new ConfigurationBuilder()
-    //                                           .AddJsonStream(memoryStream)
-    //                                           .Build();
-
-    //        foreach(var targetFrameworkSection in configuration.GetChildren())
-    //        {
-    //            string targetFramework = targetFrameworkSection.Key;
-    //            var packageSections = targetFrameworkSection.GetChildren();
-    //            foreach (var packageSection in targetFrameworkSection.GetChildren())
-    //            {
-    //                foreach (var dependencySection in packageSection.GetSection("dependencies").GetChildren())
-    //                {
-    //                    var actualSection = packageSections.FirstOrDefault(sec => sec["assemblyName"] == dependencySection.Value);
-    //                    dependencySection.Value = actualSection.ToString();
-    //                }
-    //            }
-    //        }
-    //        return default;
-    //    }
-
-    //    public override void Write(Utf8JsonWriter writer, PackageRegistry value, JsonSerializerOptions options)
-    //    {
-    //        writer.WriteStartObject();
-    //        foreach(var kvp in value)
-    //        {
-    //            writer.WritePropertyName(kvp.Key);
-    //            writer.WriteRawValue(JsonSerializer.Serialize(kvp.Value, options));
-    //        }
-    //        writer.WriteEndObject();
-    //    }
-    //}
-
-    //public class PackageDependenciesJsonConverter : JsonConverter<Package[]>
-    //{
-    //    public override Package[]? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    //    {
-    //        return null;
-    //    }
-
-    //    public override void Write(Utf8JsonWriter writer, Package[] value, JsonSerializerOptions options)
-    //    {
-    //        writer.WriteStartArray();
-    //        foreach(var package in value)
-    //        {
-    //            writer.WriteStringValue($"{package.AssemblyName.Name}/{package.AssemblyName.Version}");
-    //        }
-    //        writer.WriteEndArray();
-    //    }
-    //}
 
     public class AssemblyNameJsonConverter : JsonConverter<AssemblyName>
     {

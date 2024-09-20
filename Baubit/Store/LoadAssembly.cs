@@ -24,20 +24,6 @@ namespace Baubit.Store
             {
                 return Result.Fail(new ExceptionalError(exp));
             }
-            //return await Result.Try((Func<Task<Assembly>>)(async () =>
-            //{
-            //    await Task.Yield();
-            //    //var dependencies = context.Registry.Where()
-            //    foreach (var dep in context.Dependencies)
-            //    {
-            //        var depLoadResult = await LoadAssemblyAsync(new AssemblyLoadingContext(dep, context.Registry, context.TargetFramework, context.AssemblyLoadContext));
-            //        if(!depLoadResult.IsSuccess)
-            //        {
-            //            return Result.Fail("").WithReasons(depLoadResult.Reasons);
-            //        }
-            //    }
-            //    return context.AssemblyLoadContext.LoadFromAssemblyPath(context.Package.DllFile);
-            //}));
         }
     }
 
