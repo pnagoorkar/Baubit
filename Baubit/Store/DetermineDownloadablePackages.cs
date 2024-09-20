@@ -1,14 +1,14 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using FluentResults;
+using FluentResults.Extensions;
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Reflection;
-using FluentResults;
-using FluentResults.Extensions;
 
 namespace Baubit.Store
 {
     public static partial class Operations
     {
-        public static async Task<Result<Package>> DetermineAssemblyDependenciesAsync(AssemblyDependencyDeterminationContext context)
+        public static async Task<Result<List<Package2>>> DetermineDownloadablePackagesAsync(DownloadablePackagesDeterminationContext context)
         {
             try
             {
@@ -26,23 +26,23 @@ namespace Baubit.Store
             }
         }
 
-        private static Result<string> BuildCSProjFile(string template, AssemblyDependencyDeterminationContext context)
+        private static Result<string> BuildCSProjFile(string template, DownloadablePackagesDeterminationContext context)
         {
             return Result.Try(() => template.Replace("<TARGET_FRAMEWORK>", context.TargetFramework)
                                             .Replace("<PACKAGE_NAME>", context.AssemblyName.Name)
                                             .Replace("<PACKAGE_VERSION>", context.AssemblyName.Version!.ToString()));
         }
 
-        private static async Task<Result> WriteCSProjectToFile(string template, AssemblyDependencyDeterminationContext context)
+        private static async Task<Result> WriteCSProjectToFile(string template, DownloadablePackagesDeterminationContext context)
         {
             return await FileSystem.Operations
                                    .DeleteDirectoryIfExistsAsync(new FileSystem.DirectoryDeleteContext(context.PackageDeterminationWorkspace, true))
                                    .Bind(() => FileSystem.Operations
                                                          .CreateDirectoryAsync(new FileSystem.DirectoryCreateContext(context.PackageDeterminationWorkspace)))
                                                          .Bind(() => Result.Try((Func<Task>)(async () => { await Task.Yield(); File.WriteAllText(context.TempProjFileName, template); })));
-        }                          
+        }
 
-        private static async Task<Result> BuildProject(AssemblyDependencyDeterminationContext context)
+        private static async Task<Result> BuildProject(DownloadablePackagesDeterminationContext context)
         {
             try
             {
@@ -63,27 +63,23 @@ namespace Baubit.Store
             }
         }
 
-        private static async Task<Result<Package>> BuildPackageFromProjectAssetsConfiguration(IConfiguration configuration, AssemblyDependencyDeterminationContext context)
+        private static async Task<Result<List<Package2>>> BuildPackageFromProjectAssetsConfiguration(IConfiguration configuration, DownloadablePackagesDeterminationContext context)
         {
             try
             {
                 var targetFrameworkTargets = configuration.GetSection("targets")
                                                           .GetChildren()
                                                           .FirstOrDefault(child => child.Key.Equals(context.TargetFramework));
-                var package2s = new List<Package2>();
-                var res = await BuildPackageAndDependenciesForAssembly($"{context.AssemblyName.Name}/{context.AssemblyName.Version}", targetFrameworkTargets, package2s);
+                var packages = new List<Package2>();
+                var res = await BuildPackageAndDependenciesForAssembly($"{context.AssemblyName.Name}/{context.AssemblyName.Version}", targetFrameworkTargets!, packages);
 
-                var rootAssemblyTarget = targetFrameworkTargets!.GetChildren()
-                                                                .FirstOrDefault(child => child.Key.StartsWith(context.AssemblyName.Name!, 
-                                                                                                              StringComparison.OrdinalIgnoreCase));
-
-                if (TryConvertingConfigSectionToPackage(rootAssemblyTarget, targetFrameworkTargets.GetChildren().ToArray(), out var package))
+                if(res.IsSuccess)
                 {
-                    return Result.Ok(package);
+                    return Result.Ok(packages);
                 }
                 else
                 {
-                    return Result.Fail(new UnableToBuildPackageFromProjectAssetsJson());
+                    return Result.Fail("").WithReasons(res.Reasons);
                 }
             }
             catch (Exception exp)
@@ -92,39 +88,36 @@ namespace Baubit.Store
             }
         }
 
-        public static bool TryConvertingConfigSectionToPackage(IConfigurationSection rootConfigurationSection,
-                                                               IConfigurationSection[] targetFrameworkTargets,
-                                                               out Package package)
+        private static async Task<Result> BuildPackageAndDependenciesForAssembly(string assemblyKey,
+                                                                                 IConfigurationSection targetFrameworkTargets,
+                                                                                 List<Package2> result)
         {
-            var keyParts = rootConfigurationSection.Key.Split('/');
+            var assemblyConfigurationSection = targetFrameworkTargets!.GetChildren()
+                                                                      .FirstOrDefault(child => child.Key.StartsWith(assemblyKey!, StringComparison.OrdinalIgnoreCase));
 
-            var dllRelativePath = rootConfigurationSection.GetChildren()
-                                                      .FirstOrDefault(child => child.Key.Equals("runtime"))?
-                                                      .GetChildren()
-                                                      .FirstOrDefault()?
-                                                      .Key;
+            var dllRelativePath = assemblyConfigurationSection?.GetChildren()
+                                                               .FirstOrDefault(child => child.Key.Equals("runtime"))?
+                                                               .GetChildren()
+                                                               .FirstOrDefault()?
+                                                               .Key;
 
-            List<Package> dependencies = new List<Package>();
+            var dependencies = assemblyConfigurationSection!.GetSection("dependencies")
+                                                            .GetChildren()
+                                                            .Select(childSection => $"{childSection.Key}/{childSection.Value}")
+                                                            .ToArray();
 
-            foreach (var deps in rootConfigurationSection.GetSection("dependencies").GetChildren())
+            foreach (var dependency in dependencies.Where(dep => !result.Any(d => d.AssemblyName.GetPersistableAssemblyName().Equals(dep, StringComparison.OrdinalIgnoreCase))))
             {
-                var depConfigSection = targetFrameworkTargets.FirstOrDefault(child => child.Key.StartsWith($"{deps.Key}/", StringComparison.OrdinalIgnoreCase));
-                if (TryConvertingConfigSectionToPackage(depConfigSection, targetFrameworkTargets, out var dependency))
-                {
-                    dependencies.Add(dependency);
-                }
+                var depResult = await BuildPackageAndDependenciesForAssembly(dependency, targetFrameworkTargets, result);
+                if (!depResult.IsSuccess) return Result.Fail("").WithReasons(depResult.Reasons);
             }
-
-            package = new Package(new AssemblyName { Name = keyParts[0], Version = new Version(keyParts[1]) },
-                                  dllRelativePath,
-                                  dependencies.ToArray());
-
-            return true;
+            result.Add(new Package2(assemblyKey, dllRelativePath, dependencies));
+            return Result.Ok();
         }
-
     }
 
-    public class AssemblyDependencyDeterminationContext
+
+    public class DownloadablePackagesDeterminationContext
     {
         public AssemblyName AssemblyName { get; init; }
         public string TargetFramework { get; init; }
@@ -132,24 +125,14 @@ namespace Baubit.Store
         public string TempProjFileName { get; init; }
         public string TempProjBuildOutputFolder { get; init; }
         public string ProjectAssetsJsonFile { get; init; }
-        public AssemblyDependencyDeterminationContext(AssemblyName assemblyName, string targetFramework)
+        public DownloadablePackagesDeterminationContext(AssemblyName assemblyName, string targetFramework)
         {
             AssemblyName = assemblyName;
             TargetFramework = targetFramework;
-            PackageDeterminationWorkspace = Path.Combine(Path.GetTempPath(), $"PackageDeterminationWorkspace_{AssemblyName.Name}");
+            PackageDeterminationWorkspace = Path.Combine(Path.GetTempPath(), $"DetermineDownloadablePackagesWorkspace_{AssemblyName.Name}");
             TempProjFileName = Path.Combine(PackageDeterminationWorkspace, $"TempProject_{AssemblyName.Name}.csproj");
             TempProjBuildOutputFolder = Path.Combine(PackageDeterminationWorkspace, "release");
             ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
         }
-    }
-
-    public class UnableToBuildPackageFromProjectAssetsJson : IError
-    {
-        public List<IError> Reasons { get; }
-
-        public string Message => "Failed to build Package from project assets Json !";
-
-        public Dictionary<string, object> Metadata { get; }
-
     }
 }

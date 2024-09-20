@@ -1,5 +1,7 @@
 ﻿using FluentResults;
+using System;
 using System.Reflection;
+using System.Reflection.PortableExecutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -84,6 +86,33 @@ namespace Baubit.Store
         }
     }
 
+    public record Package2
+    {
+        [JsonConverter(typeof(AssemblyNameJsonConverter))]
+        public AssemblyName AssemblyName { get; init; }
+        public string DllRelativePath { get; init; }
+        [JsonIgnore]
+        public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
+        public string[] Dependencies { get; init; }
+
+        [Obsolete("For use with serialization/deserialization only !")]
+        public Package2()
+        {
+
+        }
+
+        public Package2(string assemblyName,
+                       string dllRelativePath, 
+                       string[] dependencies)
+        {
+            var nameParts = assemblyName.Split('/');
+            AssemblyName =  new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
+            DllRelativePath = dllRelativePath;
+            Dependencies = dependencies;
+        }
+
+    }
+
     public static class PackageExtensions
     {
         public static bool TryFlatteningPackage(this Package package, List<Package> list)
@@ -98,6 +127,17 @@ namespace Baubit.Store
                 }
             }
             return true;
+        }
+
+        public static string GetPersistableAssemblyName(this AssemblyName assemblyName)
+        {
+            return $"{assemblyName.Name}/{assemblyName.Version}";
+        }
+
+        public static AssemblyName GetAssemblyNameFromPersistableString(string value)
+        {
+            var nameParts = value.Split('/');
+            return new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
         }
     }
 

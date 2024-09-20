@@ -106,43 +106,43 @@ namespace Baubit.Store
             }
         }
 
-        private static Assembly? ResolveAssembly(AssemblyName assemblyName)
-        {
-            Package package = null;
-            var searchResult = Store.Operations
-                                    .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework))
-                                    .GetAwaiter()
-                                    .GetResult();
-            if (searchResult.IsSuccess)
-            {
-                package = searchResult.Value;
-            }
-            else
-            {
-                var downloadResult = Store.Operations
-                                          .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true))
-                                          .GetAwaiter()
-                                          .GetResult();
+        //private static Assembly? ResolveAssembly(AssemblyName assemblyName)
+        //{
+        //    Package package = null;
+        //    var searchResult = Store.Operations
+        //                            .SearchPackageAsync(new Store.PackageSearchContext(Application.BaubitPackageRegistry, assemblyName, Application.TargetFramework))
+        //                            .GetAwaiter()
+        //                            .GetResult();
+        //    if (searchResult.IsSuccess)
+        //    {
+        //        package = searchResult.Value;
+        //    }
+        //    else
+        //    {
+        //        var downloadResult = Store.Operations
+        //                                  .DownloadPackageAsync(new PackageDownloadContext(assemblyName, Application.TargetFramework, Application.BaubitRootPath, true))
+        //                                  .GetAwaiter()
+        //                                  .GetResult();
 
-                if (downloadResult.IsSuccess)
-                {
-                    package = downloadResult.Value;
-                }
-            }
-            if (package == null)
-            {
-                return null;
-            }
-            var loadResult = Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default)).GetAwaiter().GetResult();
-            if (loadResult.IsSuccess)
-            {
-                return loadResult.Value;
-            }
-            else
-            {
-                return null;
-            }
-        }
+        //        if (downloadResult.IsSuccess)
+        //        {
+        //            package = downloadResult.Value;
+        //        }
+        //    }
+        //    if (package == null)
+        //    {
+        //        return null;
+        //    }
+        //    var loadResult = Store.Operations.LoadAssemblyAsync(new AssemblyLoadingContext(package, AssemblyLoadContext.Default)).GetAwaiter().GetResult();
+        //    if (loadResult.IsSuccess)
+        //    {
+        //        return loadResult.Value;
+        //    }
+        //    else
+        //    {
+        //        return null;
+        //    }
+        //}
     }
     public class TypeResolutionContext
     {
