@@ -14,9 +14,10 @@ namespace Baubit.Hosting
             {
                 var hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(context.HostApplicationBuilderSettings);
                 hostApplicationBuilder.Configuration.AddConfiguration(context.Configuration!);
-                var serviceProviderMetaFactoryConcreteType = Type.GetType(context.ServiceProviderFactoryRegistrarType!);
-                var serviceProviderMetaFactory = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(serviceProviderMetaFactoryConcreteType!)!;
-                serviceProviderMetaFactory.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
+                var resolveTypeResult = await Baubit.Store.Operations.ResolveTypeAsync(new Store.TypeResolutionContext(context.ServiceProviderFactoryRegistrarType!));
+                if (!resolveTypeResult.IsSuccess) return Result.Fail("").WithReasons(resolveTypeResult.Reasons);
+                var serviceProviderFactoryRegistrar = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(resolveTypeResult.Value!)!;
+                serviceProviderFactoryRegistrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
                 var host = hostApplicationBuilder.Build();
                 await host.RunAsync();
 
