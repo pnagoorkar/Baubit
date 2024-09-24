@@ -1,7 +1,16 @@
-﻿using FluentResults;
+﻿using Baubit.Compression;
+using Baubit.Regex;
+using FluentResults;
+using FluentResults.Extensions;
+using System.Diagnostics;
+using System.IO.Compression;
+using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Baubit.Store
 {
@@ -31,6 +40,12 @@ namespace Baubit.Store
             {
                 BaubitStoreRegistryAccessor.ReleaseMutex();
             }
+        }
+
+        public static async Task<Result<Package2>> SearchAsync(AssemblyName assemblyName, string targetFramework)
+        {
+            await new MockProject(assemblyName, targetFramework).BuildAsync()
+                                                                .Bind(packages => ;
         }
 
         public Result WriteTo(string filePath)
@@ -85,21 +100,101 @@ namespace Baubit.Store
             DllRelativePath = dllRelativePath;
             Dependencies = dependencies;
         }
-
     }
 
-    public static class PackageExtensions
+    public class Package2
     {
-        public static string GetPersistableAssemblyName(this AssemblyName assemblyName)
+        [JsonConverter(typeof(AssemblyNameJsonConverter))]
+        public AssemblyName AssemblyName { get; init; }
+        public string DllRelativePath { get; init; }
+        public IReadOnlyList<Package2> Dependencies { get; init; }
+
+        private string TempDownloadPath { get; init; }
+        private string TargetFolder { get; init; }
+
+        [Obsolete("For use with serialization/deserialization only !")]
+        public Package2()
         {
-            return $"{assemblyName.Name}/{assemblyName.Version}";
+
         }
 
-        public static AssemblyName GetAssemblyNameFromPersistableString(string value)
+        private string dllTargetPath = string.Empty;
+        private Expression<Func<ZipArchiveEntry, bool>> zipExtractionCriteria = null;
+        public Package2(ProjectAssetsPackage projectAssetsPackage)
         {
-            var nameParts = value.Split('/');
-            return new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
+            AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(projectAssetsPackage.AssemblyName);
+            var deps = new List<Package2>();
+            foreach (var dependency in projectAssetsPackage.Dependencies)
+            {
+                deps.Add(new Package2(dependency));
+            }
+            Dependencies = deps;
+            TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
+            dllTargetPath = Path.Combine(TargetFolder, AssemblyName.Name!, AssemblyName.Version!.ToString());
+            zipExtractionCriteria = entry => entry.FullName.EndsWith($"{AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase);
         }
+
+        public async Task<Result> DownloadAsync(bool downloadDependencies = false)
+        {
+            foreach (var dependency in Dependencies)
+            {
+                await dependency.DownloadAsync(downloadDependencies);
+            }
+
+            if (File.Exists(DllRelativePath)) return Result.Ok();
+
+            return await BuildNugetInstallCommand().Bind(startInfo => startInfo.RunAsync())
+                                                   .Bind(BuildOutputDirectoryExtractionContext)
+                                                   .Bind(context => context.RunAsync())
+                                                   .Bind(DetermineDownloadedNugetPackage)
+                                                   .Bind(BuildDllExtractionContext)
+                                                   .Bind(extractionContext => extractionContext.RunAsync())
+                                                   .Bind(extractedFiles => Result.Ok());
+        }
+
+        public async Task<Result<Assembly>> Load(AssemblyLoadContext assemblyLoadContext)
+        {
+            foreach (var dependency in Dependencies)
+            {
+                await dependency.Load(assemblyLoadContext);
+            }
+            return assemblyLoadContext.LoadFromAssemblyPath(DllRelativePath);
+        }
+
+        private Result<ProcessStartInfo> BuildNugetInstallCommand()
+        {
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            string winArgs = $"install {AssemblyName.Name} -O {TempDownloadPath} -DependencyVersion Ignore" + (AssemblyName.Version == null ? string.Empty : $" -Version {AssemblyName.Version}");
+            string linArgs = $"/nuget.exe install {AssemblyName.Name} -O {TempDownloadPath} -DependencyVersion Ignore" + (AssemblyName.Version == null ? string.Empty : $" -Version {AssemblyName.Version}") + @" -ConfigFile /root/.nuget/NuGet/NuGet.Config";
+
+
+            if (Application.OSPlatform == OSPlatform.Windows)
+            {
+                startInfo.FileName = "nuget";
+                startInfo.Arguments = winArgs;
+            }
+            else if (Application.OSPlatform == OSPlatform.Linux)
+            {
+                startInfo.FileName = "mono";
+                startInfo.Arguments = linArgs;
+            }
+            return startInfo;
+        }
+
+        public const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
+        private Result<SingleValueExtractionContext> BuildOutputDirectoryExtractionContext(string processOutputLine) => Result.Try(() => new SingleValueExtractionContext(processOutputLine, NugetAddedPackageLinePattern, values => values.Skip(1).First()));
+
+        private Result<string> DetermineDownloadedNugetPackage(string downloadedFolder) => Result.Try(() => Path.Combine(TempDownloadPath, downloadedFolder, $"{downloadedFolder}.nupkg"));
+
+
+        private Result<FileExtractionContext> BuildDllExtractionContext(string nugetPackageFile) => Result.Try(() => new FileExtractionContext(nugetPackageFile, dllTargetPath, zipExtractionCriteria, overwrite: true));
     }
 
     public class AssemblyNameJsonConverter : JsonConverter<AssemblyName>

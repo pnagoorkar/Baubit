@@ -17,6 +17,11 @@
     <OutputType>Exe</OutputType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Operation\**" />
+    <EmbeddedResource Remove="Operation\**" />
+    <None Remove="Operation\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Store\CSProjTemplate.txt" />
@@ -32,10 +37,6 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="FluentValidation" Version="11.10.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Operation\" />
   </ItemGroup>
 
 </Project>
