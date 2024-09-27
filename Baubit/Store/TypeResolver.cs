@@ -56,7 +56,7 @@ namespace Baubit.Store
         {
             try
             {
-                var searchRes = await PackageRegistry.SearchAsync(assemblyName, Application.TargetFramework);
+                var searchRes = await PackageRegistry2.SearchAsync(assemblyName, Application.TargetFramework);
                 if (!searchRes.IsSuccess)
                 {
                     searchRes = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework)

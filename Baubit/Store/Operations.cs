@@ -1,7 +1,7 @@
 ﻿
-namespace Baubit.Store
-{
-    public static partial class Operations
-    {
-    }
-}
+//namespace Baubit.Store
+//{
+//    public static partial class Operations
+//    {
+//    }
+//}

@@ -1,16 +1,11 @@
-﻿using Baubit.Compression;
-using Baubit.Regex;
+﻿using Baubit.Process;
 using FluentResults;
 using FluentResults.Extensions;
-using System.Diagnostics;
 using System.IO.Compression;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace Baubit.Store
 {
@@ -40,12 +35,6 @@ namespace Baubit.Store
             {
                 BaubitStoreRegistryAccessor.ReleaseMutex();
             }
-        }
-
-        public static async Task<Result<Package2>> SearchAsync(AssemblyName assemblyName, string targetFramework)
-        {
-            await new MockProject(assemblyName, targetFramework).BuildAsync()
-                                                                .Bind(packages => ;
         }
 
         public Result WriteTo(string filePath)
@@ -102,6 +91,94 @@ namespace Baubit.Store
         }
     }
 
+    public class PackageRegistry2 : Dictionary<string, List<Package2>>
+    {
+        static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
+
+        public static Result<PackageRegistry2> ReadFrom(string filePath)
+        {
+            try
+            {
+                BaubitStoreRegistryAccessor.WaitOne();
+                return FileSystem.Operations
+                                 .ReadFileAsync(new FileSystem.FileReadContext(filePath))
+                                 .GetAwaiter()
+                                 .GetResult()
+                                 .Bind(jsonString => Serialization.Operations<PackageRegistry2>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry2>(jsonString)))
+                                 .GetAwaiter()
+                                 .GetResult();
+
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+            finally
+            {
+                BaubitStoreRegistryAccessor.ReleaseMutex();
+            }
+        }
+
+        public static async Task<Result<Package2>> SearchAsync(AssemblyName assemblyName, string targetFramework)
+        {
+            try
+            {
+                await Task.Yield();
+                var registryReadResult = ReadFrom("");
+                if (registryReadResult.IsSuccess)
+                {
+                    var registry = registryReadResult.Value;
+                    if (registry.ContainsKey(targetFramework))
+                    {
+                        var package = registry[targetFramework].FirstOrDefault(p => p.AssemblyName.GetPersistableAssemblyName()
+                                                                                                  .Equals(assemblyName.GetPersistableAssemblyName(),
+                                                                                                          StringComparison.OrdinalIgnoreCase));
+                        if (package == null)
+                        {
+                            return Result.Fail("Package not found !");
+                        }
+                        return Result.Ok(package);
+                    }
+                    else
+                    {
+                        return Result.Fail("No packages for targetFramework !");
+                    }
+                }
+                return Result.Fail("").WithReasons(registryReadResult.Reasons);
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        public Result WriteTo(string filePath)
+        {
+            try
+            {
+                BaubitStoreRegistryAccessor.WaitOne();
+                foreach (var key in Keys)
+                {
+                    this[key] = this[key].DistinctBy(package => package.AssemblyName.GetPersistableAssemblyName())
+                                         .OrderBy(package => package.AssemblyName.Name)
+                                         .ThenBy(package => package.AssemblyName.Version)
+                                         .ThenBy(package => package.Dependencies)
+                                         .ToList();
+                }
+                File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+            finally
+            {
+                BaubitStoreRegistryAccessor.ReleaseMutex();
+            }
+        }
+    }
+
     public class Package2
     {
         [JsonConverter(typeof(AssemblyNameJsonConverter))]
@@ -118,8 +195,6 @@ namespace Baubit.Store
 
         }
 
-        private string dllTargetPath = string.Empty;
-        private Expression<Func<ZipArchiveEntry, bool>> zipExtractionCriteria = null;
         public Package2(ProjectAssetsPackage projectAssetsPackage)
         {
             AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(projectAssetsPackage.AssemblyName);
@@ -130,8 +205,6 @@ namespace Baubit.Store
             }
             Dependencies = deps;
             TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
-            dllTargetPath = Path.Combine(TargetFolder, AssemblyName.Name!, AssemblyName.Version!.ToString());
-            zipExtractionCriteria = entry => entry.FullName.EndsWith($"{AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<Result> DownloadAsync(bool downloadDependencies = false)
@@ -143,13 +216,20 @@ namespace Baubit.Store
 
             if (File.Exists(DllRelativePath)) return Result.Ok();
 
-            return await BuildNugetInstallCommand().Bind(startInfo => startInfo.RunAsync())
-                                                   .Bind(BuildOutputDirectoryExtractionContext)
-                                                   .Bind(context => context.RunAsync())
-                                                   .Bind(DetermineDownloadedNugetPackage)
-                                                   .Bind(BuildDllExtractionContext)
-                                                   .Bind(extractionContext => extractionContext.RunAsync())
-                                                   .Bind(extractedFiles => Result.Ok());
+            return await new NugetPackageDownloader(this.AssemblyName).RunAsync().Bind(nupkgFile => ExtractDllsFromNupkg(nupkgFile.EnumerateEntriesAsync()));
+        }
+
+        private async Task<Result> ExtractDllsFromNupkg(IAsyncEnumerable<ZipArchiveEntry> zipArchiveEntries)
+        {
+            var dllTargetPath = Path.Combine(TargetFolder, AssemblyName.Name!, AssemblyName.Version!.ToString());
+            await foreach (var zipArchiveEntry in zipArchiveEntries)
+            {
+                if (zipArchiveEntry.FullName.EndsWith($"{AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase))
+                {
+                    zipArchiveEntry.ExtractToFile(dllTargetPath, true);
+                }
+            }
+            return Result.Ok();
         }
 
         public async Task<Result<Assembly>> Load(AssemblyLoadContext assemblyLoadContext)
@@ -161,40 +241,53 @@ namespace Baubit.Store
             return assemblyLoadContext.LoadFromAssemblyPath(DllRelativePath);
         }
 
-        private Result<ProcessStartInfo> BuildNugetInstallCommand()
-        {
-            ProcessStartInfo startInfo = new ProcessStartInfo
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+        //private Result<ProcessStartInfo> BuildNugetInstallCommand()
+        //{
+        //    string fileName = string.Empty;
+        //    IEnumerable<string> arguments = Enumerable.Empty<string>();
 
-            string winArgs = $"install {AssemblyName.Name} -O {TempDownloadPath} -DependencyVersion Ignore" + (AssemblyName.Version == null ? string.Empty : $" -Version {AssemblyName.Version}");
-            string linArgs = $"/nuget.exe install {AssemblyName.Name} -O {TempDownloadPath} -DependencyVersion Ignore" + (AssemblyName.Version == null ? string.Empty : $" -Version {AssemblyName.Version}") + @" -ConfigFile /root/.nuget/NuGet/NuGet.Config";
+        //    string[] linArgs = ["/nuget.exe"];
+
+        //    string[] commonArgs = ["install", AssemblyName.Name!,
+        //                           "-O", TempDownloadPath,
+        //                           "-DependencyVersion", "Ignore"];
+
+        //    string[] versionArgs = ["-Version", AssemblyName.Version!.ToString()];
+
+        //    if (Application.OSPlatform == OSPlatform.Windows)
+        //    {
+        //        fileName = "nuget";
+        //        arguments = commonArgs;
+        //    }
+        //    else if (Application.OSPlatform == OSPlatform.Linux)
+        //    {
+        //        fileName = "mono";
+        //        arguments = linArgs.Concat(commonArgs);
+        //    }
+        //    else
+        //    {
+        //        throw new NotImplementedException("Undefined OS for Nuget install command !");
+        //    }
+
+        //    if (AssemblyName.Version != null) arguments.Concat(versionArgs);
+
+        //    ProcessStartInfo startInfo = new ProcessStartInfo(fileName, arguments)
+        //    {
+        //        RedirectStandardOutput = true,
+        //        RedirectStandardError = true,
+        //        UseShellExecute = false,
+        //        CreateNoWindow = true
+        //    };
+        //    return startInfo;
+        //}
+
+        //public const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
+        //private Result<SingleValueExtractionContext> BuildOutputDirectoryExtractionContext(string processOutputLine) => Result.Try(() => new SingleValueExtractionContext(processOutputLine, NugetAddedPackageLinePattern, values => values.Skip(1).First()));
+
+        //private Result<string> DetermineDownloadedNugetPackage(string downloadedFolder) => Result.Try(() => Path.Combine(TempDownloadPath, downloadedFolder, $"{downloadedFolder}.nupkg"));
 
 
-            if (Application.OSPlatform == OSPlatform.Windows)
-            {
-                startInfo.FileName = "nuget";
-                startInfo.Arguments = winArgs;
-            }
-            else if (Application.OSPlatform == OSPlatform.Linux)
-            {
-                startInfo.FileName = "mono";
-                startInfo.Arguments = linArgs;
-            }
-            return startInfo;
-        }
-
-        public const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
-        private Result<SingleValueExtractionContext> BuildOutputDirectoryExtractionContext(string processOutputLine) => Result.Try(() => new SingleValueExtractionContext(processOutputLine, NugetAddedPackageLinePattern, values => values.Skip(1).First()));
-
-        private Result<string> DetermineDownloadedNugetPackage(string downloadedFolder) => Result.Try(() => Path.Combine(TempDownloadPath, downloadedFolder, $"{downloadedFolder}.nupkg"));
-
-
-        private Result<FileExtractionContext> BuildDllExtractionContext(string nugetPackageFile) => Result.Try(() => new FileExtractionContext(nugetPackageFile, dllTargetPath, zipExtractionCriteria, overwrite: true));
+        //private Result<FileExtractionContext> BuildDllExtractionContext(string nugetPackageFile) => Result.Try(() => new FileExtractionContext(nugetPackageFile, dllTargetPath, zipExtractionCriteria, overwrite: true));
     }
 
     public class AssemblyNameJsonConverter : JsonConverter<AssemblyName>
