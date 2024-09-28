@@ -1,8 +1,8 @@
 ﻿
-namespace Baubit.Configuration
-{
-    public static partial class Operations
-    {
+//namespace Baubit.Configuration
+//{
+//    public static partial class Operations
+//    {
 
-    }
-}
+//    }
+//}

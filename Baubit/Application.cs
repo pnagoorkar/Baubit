@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 
 namespace Baubit
 {
@@ -17,6 +18,12 @@ namespace Baubit
             { PathKey_BaubitRoot, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), BaubitBase_RootDirectoryName) },
             { PathKey_ExecutingAssemlyLocation, Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)! },
             {$"~{Environment.SpecialFolder.MyDocuments}~", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) }
+        };
+
+        public static JsonSerializerOptions IndentedJsonWithCamelCase = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
         public static string BaubitRootPath { get => Paths[PathKey_BaubitRoot]; }

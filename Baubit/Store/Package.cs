@@ -1,6 +1,8 @@
-﻿using Baubit.Process;
+﻿using Baubit.Configuration;
+using Baubit.Process;
 using FluentResults;
 using FluentResults.Extensions;
+using Microsoft.Extensions.Configuration;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.Loader;
@@ -9,87 +11,82 @@ using System.Text.Json.Serialization;
 
 namespace Baubit.Store
 {
-    public class PackageRegistry : Dictionary<string, List<Package>>
-    {
-        static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
+    //public class PackageRegistry : Dictionary<string, List<Package>>
+    //{
+    //    static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
 
-        public static Result<PackageRegistry> ReadFrom(string filePath)
-        {
-            try
-            {
-                BaubitStoreRegistryAccessor.WaitOne();
-                return FileSystem.Operations
-                                 .ReadFileAsync(new FileSystem.FileReadContext(filePath))
-                                 .GetAwaiter()
-                                 .GetResult()
-                                 .Bind(jsonString => Serialization.Operations<PackageRegistry>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry>(jsonString)))
-                                 .GetAwaiter()
-                                 .GetResult();
+    //    public static Result<PackageRegistry> ReadFrom(string filePath)
+    //    {
+    //        try
+    //        {
+    //            BaubitStoreRegistryAccessor.WaitOne();
+    //            return Result.Try(() => File.ReadAllText(filePath))
+    //                         .Bind(jsonString => Result.Try(() => JsonSerializer.Deserialize<PackageRegistry>(jsonString, Application.IndentedJsonWithCamelCase)!));
 
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-            finally
-            {
-                BaubitStoreRegistryAccessor.ReleaseMutex();
-            }
-        }
+    //        }
+    //        catch (Exception exp)
+    //        {
+    //            return Result.Fail(new ExceptionalError(exp));
+    //        }
+    //        finally
+    //        {
+    //            BaubitStoreRegistryAccessor.ReleaseMutex();
+    //        }
+    //    }
 
-        public Result WriteTo(string filePath)
-        {
-            try
-            {
-                BaubitStoreRegistryAccessor.WaitOne();
-                foreach (var key in Keys)
-                {
-                    this[key] = this[key].DistinctBy(package => package.AssemblyName.GetPersistableAssemblyName())
-                                         .OrderBy(package => package.AssemblyName.Name)
-                                         .ThenBy(package => package.AssemblyName.Version)
-                                         .ThenBy(package => package.Dependencies)
-                                         .ToList();
-                }
-                File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
-                return Result.Ok();
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-            finally
-            {
-                BaubitStoreRegistryAccessor.ReleaseMutex();
-            }
-        }
+    //    public Result WriteTo(string filePath)
+    //    {
+    //        try
+    //        {
+    //            BaubitStoreRegistryAccessor.WaitOne();
+    //            foreach (var key in Keys)
+    //            {
+    //                this[key] = this[key].DistinctBy(package => package.AssemblyName.GetPersistableAssemblyName())
+    //                                     .OrderBy(package => package.AssemblyName.Name)
+    //                                     .ThenBy(package => package.AssemblyName.Version)
+    //                                     .ThenBy(package => package.Dependencies)
+    //                                     .ToList();
+    //            }
+    //            File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
+    //            return Result.Ok();
+    //        }
+    //        catch (Exception exp)
+    //        {
+    //            return Result.Fail(new ExceptionalError(exp));
+    //        }
+    //        finally
+    //        {
+    //            BaubitStoreRegistryAccessor.ReleaseMutex();
+    //        }
+    //    }
 
-    }
+    //}
 
-    public record Package
-    {
-        [JsonConverter(typeof(AssemblyNameJsonConverter))]
-        public AssemblyName AssemblyName { get; init; }
-        public string DllRelativePath { get; init; }
-        [JsonIgnore]
-        public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
-        public string[] Dependencies { get; init; }
+    //public record Package
+    //{
+    //    [JsonConverter(typeof(AssemblyNameJsonConverter))]
+    //    public AssemblyName AssemblyName { get; init; }
+    //    public string DllRelativePath { get; init; }
+    //    [JsonIgnore]
+    //    public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
+    //    public string[] Dependencies { get; init; }
 
-        [Obsolete("For use with serialization/deserialization only !")]
-        public Package()
-        {
+    //    [Obsolete("For use with serialization/deserialization only !")]
+    //    public Package()
+    //    {
 
-        }
+    //    }
 
-        public Package(string assemblyName,
-                       string dllRelativePath, 
-                       string[] dependencies)
-        {
-            var nameParts = assemblyName.Split('/');
-            AssemblyName =  new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
-            DllRelativePath = dllRelativePath;
-            Dependencies = dependencies;
-        }
-    }
+    //    public Package(string assemblyName,
+    //                   string dllRelativePath, 
+    //                   string[] dependencies)
+    //    {
+    //        var nameParts = assemblyName.Split('/');
+    //        AssemblyName =  new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
+    //        DllRelativePath = dllRelativePath;
+    //        Dependencies = dependencies;
+    //    }
+    //}
 
     public class PackageRegistry2 : Dictionary<string, List<Package2>>
     {
@@ -100,14 +97,17 @@ namespace Baubit.Store
             try
             {
                 BaubitStoreRegistryAccessor.WaitOne();
-                return FileSystem.Operations
-                                 .ReadFileAsync(new FileSystem.FileReadContext(filePath))
-                                 .GetAwaiter()
-                                 .GetResult()
-                                 .Bind(jsonString => Serialization.Operations<PackageRegistry2>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry2>(jsonString)))
-                                 .GetAwaiter()
-                                 .GetResult();
-
+                var registryConfiguration = new MetaConfiguration { JsonUriStrings = [filePath] }.Load();
+                var targetFrameworkSection = registryConfiguration.GetSection(Application.TargetFramework);
+                var buildResult = Package2.BuildPackageTrees(targetFrameworkSection);
+                if (buildResult.IsSuccess)
+                {
+                    return Result.Ok(new PackageRegistry2 { { Application.TargetFramework, buildResult.Value } });
+                }
+                else
+                {
+                    return Result.Fail("").WithReasons(buildResult.Reasons);
+                }
             }
             catch (Exception exp)
             {
@@ -124,7 +124,7 @@ namespace Baubit.Store
             try
             {
                 await Task.Yield();
-                var registryReadResult = ReadFrom("");
+                var registryReadResult = ReadFrom(Application.BaubitPackageRegistry);
                 if (registryReadResult.IsSuccess)
                 {
                     var registry = registryReadResult.Value;
@@ -165,7 +165,7 @@ namespace Baubit.Store
                                          .ThenBy(package => package.Dependencies)
                                          .ToList();
                 }
-                File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
+                File.WriteAllText(filePath, JsonSerializer.Serialize(this, Application.IndentedJsonWithCamelCase));
                 return Result.Ok();
             }
             catch (Exception exp)
@@ -184,6 +184,8 @@ namespace Baubit.Store
         [JsonConverter(typeof(AssemblyNameJsonConverter))]
         public AssemblyName AssemblyName { get; init; }
         public string DllRelativePath { get; init; }
+        [JsonIgnore]
+        public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
         public IReadOnlyList<Package2> Dependencies { get; init; }
 
         private string TempDownloadPath { get; init; }
@@ -195,16 +197,124 @@ namespace Baubit.Store
 
         }
 
-        public Package2(ProjectAssetsPackage projectAssetsPackage)
+        public Package2(AssemblyName assemblyName, string dllRelativePath, List<Package2> dependencies)
         {
-            AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(projectAssetsPackage.AssemblyName);
-            var deps = new List<Package2>();
+            AssemblyName = assemblyName;
+            DllRelativePath = dllRelativePath;
+            Dependencies = dependencies.AsReadOnly();
+            TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
+        }
+
+        //public Package2(ProjectAssetsPackage projectAssetsPackage)
+        //{
+        //    AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(projectAssetsPackage.AssemblyName);
+        //    DllRelativePath = projectAssetsPackage.DllRelativePath;
+        //    var deps = new List<Package2>();
+        //    foreach (var dependency in projectAssetsPackage.Dependencies)
+        //    {
+        //        deps.Add(new Package2(dependency));
+        //    }
+        //    Dependencies = deps;
+        //    TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
+        //}
+
+        //public Package2(IConfigurationSection packageSection, IConfigurationSection registryConfiguration, List<Package2> masterList)
+        //{
+        //    AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(packageSection["assemblyName"]!);
+        //    DllRelativePath = packageSection["assemblyName"]!;
+
+        //    foreach(var dependency in packageSection.GetSection("dependencies").GetChildren())
+        //    {
+        //        if (!masterList.Any(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Key, StringComparison.OrdinalIgnoreCase)))
+        //        {
+        //            var dependencyPackageSection = registryConfiguration.GetSection(dependency.Key);
+        //            var dependentPackage = new Package2(dependencyPackageSection, registryConfiguration, masterList);
+        //            masterList.Add(dependentPackage);
+        //        }
+        //    }
+        //    var targetFrameworkSection = registryConfiguration.GetSection(Application.TargetFramework);
+        //}
+
+        public static Result<Package2> BuildPackage(ProjectAssetsPackage projectAssetsPackage)
+        {
+            var assemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(projectAssetsPackage.AssemblyName);
+            var dllRelativePath = projectAssetsPackage.DllRelativePath;
+            var dependencies = new List<Package2>();
             foreach (var dependency in projectAssetsPackage.Dependencies)
             {
-                deps.Add(new Package2(dependency));
+                dependencies.Add(BuildPackage(dependency).Value);
             }
-            Dependencies = deps;
-            TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
+            return new Package2(assemblyName, dllRelativePath, dependencies);
+        }
+
+        public static Result<List<Package2>> BuildPackageTrees(IConfigurationSection targetFrameworkSection)
+        {
+            List<Package2> packages = new List<Package2>();
+
+            foreach (var packageSection in targetFrameworkSection.GetChildren())
+            {
+                if (packages.Any(package => package.AssemblyName.GetPersistableAssemblyName().Equals(packageSection["assemblyName"], StringComparison.OrdinalIgnoreCase))) continue;
+                var buildResult = BuildPackage(packageSection, targetFrameworkSection, packages);
+                if (buildResult.IsSuccess)
+                {
+                    //packages.Add(buildResult.Value);
+                }
+                else
+                {
+                    return Result.Fail("").WithReasons(buildResult.Reasons);
+                }
+            }
+            return Result.Ok(packages);
+        }
+
+        public static Result<Package2> BuildPackage(IConfigurationSection packageSection,
+                                                    IConfigurationSection targetFrameworkSection,
+                                                    List<Package2> packages)
+        {
+            var assemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(packageSection["assemblyName"]!);
+            var dllRelativePath = packageSection["dllRelativePath"]!;
+            var dependencies = new List<Package2>();
+
+            foreach (var dependency in packageSection.GetSection("dependencies").GetChildren())
+            {
+                var dependencyPackage = FlattenPackages(packages).FirstOrDefault(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Value, StringComparison.OrdinalIgnoreCase))!; ;
+                if (dependencyPackage == null)
+                {
+                    var dependencyPackageSection = targetFrameworkSection.GetChildren()
+                                                                         .FirstOrDefault(child => child["assemblyName"].Equals(dependency.Value, StringComparison.OrdinalIgnoreCase));
+                    if (dependencyPackageSection != null && dependencyPackageSection.Exists())
+                    {
+                        var depBuildResult = BuildPackage(dependencyPackageSection, targetFrameworkSection, packages);
+                        if (depBuildResult.IsSuccess)
+                        {
+                            dependencyPackage = depBuildResult.Value;
+                        }
+                        else
+                        {
+                            return Result.Fail("").WithReasons(depBuildResult.Reasons);
+                        }
+                    }
+                    else
+                    {
+                        return Result.Fail($"Dependency section does not exist for {assemblyName.GetPersistableAssemblyName()}");
+                    }
+                }
+                dependencies.Add(dependencyPackage);
+            }
+            var currentPackage = new Package2(assemblyName, dllRelativePath, dependencies);
+            packages.Add(currentPackage);
+            return Result.Ok(currentPackage);
+        }
+
+        public static List<Package2> FlattenPackages(IEnumerable<Package2> packages)
+        {
+            var result = new List<Package2>();
+            foreach(var package in packages)
+            {
+                result.AddRange(FlattenPackages(package.Dependencies));
+                result.Add(package);
+            }
+            return result;
         }
 
         public async Task<Result> DownloadAsync(bool downloadDependencies = false)
@@ -232,13 +342,13 @@ namespace Baubit.Store
             return Result.Ok();
         }
 
-        public async Task<Result<Assembly>> Load(AssemblyLoadContext assemblyLoadContext)
+        public async Task<Result<Assembly>> LoadAsync(AssemblyLoadContext assemblyLoadContext)
         {
             foreach (var dependency in Dependencies)
             {
-                await dependency.Load(assemblyLoadContext);
+                await dependency.LoadAsync(assemblyLoadContext);
             }
-            return assemblyLoadContext.LoadFromAssemblyPath(DllRelativePath);
+            return assemblyLoadContext.LoadFromAssemblyPath(DllFile);
         }
 
         //private Result<ProcessStartInfo> BuildNugetInstallCommand()

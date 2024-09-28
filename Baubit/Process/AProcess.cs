@@ -1,4 +1,5 @@
-﻿using FluentResults;
+﻿using Baubit.IO;
+using FluentResults;
 using System.Diagnostics;
 
 namespace Baubit.Process
@@ -43,19 +44,5 @@ namespace Baubit.Process
 
         protected abstract void HandleOutput(IAsyncEnumerable<char> outputMessage);
         protected abstract void HandleError(IAsyncEnumerable<char> errorMessage);
-    }
-
-    public static class StreamExtensions
-    {
-        public static async IAsyncEnumerable<char> EnumerateAsync(this StreamReader streamReader)
-        {
-            char[] buffer = new char[1];
-            while (true)
-            {
-                var numRead = await streamReader.ReadAsync(buffer, 0, buffer.Length);
-                if (numRead == 0) break;
-                yield return buffer[0];
-            }
-        }
     }
 }

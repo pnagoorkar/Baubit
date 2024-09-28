@@ -1,7 +1,7 @@
-﻿namespace Baubit.CLI
-{
-    public static partial class Operations
-    {
+﻿//namespace Baubit.CLI
+//{
+//    public static partial class Operations
+//    {
 
-    }
-}
+//    }
+//}

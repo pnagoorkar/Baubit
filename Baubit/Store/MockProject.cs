@@ -1,5 +1,4 @@
 ﻿using Baubit.Process;
-using Baubit.Resource;
 using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Configuration;
@@ -10,15 +9,12 @@ namespace Baubit.Store
 {
     public class MockProject
     {
-        private static EmbeddedResourceReadContext embeddedResourceReadContext = new($"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt", Assembly.GetExecutingAssembly());
-
         public AssemblyName AssemblyName { get; init; }
         public string TargetFramework { get; init; }
         public string PackageDeterminationWorkspace { get; init; }
         public string TempProjFileName { get; init; }
         public string TempProjBuildOutputFolder { get; init; }
         public string ProjectAssetsJsonFile { get; init; }
-        public ProcessStartInfo BuildProcessStartInfo { get; init; }
 
         public MockProject(AssemblyName assemblyName, string targetFramework)
         {
@@ -28,36 +24,52 @@ namespace Baubit.Store
             TempProjFileName = Path.Combine(PackageDeterminationWorkspace, $"BaubitMockConsumer_{AssemblyName.Name}.csproj");
             TempProjBuildOutputFolder = Path.Combine(PackageDeterminationWorkspace, "release");
             ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
-            BuildProcessStartInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"build {TempProjFileName} --configuration Debug --output {TempProjBuildOutputFolder}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
         }
 
         public async Task<Result<Package2>> BuildAsync()
         {
-            return await GenerateProjectFile().Bind(BuildProcessStartInfo.RunAsync)
-                                              .Bind(output => Result.Try(() => new ConfigurationBuilder().AddJsonFile(ProjectAssetsJsonFile)
-                                                                                                         .Build()
-                                                                                                         .GetSection("targets")
-                                                                                                         .GetChildren()
-                                                                                                         .FirstOrDefault(child => child.Key.Equals(TargetFramework))))
-                                              .Bind(configuration => Result.Try(() => new ProjectAssets(configuration)))
+            return await GenerateProjectFile().Bind(BuildProject)
+                                              .Bind(ReadProjectAssetsFile)
                                               .Bind(projectAssets => projectAssets.BuildPackage(AssemblyName));
         }
 
         private async Task<Result> GenerateProjectFile()
         {
-            return await Resource.Operations.ReadEmbeddedResourceAsync(embeddedResourceReadContext)
-                                 .Bind(contents => Result.Try(() => contents.Replace("<TARGET_FRAMEWORK>", TargetFramework)
-                                                                            .Replace("<PACKAGE_NAME>", AssemblyName.Name)
-                                                                            .Replace("<PACKAGE_VERSION>", AssemblyName.Version!.ToString())))
-                                 .Bind(contents => Result.Try(() => File.WriteAllText(TempProjFileName, contents)));
+            return await Result.Try(Assembly.GetExecutingAssembly)
+                               .Bind(assembly => assembly.ReadResource($"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt"))
+                               .Bind(contents => Result.Try(() => contents.Replace("<TARGET_FRAMEWORK>", TargetFramework)
+                                                                          .Replace("<PACKAGE_NAME>", AssemblyName.Name)
+                                                                          .Replace("<PACKAGE_VERSION>", AssemblyName.Version!.ToString())))
+                               .Bind(contents => Result.Try(() => File.WriteAllText(TempProjFileName, contents)));
+        }
+
+        private async Task<Result> BuildProject()
+        {
+            return await Result.Try(() => new CSProjBuilder(TempProjFileName, TempProjBuildOutputFolder))
+                               .Bind(csProjBuilder => csProjBuilder.RunAsync());
+        }
+
+        private async Task<Result<ProjectAssets>> ReadProjectAssetsFile()
+        {
+            try
+            {
+                await Task.Yield();
+                var targetFrameworkTargets = new ConfigurationBuilder().AddJsonFile(ProjectAssetsJsonFile)
+                                                                       .Build()
+                                                                       .GetSection("targets")
+                                                                       .GetChildren()
+                                                                       .FirstOrDefault(child => child.Key.Equals(TargetFramework));
+
+                if (targetFrameworkTargets == null) return Result.Fail($"Failed to read {ProjectAssetsJsonFile}");
+                if (!targetFrameworkTargets.Exists()) return Result.Fail($"Failed to read {ProjectAssetsJsonFile}");
+
+                var projectAssets = new ProjectAssets(targetFrameworkTargets);
+                return Result.Ok(projectAssets);
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
         }
     }
 
@@ -134,7 +146,7 @@ namespace Baubit.Store
                                                                           .FirstOrDefault(child => child.Key.StartsWith(assemblyName.GetPersistableAssemblyName()!, StringComparison.OrdinalIgnoreCase));
                 ProjectAssetsPackage projectAssetsPackage = new ProjectAssetsPackage(assemblyConfigurationSection!, TargetFrameworkTargets);
 
-                return Result.Ok(new Package2(projectAssetsPackage));
+                return Result.Ok(Package2.BuildPackage(projectAssetsPackage).Value);
             }
             catch (Exception exp)
             {

@@ -1,6 +1,6 @@
-﻿namespace Baubit.FileSystem
-{
-    public static partial class Operations
-    {
-    }
-}
+﻿//namespace Baubit.FileSystem
+//{
+//    public static partial class Operations
+//    {
+//    }
+//}

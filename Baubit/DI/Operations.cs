@@ -1,6 +1,6 @@
-﻿namespace Baubit.DI
-{
-    public static partial class Operations
-    {
-    }
-}
+﻿//namespace Baubit.DI
+//{
+//    public static partial class Operations
+//    {
+//    }
+//}

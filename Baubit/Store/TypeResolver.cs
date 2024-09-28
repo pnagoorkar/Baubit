@@ -66,7 +66,7 @@ namespace Baubit.Store
                 {
                     return Result.Fail("").WithReasons(searchRes.Reasons);
                 }
-                return await searchRes.Value.Load(AssemblyLoadContext.Default);
+                return await searchRes.Value.LoadAsync(AssemblyLoadContext.Default);
             }
             catch (Exception exp)
             {

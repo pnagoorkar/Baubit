@@ -1,4 +1,5 @@
-﻿using FluentResults;
+﻿using Baubit.IO;
+using FluentResults;
 using System.Reflection;
 
 namespace Baubit.Store
@@ -18,6 +19,12 @@ namespace Baubit.Store
         {
             var nameParts = value.Split('/');
             return new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
+        }
+
+        public static async Task<Result<string>> ReadResource(this Assembly assembly, string resourceName)
+        {
+            return await Result.Try(() => assembly.GetManifestResourceStream(resourceName))
+                               .Bind(stream => stream!.ReadStringAsync());
         }
     }
 }
