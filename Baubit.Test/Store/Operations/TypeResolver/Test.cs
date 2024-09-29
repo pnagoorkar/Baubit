@@ -1,5 +1,7 @@
 ﻿
+using Baubit.Configuration;
 using Baubit.Store;
+using FluentResults;
 using System.Reflection;
 using System.Runtime.Loader;
 using Xunit.Abstractions;
@@ -23,9 +25,18 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         [Order("a")]
         public async void Setup()
         {
-            PackageRegistry.Search(new Configuration.MetaConfiguration { JsonUriStrings = [Application.BaubitPackageRegistry] },
-                                   Application.TargetFramework,
-                                   new AssemblyName("Autofac.Configuration, Version=7.0.0"));
+            var assemblyName = new AssemblyName("Autofac.Configuration, Version=7.0.0");
+            //PackageRegistry.Search(Application.BaubitPackageRegistry,
+            //                       Application.TargetFramework,
+            //                       assemblyName);
+
+            var metaConfiguration = new MetaConfiguration { JsonUriStrings = [@"C:\Users\prash\AppData\Local\Temp\BaubitWorkspace_Autofac.Configuration\obj\project.assets.json"] };
+            
+            var buildPackageResult = ProjectAssets2.Read(metaConfiguration)
+                                                   .Bind(assets => Result.Try(() => assets.BuildSerializablePackage(assemblyName.GetPersistableAssemblyName(), Application.TargetFramework).AsPackages()));
+
+            var addResult = PackageRegistry.Add(Application.BaubitPackageRegistry, buildPackageResult.Value, Application.TargetFramework);
+
             //if (Directory.Exists(Application.BaubitRootPath))
             //{
             //    Directory.Delete(Application.BaubitRootPath, true);
