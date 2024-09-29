@@ -1,7 +1,7 @@
 {
   "modules": [
     {
-      "type": "Baubit.Aggregation.Autofac.Bounded.Module`1[[System.String, System.Private.CoreLib]], Baubit.Aggregation.Autofac, Version=2024.37.2",
+      "type": "Baubit.Aggregation.Autofac.Bounded.Module`1[[System.String, System.Private.CoreLib]], Baubit.Aggregation.Autofac, Version=2024.38.1",
       "parameters": {
         "moduleConfiguration": {
           "Capacity": 10,

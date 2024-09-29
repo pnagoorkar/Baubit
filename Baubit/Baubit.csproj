@@ -17,6 +17,11 @@
     <OutputType>Exe</OutputType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Operation\**" />
+    <EmbeddedResource Remove="Operation\**" />
+    <None Remove="Operation\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Store\CSProjTemplate.txt" />

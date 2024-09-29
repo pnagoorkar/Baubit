@@ -1,64 +1,25 @@
 ﻿using FluentResults;
+using FluentResults.Extensions;
+using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Baubit.Store
 {
-    public class PackageRegistry : Dictionary<string, List<Package>>
-    {
-        static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
-
-        public static Result<PackageRegistry> ReadFrom(string filePath)
-        {
-            try
-            {
-                BaubitStoreRegistryAccessor.WaitOne();
-                return FileSystem.Operations
-                                 .ReadFileAsync(new FileSystem.FileReadContext(filePath))
-                                 .GetAwaiter()
-                                 .GetResult()
-                                 .Bind(jsonString => Serialization.Operations<PackageRegistry>.DeserializeJson(new Serialization.JsonDeserializationContext<PackageRegistry>(jsonString)))
-                                 .GetAwaiter()
-                                 .GetResult();
-
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-            finally
-            {
-                BaubitStoreRegistryAccessor.ReleaseMutex();
-            }
-        }
-
-        public Result WriteTo(string filePath)
-        {
-            try
-            {
-                BaubitStoreRegistryAccessor.WaitOne();
-                File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
-                return Result.Ok();
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-            finally
-            {
-                BaubitStoreRegistryAccessor.ReleaseMutex();
-            }
-        }
-    }
-    public record Package
+    public class Package : IEquatable<Package>, IEquatable<string>
     {
         [JsonConverter(typeof(AssemblyNameJsonConverter))]
         public AssemblyName AssemblyName { get; init; }
         public string DllRelativePath { get; init; }
         [JsonIgnore]
-        public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
-        public Package[] Dependencies { get; init; }
+        public string PackageRoot { get; init; }
+        [JsonIgnore]
+        public string DllFile { get; init; }
+
+        [JsonConverter(typeof(PackageJsonConverter))]
+        public IReadOnlyList<Package> Dependencies { get; init; }
 
         [Obsolete("For use with serialization/deserialization only !")]
         public Package()
@@ -66,104 +27,194 @@ namespace Baubit.Store
 
         }
 
-        public Package(AssemblyName assemblyName,
-                       string dllRelativePath,
-                       Package[] dependencies)
+        private Package(string packageRoot,
+                        string assemblyName,
+                        string dllRelativePath,
+                        List<Package> dependencies)
         {
-            AssemblyName = assemblyName;
+            PackageRoot = packageRoot;
+            AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(assemblyName);
             DllRelativePath = dllRelativePath;
-            Dependencies = dependencies;
+            Dependencies = dependencies.AsReadOnly();
+            DllFile = Path.GetFullPath(Path.Combine(PackageRoot, DllRelativePath));
         }
-        public Package(string assemblyName,
-                       string dllRelativePath,
-                       string version,
-                       string dllFile,
-                       Package[] dependencies) : this(new AssemblyName($"{assemblyName}, Version={version}"), dllRelativePath, dependencies)
-        {
 
+        public static Package Build(string packageRoot, string assemblyName, string dllRelativePath, List<Package> dependencies)
+        {
+            return new Package(packageRoot, assemblyName, dllRelativePath, dependencies);
         }
+
+        public bool Equals(Package? other) => Equals(other?.AssemblyName.GetPersistableAssemblyName());
+
+        public bool Equals(string? other) => other != null && other.Equals(AssemblyName.GetPersistableAssemblyName(), StringComparison.OrdinalIgnoreCase);
     }
 
-    public static class PackageExtensions
+    public class SerializablePackage
     {
-        public static bool TryFlatteningPackage(this Package package, List<Package> list)
+        public string AssemblyName { get; init; }
+        public string DllRelativePath { get; set; }
+        public List<string> Dependencies { get; init; } = new List<string>();
+    }
+
+    public static class PackageExtnsns
+    {
+        public static SerializablePackage AsSerializable(this Package package)
         {
-            if (list == null) list = new List<Package>();
-            if (!list.Any(p => package.AssemblyName.Name.Equals(p.AssemblyName.Name, StringComparison.OrdinalIgnoreCase) && package.AssemblyName.Version.Equals(p.AssemblyName.Version)))
+            return new SerializablePackage
             {
-                list.Add(package);
-                foreach (var dep in package.Dependencies)
-                {
-                    dep.TryFlatteningPackage(list);
-                }
+                AssemblyName = package.AssemblyName.GetPersistableAssemblyName(),
+                DllRelativePath = package.DllRelativePath,
+                Dependencies = package.Dependencies.Select(dep => dep.AssemblyName.GetPersistableAssemblyName()).ToList(),
+            };
+        }
+
+        public static IEnumerable<SerializablePackage> AsSerializable(this IEnumerable<Package> packages)
+        {
+            return packages.GetAllTrees().Select(p => p.AsSerializable());
+        }
+
+        public static IEnumerable<Package> GetAllTrees(this Package package) 
+        {
+            yield return package;
+
+            foreach (var dependency in package.Dependencies.GetAllTrees())
+            {
+                yield return dependency;
             }
-            return true;
+        }
+
+        public static IEnumerable<Package> GetAllTrees(this IEnumerable<Package> packages)
+        {
+            return packages.SelectMany(package => package.GetAllTrees()).Distinct();
+        }
+
+        public static Package? Search(this Package package, AssemblyName assemblyName)
+        {
+            return package.Search(assemblyName);
+        }
+
+        public static Package? Search(this Package package, string assemblyName)
+        {
+            return package.GetAllTrees().FirstOrDefault(pkg => pkg.AssemblyName.GetPersistableAssemblyName().Equals(assemblyName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static Package? Search(this IEnumerable<Package> packages, AssemblyName assemblyName)
+        {
+            return packages.Search(assemblyName.GetPersistableAssemblyName());
+        }
+
+        public static Package? Search(this IEnumerable<Package> packages, string assemblyName)
+        {
+            return packages.GetAllTrees().FirstOrDefault(pkg => pkg.AssemblyName.GetPersistableAssemblyName().Equals(assemblyName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static SerializablePackage? Search(this IEnumerable<SerializablePackage> serializablePackages, AssemblyName assemblyName)
+        {
+            return serializablePackages.Search(assemblyName.GetPersistableAssemblyName());
+        }
+
+        public static SerializablePackage? Search(this IEnumerable<SerializablePackage> serializablePackages, string assemblyName)
+        {
+            return serializablePackages.FirstOrDefault(serializablePackage => serializablePackage.AssemblyName.Equals(assemblyName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static Package AsPackage(this SerializablePackage serializablePackage,
+                                        IEnumerable<SerializablePackage> serializablePackages, 
+                                        List<Package> cache)
+        {
+            var dependencies = new List<Package>();
+
+            foreach (var serializableDependency in serializablePackage.Dependencies)
+            {
+                var cachedPackage = cache.Search(serializableDependency);
+                var dependencyPackage = cachedPackage ?? serializablePackages.Search(serializableDependency)!.AsPackage(serializablePackages, cache);
+                dependencies.Add(dependencyPackage);
+                if (cachedPackage == null) cache.Add(dependencyPackage);
+            }
+
+            var currentPackage = Package.Build(AssemblyExtensions.GetAssemblyNameFromPersistableString(serializablePackage.AssemblyName).GetPackageRootPath(), 
+                                               serializablePackage.AssemblyName, 
+                                               serializablePackage.DllRelativePath, 
+                                               dependencies);
+            return currentPackage;
+        }
+
+        public static List<Package> AsPackages(this IEnumerable<SerializablePackage> serializablePackages)
+        {
+            var result = new List<Package>();
+            foreach (var serializablePackage in serializablePackages)
+            {
+                var cachedPackage = result.Search(serializablePackage.AssemblyName);
+                var package = cachedPackage ?? serializablePackage.AsPackage(serializablePackages, result);
+
+                if(cachedPackage == null) result.Add(package);
+            }
+            return result;
+        }
+
+        public static async Task<Result> DownloadAsync(this Package package, bool downloadDependencies = false)
+        {
+            try
+            {
+                foreach (var dependency in package.Dependencies)
+                {
+                    await dependency.DownloadAsync(downloadDependencies);
+                }
+
+                if (File.Exists(package.DllFile)) return Result.Ok();
+
+                var downloadResult = await NugetPackageDownloader.BuildAsync(package.AssemblyName)
+                                                                 .Bind(downloader => downloader.RunAsync())
+                                                                 .Bind(nupkgFile => Result.Try(() => nupkgFile.EnumerateEntriesAsync()));
+
+                if(downloadResult.IsFailed)
+                {
+                    return Result.Fail("").WithReasons(downloadResult.Reasons);
+                }
+                await foreach (var zipArchiveEntry in downloadResult.Value)
+                {
+                    if (zipArchiveEntry.FullName.EndsWith($"{package.AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string destinationFileName = Path.GetFullPath(Path.Combine(package.PackageRoot, zipArchiveEntry.FullName));
+                        Directory.CreateDirectory(Path.GetDirectoryName(destinationFileName));
+                        zipArchiveEntry.ExtractToFile(destinationFileName, true);
+                    }
+                }
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        public static async Task<Result<Assembly>> LoadAsync(this Package package, AssemblyLoadContext assemblyLoadContext)
+        {
+            foreach (var dependency in package.Dependencies)
+            {
+                await dependency.LoadAsync(assemblyLoadContext);
+            }
+            return assemblyLoadContext.LoadFromAssemblyPath(package.DllFile);
         }
     }
 
-    //public class PackageRegistryJsonConverter : JsonConverter<PackageRegistry>
-    //{
-    //    public override PackageRegistry? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    //    {
-    //        using var jsonDocument = JsonDocument.ParseValue(ref reader);
+    public class PackageJsonConverter : JsonConverter<IReadOnlyList<Package>>
+    {
+        public override IReadOnlyList<Package>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
 
-    //        using var memoryStream = new MemoryStream();
-    //        using (var utf8JsonWriter = new Utf8JsonWriter(memoryStream))
-    //        {
-    //            jsonDocument.WriteTo(utf8JsonWriter);
-    //        }
-
-    //        memoryStream.Seek(0, SeekOrigin.Begin);
-
-    //        IConfiguration configuration = new ConfigurationBuilder()
-    //                                           .AddJsonStream(memoryStream)
-    //                                           .Build();
-
-    //        foreach(var targetFrameworkSection in configuration.GetChildren())
-    //        {
-    //            string targetFramework = targetFrameworkSection.Key;
-    //            var packageSections = targetFrameworkSection.GetChildren();
-    //            foreach (var packageSection in targetFrameworkSection.GetChildren())
-    //            {
-    //                foreach (var dependencySection in packageSection.GetSection("dependencies").GetChildren())
-    //                {
-    //                    var actualSection = packageSections.FirstOrDefault(sec => sec["assemblyName"] == dependencySection.Value);
-    //                    dependencySection.Value = actualSection.ToString();
-    //                }
-    //            }
-    //        }
-    //        return default;
-    //    }
-
-    //    public override void Write(Utf8JsonWriter writer, PackageRegistry value, JsonSerializerOptions options)
-    //    {
-    //        writer.WriteStartObject();
-    //        foreach(var kvp in value)
-    //        {
-    //            writer.WritePropertyName(kvp.Key);
-    //            writer.WriteRawValue(JsonSerializer.Serialize(kvp.Value, options));
-    //        }
-    //        writer.WriteEndObject();
-    //    }
-    //}
-
-    //public class PackageDependenciesJsonConverter : JsonConverter<Package[]>
-    //{
-    //    public override Package[]? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    //    {
-    //        return null;
-    //    }
-
-    //    public override void Write(Utf8JsonWriter writer, Package[] value, JsonSerializerOptions options)
-    //    {
-    //        writer.WriteStartArray();
-    //        foreach(var package in value)
-    //        {
-    //            writer.WriteStringValue($"{package.AssemblyName.Name}/{package.AssemblyName.Version}");
-    //        }
-    //        writer.WriteEndArray();
-    //    }
-    //}
+        public override void Write(Utf8JsonWriter writer, IReadOnlyList<Package> value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            foreach (var package in value)
+            {
+                writer.WriteStringValue(package.AssemblyName.GetPersistableAssemblyName());
+            }
+            writer.WriteEndArray();
+        }
+    }
 
     public class AssemblyNameJsonConverter : JsonConverter<AssemblyName>
     {
