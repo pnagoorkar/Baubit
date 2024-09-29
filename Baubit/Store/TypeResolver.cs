@@ -38,6 +38,11 @@ namespace Baubit.Store
         {
             try
             {
+                var existingAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
+                if (existingAssembly != null)
+                {
+                    return existingAssembly;
+                }
                 searchAndLoadResult = SearchDownloadAndLoadAssembly(assemblyName).GetAwaiter().GetResult();
 
                 return searchAndLoadResult.IsSuccess ? searchAndLoadResult.Value : null;
