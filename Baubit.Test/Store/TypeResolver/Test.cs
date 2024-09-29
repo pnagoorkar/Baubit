@@ -1,15 +1,12 @@
-﻿
-using Baubit.Configuration;
-using Baubit.Store;
-using FluentResults;
+﻿using Baubit.Store;
 using System.Reflection;
 using System.Runtime.Loader;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-namespace Baubit.Test.Store.Operations.TypeResolver
+namespace Baubit.Test.Store.TypeResolver
 {
-    [Trait("TestName", nameof(Baubit.Test.Store.Operations.TypeResolver))]
+    [Trait("TestName", nameof(TypeResolver))]
     [TestCaseOrderer(TestCaseByOrderOrderer.Name, TestCaseByOrderOrderer.Assembly)]
     public class Test : IClassFixture<TypeResolverFixture>
     {
@@ -25,18 +22,6 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         [Order("a")]
         public async void Setup()
         {
-            //var assemblyName = new AssemblyName("Autofac.Configuration, Version=7.0.0");
-            ////PackageRegistry.Search(Application.BaubitPackageRegistry,
-            ////                       Application.TargetFramework,
-            ////                       assemblyName);
-
-            //var metaConfiguration = new MetaConfiguration { JsonUriStrings = [@"C:\Users\prash\AppData\Local\Temp\BaubitWorkspace_Autofac.Configuration\obj\project.assets.json"] };
-
-            //var buildPackageResult = ProjectAssets.Read(metaConfiguration)
-            //                                       .Bind(assets => Result.Try(() => assets.BuildSerializablePackages(assemblyName.GetPersistableAssemblyName(), Application.TargetFramework).AsPackages()));
-
-            //var addResult = PackageRegistry.AddRange(Application.BaubitPackageRegistry, buildPackageResult.Value, Application.TargetFramework);
-
             if (Directory.Exists(Application.BaubitRootPath))
             {
                 Directory.Delete(Application.BaubitRootPath, true);
@@ -47,7 +32,7 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         [Order("b")]
         public async void CanDetermineDependenciesForTypeResolution()
         {
-            foreach(var resolvableType in fixture.ResolvableTypes)
+            foreach (var resolvableType in fixture.ResolvableTypes)
             {
                 var assemblyName = new AssemblyName(resolvableType.Split(',').Skip(1).Aggregate("", (seed, next) => $"{seed},{next}").TrimStart(',').Trim());
                 var result = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework);
