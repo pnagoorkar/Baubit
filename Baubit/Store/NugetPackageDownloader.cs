@@ -1,11 +1,12 @@
 ﻿using Baubit.Compression;
+using Baubit.Process;
 using FluentResults;
 using FluentResults.Extensions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Baubit.Process
+namespace Baubit.Store
 {
     public class NugetPackageDownloader : AProcess
     {

@@ -1,7 +1,6 @@
-﻿using FluentResults;
-using System.Text;
+﻿using Baubit.Process;
 
-namespace Baubit.Process
+namespace Baubit.Store
 {
     public class CSProjBuilder : AProcess
     {

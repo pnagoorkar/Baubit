@@ -8,7 +8,7 @@ namespace Baubit.Process
     {
         protected ProcessStartInfo startInfo;
 
-        protected AProcess(string fileName, 
+        protected AProcess(string fileName,
                            IEnumerable<string> arguments)
         {
             startInfo = new ProcessStartInfo(fileName, arguments)

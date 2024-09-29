@@ -1,60 +1,58 @@
-﻿using FluentResults;
+﻿using Baubit.Configuration;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
-using System.Reflection;
 
 namespace Baubit.Store
 {
     public class ProjectAssets
     {
-        public IConfigurationSection TargetFrameworkTargets { get; init; }
-        public ProjectAssets(IConfigurationSection targetFrameworkTargets)
+        public IConfiguration Configuration { get; init; }
+        private ProjectAssets(IConfiguration configuration)
         {
-            TargetFrameworkTargets = targetFrameworkTargets;
+            Configuration = configuration;
         }
-
-        public async Task<Result<Package2>> BuildPackage(AssemblyName assemblyName)
+        public static Result<ProjectAssets> Read(MetaConfiguration source)
         {
-            try
-            {
-                var assemblyConfigurationSection = TargetFrameworkTargets!.GetChildren()
-                                                                          .FirstOrDefault(child => child.Key.StartsWith(assemblyName.GetPersistableAssemblyName()!, StringComparison.OrdinalIgnoreCase));
-                ProjectAssetsPackage projectAssetsPackage = new ProjectAssetsPackage(assemblyConfigurationSection!, TargetFrameworkTargets);
-
-                return Result.Ok(Package2.BuildPackage(projectAssetsPackage).Value);
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
+            return Result.Try(() => new ProjectAssets(source.Load()));
         }
     }
 
-    public class ProjectAssetsPackage
+    public static class ProjectAssetsExtensions
     {
-        //public IConfigurationSection PackageConfigurationSection { get; init; }
-        public string AssemblyName { get; init; }
-        public string DllRelativePath { get; init; }
-        public IEnumerable<ProjectAssetsPackage> Dependencies { get; init; }
-
-        private IConfigurationSection _packageConfigurationSection;
-        private IConfigurationSection _targetFrameworkTargets;
-
-        public ProjectAssetsPackage(IConfigurationSection packageConfigurationSection, IConfigurationSection targetFrameworkTargets)
+        public static IConfigurationSection GetTargetFrameworkTargets(this ProjectAssets projectAssets, string targetFramework)
         {
-            _packageConfigurationSection = packageConfigurationSection;
-            _targetFrameworkTargets = targetFrameworkTargets;
+            return projectAssets.Configuration
+                                .GetSection("targets")
+                                .GetChildren()
+                                .FirstOrDefault(child => child.Key.Equals(targetFramework))!;
+        }
 
-            AssemblyName = packageConfigurationSection.Key;
-            DllRelativePath = _packageConfigurationSection!.GetSection("runtime")?
-                                                          .GetChildren()
-                                                          .FirstOrDefault()?
-                                                          .Key!;
+        public static Package BuildPackage(this ProjectAssets projectAssets, string assemblyName, string targetFramework)
+        {
+            return projectAssets.BuildSerializablePackages(assemblyName, targetFramework)
+                                .AsPackages()
+                                .FirstOrDefault(package => package.Equals(assemblyName))!;
+        }
 
-            Dependencies = _packageConfigurationSection!.GetSection("dependencies")?
-                                                       .GetChildren()
-                                                       .Select(childSection => $"{childSection.Key}/{childSection.Value}")
-                                                       .Select(packageKey => new ProjectAssetsPackage(targetFrameworkTargets!.GetChildren()
-                                                                                                                             .FirstOrDefault(child => child.Key.StartsWith(packageKey!, StringComparison.OrdinalIgnoreCase))!, targetFrameworkTargets))!;
+        public static IEnumerable<SerializablePackage> BuildSerializablePackages(this ProjectAssets projectAssets, string assemblyName, string targetFramework)
+        {
+            var assemblyConfigurationSection = projectAssets.GetTargetFrameworkTargets(targetFramework)!
+                                                            .GetChildren()
+                                                            .FirstOrDefault(child => child.Key.StartsWith(assemblyName!, StringComparison.OrdinalIgnoreCase));
+            var serializablePackage = new SerializablePackage
+            {
+                AssemblyName = assemblyConfigurationSection.Key,
+                DllRelativePath = assemblyConfigurationSection!.GetSection("runtime")?
+                                                               .GetChildren()
+                                                               .FirstOrDefault()?
+                                                               .Key!,
+                Dependencies = assemblyConfigurationSection!.GetSection("dependencies")?.GetChildren().Select(section => $"{section.Key}/{section.Value}").ToList()!
+            };
+            yield return serializablePackage;
+            foreach (var dependency in serializablePackage.Dependencies.SelectMany(depString => projectAssets.BuildSerializablePackages(depString, targetFramework)))
+            {
+                yield return dependency;
+            }
         }
     }
 }

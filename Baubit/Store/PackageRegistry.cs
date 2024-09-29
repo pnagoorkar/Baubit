@@ -72,7 +72,12 @@ namespace Baubit.Store
             }
         }
 
-        public static Result Add(string jsonFileSource, IEnumerable<Package> packages, string targetFramework)
+        public static Result Add(string jsonFileSource, Package package, string targetFramework)
+        {
+            return AddRange(jsonFileSource, package.GetAllTrees(), targetFramework);
+        }
+
+        public static Result AddRange(string jsonFileSource, IEnumerable<Package> packages, string targetFramework)
         {
             try
             {
@@ -88,11 +93,10 @@ namespace Baubit.Store
                     readResult.Value.Add(targetFramework, new List<Package>());
                 }
 
-                //var allTrees = packages.GetAllTrees().ToArray();
-
                 var addablePackages = packages.GetAllTrees()
                                               .Where(package => readResult.Value[targetFramework]
-                                                                          .Search(package.AssemblyName) == null);
+                                                                          .Search(package.AssemblyName) == null)
+                                              .ToArray();
                 if (addablePackages.Any())
                 {
                     readResult.Value[targetFramework].AddRange(addablePackages);

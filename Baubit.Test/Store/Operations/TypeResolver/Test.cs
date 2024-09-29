@@ -25,22 +25,22 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         [Order("a")]
         public async void Setup()
         {
-            var assemblyName = new AssemblyName("Autofac.Configuration, Version=7.0.0");
-            //PackageRegistry.Search(Application.BaubitPackageRegistry,
-            //                       Application.TargetFramework,
-            //                       assemblyName);
+            //var assemblyName = new AssemblyName("Autofac.Configuration, Version=7.0.0");
+            ////PackageRegistry.Search(Application.BaubitPackageRegistry,
+            ////                       Application.TargetFramework,
+            ////                       assemblyName);
 
-            var metaConfiguration = new MetaConfiguration { JsonUriStrings = [@"C:\Users\prash\AppData\Local\Temp\BaubitWorkspace_Autofac.Configuration\obj\project.assets.json"] };
-            
-            var buildPackageResult = ProjectAssets2.Read(metaConfiguration)
-                                                   .Bind(assets => Result.Try(() => assets.BuildSerializablePackage(assemblyName.GetPersistableAssemblyName(), Application.TargetFramework).AsPackages()));
+            //var metaConfiguration = new MetaConfiguration { JsonUriStrings = [@"C:\Users\prash\AppData\Local\Temp\BaubitWorkspace_Autofac.Configuration\obj\project.assets.json"] };
 
-            var addResult = PackageRegistry.Add(Application.BaubitPackageRegistry, buildPackageResult.Value, Application.TargetFramework);
+            //var buildPackageResult = ProjectAssets.Read(metaConfiguration)
+            //                                       .Bind(assets => Result.Try(() => assets.BuildSerializablePackages(assemblyName.GetPersistableAssemblyName(), Application.TargetFramework).AsPackages()));
 
-            //if (Directory.Exists(Application.BaubitRootPath))
-            //{
-            //    Directory.Delete(Application.BaubitRootPath, true);
-            //}
+            //var addResult = PackageRegistry.AddRange(Application.BaubitPackageRegistry, buildPackageResult.Value, Application.TargetFramework);
+
+            if (Directory.Exists(Application.BaubitRootPath))
+            {
+                Directory.Delete(Application.BaubitRootPath, true);
+            }
         }
 
         [Fact]
@@ -74,7 +74,7 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         {
             foreach (var package in fixture.Downloadables)
             {
-                var addResult = await PackageRegistry2.Add(Application.TargetFramework, package);
+                var addResult = PackageRegistry.Add(Application.BaubitPackageRegistry, package, Application.TargetFramework);
                 Assert.True(addResult.IsSuccess);
             }
         }
@@ -85,7 +85,7 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         {
             foreach (var package in fixture.Downloadables)
             {
-                var searchResult = await PackageRegistry2.SearchAsync(package.AssemblyName, Application.TargetFramework);
+                var searchResult = PackageRegistry.Search(Application.BaubitPackageRegistry, Application.TargetFramework, package.AssemblyName);
                 Assert.True(searchResult.IsSuccess);
             }
         }
@@ -141,7 +141,7 @@ namespace Baubit.Test.Store.Operations.TypeResolver
     public class TypeResolverFixture
     {
         public string[] ResolvableTypes { get; set; } = ["Autofac.Configuration.ConfigurationModule, Autofac.Configuration, Version=7.0.0"];
-        public List<Package2> Downloadables { get; set; } = new List<Package2>();
+        public List<Package> Downloadables { get; set; } = new List<Package>();
         public AssemblyLoadContext IsolatedContext1 { get; set; } = new AssemblyLoadContext(nameof(IsolatedContext1), true);
         public AssemblyLoadContext IsolatedContext2 { get; set; } = new AssemblyLoadContext(nameof(IsolatedContext2), true);
     }

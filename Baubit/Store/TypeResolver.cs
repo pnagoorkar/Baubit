@@ -1,5 +1,4 @@
 ﻿using FluentResults;
-using FluentResults.Extensions;
 using System.Reflection;
 using System.Runtime.Loader;
 
@@ -56,16 +55,30 @@ namespace Baubit.Store
         {
             try
             {
-                var searchRes = await PackageRegistry2.SearchAsync(assemblyName, Application.TargetFramework);
+                Package loadablePackage = null;
+                var searchRes = PackageRegistry.Search(Application.BaubitPackageRegistry, Application.TargetFramework, assemblyName);
                 if (!searchRes.IsSuccess)
                 {
-                    searchRes = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework)
-                                                  .Bind(package => package.DownloadAsync(true)
-                                                                          .Bind(() => PackageRegistry2.Add(Application.TargetFramework, package)));
+                    var packageDeterminationResult = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework);
+                    if (!packageDeterminationResult.IsSuccess)
+                    {
+                        return Result.Fail("").WithReasons(searchRes.Reasons).WithReasons(packageDeterminationResult.Reasons);
+                    }
+                    loadablePackage = packageDeterminationResult.Value;
+                    var downloadResult = await packageDeterminationResult.Value.DownloadAsync(true);
+                    if (!downloadResult.IsSuccess)
+                    {
+                        return Result.Fail("").WithReasons(searchRes.Reasons).WithReasons(packageDeterminationResult.Reasons).WithReasons(downloadResult.Reasons);
+                    }
+                    var addResult = PackageRegistry.Add(Application.BaubitPackageRegistry, loadablePackage, Application.TargetFramework);
+                    if (!addResult.IsSuccess)
+                    {
+                        return Result.Fail("").WithReasons(searchRes.Reasons).WithReasons(packageDeterminationResult.Reasons).WithReasons(downloadResult.Reasons).WithReasons(addResult.Reasons);
+                    }
                 }
-                if (!searchRes.IsSuccess)
+                if (loadablePackage == null)
                 {
-                    return Result.Fail("").WithReasons(searchRes.Reasons);
+                    return Result.Fail("");
                 }
                 return await searchRes.Value.LoadAsync(AssemblyLoadContext.Default);
             }

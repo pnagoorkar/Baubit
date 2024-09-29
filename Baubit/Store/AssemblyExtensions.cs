@@ -6,13 +6,18 @@ namespace Baubit.Store
 {
     public static class AssemblyExtensions
     {
-        public static async Task<Result<Package2>> DetermineDownloadablePackagesAsync(this AssemblyName assemblyName, string targetFramework)
+        public static async Task<Result<Package>> DetermineDownloadablePackagesAsync(this AssemblyName assemblyName, string targetFramework)
         {
             return await new MockProject(assemblyName, targetFramework).BuildAsync();
         }
         public static string GetPersistableAssemblyName(this AssemblyName assemblyName)
         {
             return $"{assemblyName.Name}/{assemblyName.Version}";
+        }
+
+        public static string GetPackageRootPath(this AssemblyName assemblyName)
+        {
+            return Path.Combine(Application.BaubitRootPath, assemblyName.Name!, assemblyName.Version!.ToString()!);
         }
 
         public static AssemblyName GetAssemblyNameFromPersistableString(string value)

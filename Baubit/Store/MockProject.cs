@@ -1,5 +1,4 @@
-﻿using Baubit.Process;
-using FluentResults;
+﻿using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
@@ -25,11 +24,11 @@ namespace Baubit.Store
             ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
         }
 
-        public async Task<Result<Package2>> BuildAsync()
+        public async Task<Result<Package>> BuildAsync()
         {
             return await GenerateProjectFile().Bind(BuildProject)
                                               .Bind(ReadProjectAssetsFile)
-                                              .Bind(projectAssets => projectAssets.BuildPackage(AssemblyName));
+                                              .Bind(projectAssets => Result.Try(() => projectAssets.BuildPackage(AssemblyName.GetPersistableAssemblyName(), TargetFramework)));
         }
 
         private async Task<Result> GenerateProjectFile()
@@ -66,53 +65,13 @@ namespace Baubit.Store
             try
             {
                 await Task.Yield();
-                var targetFrameworkTargets = new ConfigurationBuilder().AddJsonFile(ProjectAssetsJsonFile)
-                                                                       .Build()
-                                                                       .GetSection("targets")
-                                                                       .GetChildren()
-                                                                       .FirstOrDefault(child => child.Key.Equals(TargetFramework));
 
-                if (targetFrameworkTargets == null) return Result.Fail($"Failed to read {ProjectAssetsJsonFile}");
-                if (!targetFrameworkTargets.Exists()) return Result.Fail($"Failed to read {ProjectAssetsJsonFile}");
-
-                var projectAssets = new ProjectAssets(targetFrameworkTargets);
-                return Result.Ok(projectAssets);
+                 return ProjectAssets.Read(new Configuration.MetaConfiguration { JsonUriStrings = [ProjectAssetsJsonFile] });
             }
             catch (Exception exp)
             {
                 return Result.Fail(new ExceptionalError(exp));
             }
-        }
-    }
-
-    public class ProcessExitedWithZeroReturn : IReason
-    {
-        public string Message => "";
-
-        public Dictionary<string, object> Metadata { get; }
-
-        public string Output { get; init; }
-
-        public ProcessExitedWithZeroReturn(string output)
-        {
-            Output = output;
-        }
-    }
-
-
-    public class ProcessExitedWithNonZeroReturn : IReason
-    {
-        public string Message => "";
-
-        public Dictionary<string, object> Metadata { get; }
-
-        public int ReturnCode { get; init; }
-        public string Error { get; init; }
-
-        public ProcessExitedWithNonZeroReturn(int returnCode, string error)
-        {
-            ReturnCode = returnCode;
-            Error = error;
         }
     }
 }
