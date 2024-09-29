@@ -4,6 +4,7 @@ using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Configuration;
 using System.IO.Compression;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
@@ -97,16 +98,23 @@ namespace Baubit.Store
             try
             {
                 BaubitStoreRegistryAccessor.WaitOne();
-                var registryConfiguration = new MetaConfiguration { JsonUriStrings = [filePath] }.Load();
-                var targetFrameworkSection = registryConfiguration.GetSection(Application.TargetFramework);
-                var buildResult = Package2.BuildPackageTrees(targetFrameworkSection);
-                if (buildResult.IsSuccess)
+                if (File.Exists(filePath))
                 {
-                    return Result.Ok(new PackageRegistry2 { { Application.TargetFramework, buildResult.Value } });
+                    var registryConfiguration = new MetaConfiguration { JsonUriStrings = [filePath] }.Load();
+                    var targetFrameworkSection = registryConfiguration.GetSection(Application.TargetFramework);
+                    var buildResult = Package2.BuildPackageTrees(targetFrameworkSection);
+                    if (buildResult.IsSuccess)
+                    {
+                        return Result.Ok(new PackageRegistry2 { { Application.TargetFramework, buildResult.Value } });
+                    }
+                    else
+                    {
+                        return Result.Fail("").WithReasons(buildResult.Reasons);
+                    }
                 }
                 else
                 {
-                    return Result.Fail("").WithReasons(buildResult.Reasons);
+                    return new PackageRegistry2();
                 }
             }
             catch (Exception exp)
@@ -116,6 +124,66 @@ namespace Baubit.Store
             finally
             {
                 BaubitStoreRegistryAccessor.ReleaseMutex();
+            }
+        }
+
+        public static async Task<Result> Add(string targetFramework, Package2 package)
+        {
+            try
+            {
+                await Task.Yield();
+                var readResult = ReadFrom(Application.BaubitPackageRegistry);
+                if (!readResult.IsSuccess)
+                {
+                    return Result.Fail("").WithReasons(readResult.Reasons);
+                }
+                var registerablePackages = new List<Package2>();
+                var flatteningResult = Package2.TryFlatteningPackage(package, registerablePackages);
+                foreach (var registerablePackage in registerablePackages)
+                {
+                    var packageAddResult = readResult.Value.AddOrUpdate(targetFramework, registerablePackage);
+                    if (!packageAddResult.IsSuccess)
+                    {
+                        return Result.Fail("").WithReasons(packageAddResult.Reasons);
+                    }
+                }
+                var writeResult = readResult.Value.WriteTo(Application.BaubitPackageRegistry);
+                if (!writeResult.IsSuccess)
+                {
+                    return Result.Fail("").WithReasons(writeResult.Reasons);
+                }
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        private Result AddOrUpdate(string targetFramework, Package2 package)
+        {
+            try
+            {
+                if (ContainsKey(targetFramework))
+                {
+                    if (this[targetFramework].Any(p => p.AssemblyName.GetPersistableAssemblyName().Equals(package.AssemblyName.GetPersistableAssemblyName(), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        //already exists. Do nothing
+                    }
+                    else
+                    {
+                        this[targetFramework].Add(package);
+                    }
+                }
+                else
+                {
+                    Add(targetFramework, [package]);
+                }
+                return Result.Ok();
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
             }
         }
 
@@ -183,13 +251,12 @@ namespace Baubit.Store
     {
         [JsonConverter(typeof(AssemblyNameJsonConverter))]
         public AssemblyName AssemblyName { get; init; }
+        private string TargetFolder { get; init; }
         public string DllRelativePath { get; init; }
         [JsonIgnore]
-        public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
+        public string DllFile { get; init; }
+        [JsonConverter(typeof(PackageJsonConverter))]
         public IReadOnlyList<Package2> Dependencies { get; init; }
-
-        private string TempDownloadPath { get; init; }
-        private string TargetFolder { get; init; }
 
         [Obsolete("For use with serialization/deserialization only !")]
         public Package2()
@@ -202,38 +269,9 @@ namespace Baubit.Store
             AssemblyName = assemblyName;
             DllRelativePath = dllRelativePath;
             Dependencies = dependencies.AsReadOnly();
-            TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
+            TargetFolder = Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!);
+            DllFile = Path.GetFullPath(Path.Combine(TargetFolder, DllRelativePath));
         }
-
-        //public Package2(ProjectAssetsPackage projectAssetsPackage)
-        //{
-        //    AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(projectAssetsPackage.AssemblyName);
-        //    DllRelativePath = projectAssetsPackage.DllRelativePath;
-        //    var deps = new List<Package2>();
-        //    foreach (var dependency in projectAssetsPackage.Dependencies)
-        //    {
-        //        deps.Add(new Package2(dependency));
-        //    }
-        //    Dependencies = deps;
-        //    TempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{AssemblyName.Name}");
-        //}
-
-        //public Package2(IConfigurationSection packageSection, IConfigurationSection registryConfiguration, List<Package2> masterList)
-        //{
-        //    AssemblyName = AssemblyExtensions.GetAssemblyNameFromPersistableString(packageSection["assemblyName"]!);
-        //    DllRelativePath = packageSection["assemblyName"]!;
-
-        //    foreach(var dependency in packageSection.GetSection("dependencies").GetChildren())
-        //    {
-        //        if (!masterList.Any(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Key, StringComparison.OrdinalIgnoreCase)))
-        //        {
-        //            var dependencyPackageSection = registryConfiguration.GetSection(dependency.Key);
-        //            var dependentPackage = new Package2(dependencyPackageSection, registryConfiguration, masterList);
-        //            masterList.Add(dependentPackage);
-        //        }
-        //    }
-        //    var targetFrameworkSection = registryConfiguration.GetSection(Application.TargetFramework);
-        //}
 
         public static Result<Package2> BuildPackage(ProjectAssetsPackage projectAssetsPackage)
         {
@@ -247,26 +285,6 @@ namespace Baubit.Store
             return new Package2(assemblyName, dllRelativePath, dependencies);
         }
 
-        public static Result<List<Package2>> BuildPackageTrees(IConfigurationSection targetFrameworkSection)
-        {
-            List<Package2> packages = new List<Package2>();
-
-            foreach (var packageSection in targetFrameworkSection.GetChildren())
-            {
-                if (packages.Any(package => package.AssemblyName.GetPersistableAssemblyName().Equals(packageSection["assemblyName"], StringComparison.OrdinalIgnoreCase))) continue;
-                var buildResult = BuildPackage(packageSection, targetFrameworkSection, packages);
-                if (buildResult.IsSuccess)
-                {
-                    //packages.Add(buildResult.Value);
-                }
-                else
-                {
-                    return Result.Fail("").WithReasons(buildResult.Reasons);
-                }
-            }
-            return Result.Ok(packages);
-        }
-
         public static Result<Package2> BuildPackage(IConfigurationSection packageSection,
                                                     IConfigurationSection targetFrameworkSection,
                                                     List<Package2> packages)
@@ -277,7 +295,9 @@ namespace Baubit.Store
 
             foreach (var dependency in packageSection.GetSection("dependencies").GetChildren())
             {
-                var dependencyPackage = FlattenPackages(packages).FirstOrDefault(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Value, StringComparison.OrdinalIgnoreCase))!; ;
+                var searchResult = packages.Search(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Value, StringComparison.OrdinalIgnoreCase));
+                var dependencyPackage = searchResult.ValueOrDefault;
+                //var dependencyPackage = FlattenPackages(packages).FirstOrDefault(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Value, StringComparison.OrdinalIgnoreCase))!;
                 if (dependencyPackage == null)
                 {
                     var dependencyPackageSection = targetFrameworkSection.GetChildren()
@@ -306,15 +326,55 @@ namespace Baubit.Store
             return Result.Ok(currentPackage);
         }
 
-        public static List<Package2> FlattenPackages(IEnumerable<Package2> packages)
+        public static Result<List<Package2>> BuildPackageTrees(IConfigurationSection targetFrameworkSection)
         {
-            var result = new List<Package2>();
-            foreach(var package in packages)
+            List<Package2> packages = new List<Package2>();
+
+            foreach (var packageSection in targetFrameworkSection.GetChildren())
             {
-                result.AddRange(FlattenPackages(package.Dependencies));
-                result.Add(package);
+                if (packages.Any(package => package.AssemblyName.GetPersistableAssemblyName().Equals(packageSection["assemblyName"], StringComparison.OrdinalIgnoreCase))) continue;
+                var buildResult = BuildPackage(packageSection, targetFrameworkSection, packages);
+                if (buildResult.IsSuccess)
+                {
+                    //All good. Do nothing
+                }
+                else
+                {
+                    return Result.Fail("").WithReasons(buildResult.Reasons);
+                }
             }
-            return result;
+            return Result.Ok(packages);
+        }
+
+        //public static List<Package2> FlattenPackages(IEnumerable<Package2> packages)
+        //{
+        //    var result = new List<Package2>();
+        //    packages.SelectMany(package => FlattenPackages(package.Dependencies));
+        //    foreach(var dependency in packages.SelectMany(package => FlattenPackages(package.Dependencies)))
+        //    {
+        //    }
+        //    foreach (var package in packages)
+        //    {
+        //        result.AddRange(FlattenPackages(package.Dependencies));
+        //        result.Add(package);
+        //    }
+        //    return result;
+        //}
+
+        public static Result TryFlatteningPackage(Package2 package, List<Package2> list)
+        {
+            if (list == null) list = new List<Package2>();
+
+            if (!list.Any(p => package.AssemblyName.Name.Equals(p.AssemblyName.Name, StringComparison.OrdinalIgnoreCase) && 
+                               package.AssemblyName.Version.Equals(p.AssemblyName.Version)))
+            {
+                list.Add(package);
+                foreach (var dep in package.Dependencies)
+                {
+                    TryFlatteningPackage(dep, list);
+                }
+            }
+            return Result.Ok();
         }
 
         public async Task<Result> DownloadAsync(bool downloadDependencies = false)
@@ -324,19 +384,22 @@ namespace Baubit.Store
                 await dependency.DownloadAsync(downloadDependencies);
             }
 
-            if (File.Exists(DllRelativePath)) return Result.Ok();
+            if (File.Exists(DllFile)) return Result.Ok();
 
-            return await new NugetPackageDownloader(this.AssemblyName).RunAsync().Bind(nupkgFile => ExtractDllsFromNupkg(nupkgFile.EnumerateEntriesAsync()));
+            return await NugetPackageDownloader.BuildAsync(this.AssemblyName)
+                                               .Bind(downloader => downloader.RunAsync())
+                                               .Bind(nupkgFile => ExtractDllsFromNupkg(nupkgFile.EnumerateEntriesAsync()));
         }
 
         private async Task<Result> ExtractDllsFromNupkg(IAsyncEnumerable<ZipArchiveEntry> zipArchiveEntries)
         {
-            var dllTargetPath = Path.Combine(TargetFolder, AssemblyName.Name!, AssemblyName.Version!.ToString());
             await foreach (var zipArchiveEntry in zipArchiveEntries)
             {
                 if (zipArchiveEntry.FullName.EndsWith($"{AssemblyName.Name}.dll", StringComparison.OrdinalIgnoreCase))
                 {
-                    zipArchiveEntry.ExtractToFile(dllTargetPath, true);
+                    string destinationFileName = Path.GetFullPath(Path.Combine(TargetFolder, zipArchiveEntry.FullName));
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFileName));
+                    zipArchiveEntry.ExtractToFile(destinationFileName, true);
                 }
             }
             return Result.Ok();
@@ -400,6 +463,26 @@ namespace Baubit.Store
         //private Result<FileExtractionContext> BuildDllExtractionContext(string nugetPackageFile) => Result.Try(() => new FileExtractionContext(nugetPackageFile, dllTargetPath, zipExtractionCriteria, overwrite: true));
     }
 
+    public static class PackageExtensions
+    {
+        public static Result<Package2> Search(this IEnumerable<Package2> packages, Expression<Func<Package2, bool>> criteria)
+        {
+            foreach (var package in packages)
+            {
+                if (criteria.Compile()(package))
+                {
+                    return Result.Ok(package);
+                }
+                else
+                {
+                    var depSearchResult = package.Dependencies.Search(criteria);
+                    if (depSearchResult.IsSuccess) return depSearchResult;
+                }
+            }
+            return Result.Fail("Package not found !");
+        }
+    }
+
     public class AssemblyNameJsonConverter : JsonConverter<AssemblyName>
     {
         public override AssemblyName? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -411,6 +494,24 @@ namespace Baubit.Store
         public override void Write(Utf8JsonWriter writer, AssemblyName value, JsonSerializerOptions options)
         {
             writer.WriteStringValue($"{value.Name}/{value.Version}");
+        }
+    }
+
+    public class PackageJsonConverter : JsonConverter<IReadOnlyList<Package2>>
+    {
+        public override IReadOnlyList<Package2>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, IReadOnlyList<Package2> value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            foreach(var package in value)
+            {
+                writer.WriteStringValue(package.AssemblyName.GetPersistableAssemblyName());
+            }
+            writer.WriteEndArray();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using FluentResults;
+using System.Text;
 
 namespace Baubit.Process
 {
@@ -21,15 +22,14 @@ namespace Baubit.Process
                                              "--output", buildOutputFolder];
             return (fileName, arguments);
         }
-
         protected override void HandleError(IAsyncEnumerable<char> errorMessage)
         {
-
+            var error = errorMessage.ToBlockingEnumerable().Aggregate("", (seed, current) => $"{seed}{current}");
         }
 
         protected override void HandleOutput(IAsyncEnumerable<char> outputMessage)
         {
-
+            var output = outputMessage.ToBlockingEnumerable().Aggregate("", (seed, current) => $"{seed}{current}");
         }
     }
 }

@@ -60,7 +60,8 @@ namespace Baubit.Store
                 if (!searchRes.IsSuccess)
                 {
                     searchRes = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework)
-                                                  .Bind(package => package.DownloadAsync(true));
+                                                  .Bind(package => package.DownloadAsync(true)
+                                                                          .Bind(() => PackageRegistry2.Add(Application.TargetFramework, package)));
                 }
                 if (!searchRes.IsSuccess)
                 {

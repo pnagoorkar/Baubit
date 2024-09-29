@@ -35,12 +35,25 @@ namespace Baubit.Store
 
         private async Task<Result> GenerateProjectFile()
         {
-            return await Result.Try(Assembly.GetExecutingAssembly)
-                               .Bind(assembly => assembly.ReadResource($"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt"))
-                               .Bind(contents => Result.Try(() => contents.Replace("<TARGET_FRAMEWORK>", TargetFramework)
-                                                                          .Replace("<PACKAGE_NAME>", AssemblyName.Name)
-                                                                          .Replace("<PACKAGE_VERSION>", AssemblyName.Version!.ToString())))
-                               .Bind(contents => Result.Try(() => File.WriteAllText(TempProjFileName, contents)));
+            var currentAssembly = Assembly.GetExecutingAssembly();
+            var resourceFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.Store.CSProjTemplate.txt";
+            return await currentAssembly.ReadResource(resourceFile)
+                                        .Bind(contents => Result.Try(() => contents.Replace("<TARGET_FRAMEWORK>", TargetFramework)
+                                                                                   .Replace("<PACKAGE_NAME>", AssemblyName.Name)
+                                                                                   .Replace("<PACKAGE_VERSION>", AssemblyName.Version!.ToString())))
+                                        .Bind(WriteCSProjectToFile);
+        }
+
+        private async Task<Result> WriteCSProjectToFile(string contents)
+        {
+            await Task.Yield();
+            if (Directory.Exists(PackageDeterminationWorkspace)) Directory.Delete(PackageDeterminationWorkspace, true);
+
+            Directory.CreateDirectory(PackageDeterminationWorkspace); 
+
+            File.WriteAllText(TempProjFileName, contents);
+
+            return Result.Ok();
         }
 
         private async Task<Result> BuildProject()
@@ -157,7 +170,7 @@ namespace Baubit.Store
 
     public class ProjectAssetsPackage
     {
-        public IConfigurationSection PackageConfigurationSection { get; init; }
+        //public IConfigurationSection PackageConfigurationSection { get; init; }
         public string AssemblyName { get; init; }
         public string DllRelativePath { get; init; }
         public IEnumerable<ProjectAssetsPackage> Dependencies { get; init; }
@@ -171,12 +184,12 @@ namespace Baubit.Store
             _targetFrameworkTargets = targetFrameworkTargets;
 
             AssemblyName = packageConfigurationSection.Key;
-            DllRelativePath = PackageConfigurationSection!.GetSection("runtime")?
+            DllRelativePath = _packageConfigurationSection!.GetSection("runtime")?
                                                           .GetChildren()
                                                           .FirstOrDefault()?
                                                           .Key!;
 
-            Dependencies = PackageConfigurationSection!.GetSection("dependencies")?
+            Dependencies = _packageConfigurationSection!.GetSection("dependencies")?
                                                        .GetChildren()
                                                        .Select(childSection => $"{childSection.Key}/{childSection.Value}")
                                                        .Select(packageKey => new ProjectAssetsPackage(targetFrameworkTargets!.GetChildren()

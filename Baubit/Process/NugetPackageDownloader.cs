@@ -1,5 +1,6 @@
 ﻿using Baubit.Compression;
 using FluentResults;
+using FluentResults.Extensions;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,31 +9,28 @@ namespace Baubit.Process
 {
     public class NugetPackageDownloader : AProcess
     {
-        public string DownloadedFolder { get; private set; } = string.Empty;
+        public string DownloadRootDirectory { get; init; }
 
         private StringBuilder outputBuilder = new StringBuilder();
 
         private const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
 
-        public NugetPackageDownloader((string, IEnumerable<string>) args) : base(args.Item1, args.Item2)
+        public NugetPackageDownloader(string fileName, IEnumerable<string> arguments, string downloadRoot) : base(fileName, arguments)
         {
-
-        }
-        public NugetPackageDownloader(AssemblyName assemblyName) : this(BuildArguments(assemblyName))
-        {
-
+            DownloadRootDirectory = downloadRoot;
         }
 
-        private static (string, IEnumerable<string>) BuildArguments(AssemblyName assemblyName)
+        public static async Task<Result<NugetPackageDownloader>> BuildAsync(AssemblyName assemblyName)
         {
-            var tempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{assemblyName.Name}");
+            await Task.Yield();
+            var downloadRootDirectory = Path.Combine(Path.GetTempPath(), $"temp_{assemblyName.Name}");
             string fileName = string.Empty;
             IEnumerable<string> arguments = Enumerable.Empty<string>();
 
             string[] linArgs = ["/nuget.exe"];
 
             string[] commonArgs = ["install", assemblyName.Name!,
-                                   "-O", tempDownloadPath,
+                                   "-O", downloadRootDirectory,
                                    "-DependencyVersion", "Ignore"];
 
             string[] versionArgs = ["-Version", assemblyName.Version!.ToString()];
@@ -54,16 +52,34 @@ namespace Baubit.Process
 
             if (assemblyName.Version != null) arguments.Concat(versionArgs);
 
-            return (fileName, arguments);
+            return Result.Ok(new NugetPackageDownloader(fileName, arguments, downloadRootDirectory));
         }
 
         public async new Task<Result<NupkgFile>> RunAsync()
         {
             try
             {
-                await base.RunAsync();
-                //var tempDownloadPath = Path.Combine(Path.GetTempPath(), $"temp_{assemblyName.Name}");
-                return Result.Ok(new NupkgFile(Path.Combine("", DownloadedFolder, $"{DownloadedFolder}.nupkg")));
+                return await ResetTempDownloadPath().Bind(() => base.RunAsync())
+                                                    .Bind(() => DownloadedFolderExtractorTCS.Task)
+                                                    .Bind(downloadedFolder => Result.Try(() => new NupkgFile(Path.Combine(DownloadRootDirectory, downloadedFolder, $"{downloadedFolder}.nupkg"))));
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        private async Task<Result> ResetTempDownloadPath()
+        {
+            try
+            {
+                await Task.Yield();
+                if (Directory.Exists(DownloadRootDirectory))
+                {
+                    Directory.Delete(DownloadRootDirectory, true);
+                }
+                Directory.CreateDirectory(DownloadRootDirectory);
+                return Result.Ok();
             }
             catch (Exception exp)
             {
@@ -79,20 +95,29 @@ namespace Baubit.Process
             }
         }
 
+        private TaskCompletionSource<Result<string>> DownloadedFolderExtractorTCS = new TaskCompletionSource<Result<string>>();
         protected override async void HandleOutput(IAsyncEnumerable<char> outputMessage)
         {
-            await foreach (char c in outputMessage)
+            try
             {
-                outputBuilder.Append(c);
+                await foreach (char c in outputMessage)
+                {
+                    outputBuilder.Append(c);
+                }
+                var downloadedFolder = System.Text
+                                             .RegularExpressions
+                                             .Regex.Match(outputBuilder.ToString(), NugetAddedPackageLinePattern)
+                                             .Groups
+                                             .Values
+                                             .Select(value => value.Value)
+                                             .Skip(1)
+                                             .First();
+                DownloadedFolderExtractorTCS.SetResult(Result.Ok(downloadedFolder));
             }
-            DownloadedFolder = System.Text
-                                     .RegularExpressions
-                                     .Regex.Match(outputBuilder.ToString(), NugetAddedPackageLinePattern)
-                                     .Groups
-                                     .Values
-                                     .Select(value => value.Value)
-                                     .Skip(1)
-                                     .First();
+            catch (Exception exp)
+            {
+                DownloadedFolderExtractorTCS.SetResult(Result.Fail(new ExceptionalError(exp)));
+            }
         }
     }
 }
