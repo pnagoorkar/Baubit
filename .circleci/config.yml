@@ -48,10 +48,7 @@ jobs:
             SOLUTION_FOLDER="Baubit"
             SOLUTION_FILE="${SOLUTION_FOLDER}.sln"
                 
-            dotnet test ${SOLUTION_FILE} --filter "Runtime=Shared" #Test non store tests
-            dotnet test ${SOLUTION_FILE} --filter "TestName=DownloadPackage" #Test DownloadPackage
-            dotnet test ${SOLUTION_FILE} --filter "TestName=LoadAssembly" #Test LoadAssembly
-            dotnet test ${SOLUTION_FILE} --filter "TestName=ResolveType" #Test ResolveType
+            dotnet test ${SOLUTION_FILE}
 
 
       # Step 5: Pack and publish

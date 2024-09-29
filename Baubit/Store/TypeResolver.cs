@@ -65,7 +65,7 @@ namespace Baubit.Store
                         return Result.Fail("").WithReasons(searchRes.Reasons).WithReasons(packageDeterminationResult.Reasons);
                     }
                     loadablePackage = packageDeterminationResult.Value;
-                    var downloadResult = await packageDeterminationResult.Value.DownloadAsync(true);
+                    var downloadResult = await loadablePackage.DownloadAsync(true);
                     if (!downloadResult.IsSuccess)
                     {
                         return Result.Fail("").WithReasons(searchRes.Reasons).WithReasons(packageDeterminationResult.Reasons).WithReasons(downloadResult.Reasons);
@@ -80,7 +80,7 @@ namespace Baubit.Store
                 {
                     return Result.Fail("");
                 }
-                return await searchRes.Value.LoadAsync(AssemblyLoadContext.Default);
+                return await loadablePackage.LoadAsync(AssemblyLoadContext.Default);
             }
             catch (Exception exp)
             {

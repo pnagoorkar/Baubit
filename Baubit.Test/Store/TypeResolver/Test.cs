@@ -6,7 +6,6 @@ using Xunit.Sdk;
 
 namespace Baubit.Test.Store.TypeResolver
 {
-    [Trait("TestName", nameof(TypeResolver))]
     [TestCaseOrderer(TestCaseByOrderOrderer.Name, TestCaseByOrderOrderer.Assembly)]
     public class Test : IClassFixture<TypeResolverFixture>
     {
@@ -91,11 +90,11 @@ namespace Baubit.Test.Store.TypeResolver
         public async void Reset()
         {
             fixture.IsolatedContext1.Unload();
-            GC.Collect();
-            await Task.Delay(1000);
-            if (Directory.Exists(Application.BaubitRootPath))
+
+            for (int i = 0; i < 10; i++)
             {
-                Directory.Delete(Application.BaubitRootPath, true);
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
             }
         }
 
@@ -103,6 +102,10 @@ namespace Baubit.Test.Store.TypeResolver
         [Order("f")]
         public async void CanResolveTypeUsingTypeResolver()
         {
+            if (Directory.Exists(Application.BaubitRootPath))
+            {
+                Directory.Delete(Application.BaubitRootPath, true);
+            }
             foreach (var resolvableType in fixture.ResolvableTypes)
             {
                 var result = await Baubit.Store.TypeResolver.ResolveTypeAsync(resolvableType);
@@ -111,16 +114,6 @@ namespace Baubit.Test.Store.TypeResolver
                 Assert.NotNull(result.Value);
             }
         }
-
-        //[Theory]
-        //[InlineData("Autofac.Configuration.ConfigurationModule, Autofac.Configuration, Version=7.0.0")]
-        //public async void CanResolveTypeFromAssemblyQualifiedName(string assemblyQualifiedName)
-        //{
-        //    var result = await Baubit.Store.TypeResolver.ResolveTypeAsync(assemblyQualifiedName);
-
-        //    Assert.True(result.IsSuccess);
-        //    Assert.NotNull(result.Value);
-        //}
     }
 
     public class TypeResolverFixture
@@ -132,7 +125,7 @@ namespace Baubit.Test.Store.TypeResolver
     }
     public sealed class TestCaseByOrderOrderer : ITestCaseOrderer
     {
-        public const string Name = "Baubit.Test.Store.Operations.TypeResolver.TestCaseByOrderOrderer";
+        public const string Name = "Baubit.Test.Store.TypeResolver.TestCaseByOrderOrderer";
         public const string Assembly = "Baubit.Test";
         public IEnumerable<TTestCase> OrderTestCases<TTestCase>(IEnumerable<TTestCase> testCases) where TTestCase : ITestCase
         {
