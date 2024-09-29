@@ -88,14 +88,16 @@ namespace Baubit.Store
                     readResult.Value.Add(targetFramework, new List<Package>());
                 }
 
-                 var addablePackages = packages.SelectMany(package => package.GetAllTrees())
-                                               .Where(package => readResult.Value[targetFramework]
-                                                                           .Search(package.AssemblyName) == null);
+                //var allTrees = packages.GetAllTrees().ToArray();
+
+                var addablePackages = packages.GetAllTrees()
+                                              .Where(package => readResult.Value[targetFramework]
+                                                                          .Search(package.AssemblyName) == null);
                 if (addablePackages.Any())
                 {
                     readResult.Value[targetFramework].AddRange(addablePackages);
                 }
-                                               
+
                 return readResult.Value.Persist(jsonFileSource);
             }
             catch (Exception exp)

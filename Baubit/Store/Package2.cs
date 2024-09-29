@@ -178,7 +178,7 @@ namespace Baubit.Store
         public string DllRelativePath { get; init; }
         [JsonIgnore]
         public string DllFile { get; init; }
-        [JsonConverter(typeof(PackageJsonConverter))]
+        [JsonConverter(typeof(Package2JsonConverter))]
         public IReadOnlyList<Package2> Dependencies { get; init; }
 
         [Obsolete("For use with serialization/deserialization only !")]
@@ -357,7 +357,7 @@ namespace Baubit.Store
         }
     }
 
-    public class PackageJsonConverter : JsonConverter<IReadOnlyList<Package2>>
+    public class Package2JsonConverter : JsonConverter<IReadOnlyList<Package2>>
     {
         public override IReadOnlyList<Package2>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {

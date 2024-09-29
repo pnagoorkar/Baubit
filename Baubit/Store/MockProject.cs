@@ -2,7 +2,6 @@
 using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Configuration;
-using System.Diagnostics;
 using System.Reflection;
 
 namespace Baubit.Store
