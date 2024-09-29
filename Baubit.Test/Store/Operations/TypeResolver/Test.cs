@@ -23,10 +23,13 @@ namespace Baubit.Test.Store.Operations.TypeResolver
         [Order("a")]
         public async void Setup()
         {
-            if (Directory.Exists(Application.BaubitRootPath))
-            {
-                Directory.Delete(Application.BaubitRootPath, true);
-            }
+            PackageRegistry.Search(new Configuration.MetaConfiguration { JsonUriStrings = [Application.BaubitPackageRegistry] },
+                                   Application.TargetFramework,
+                                   new AssemblyName("Autofac.Configuration, Version=7.0.0"));
+            //if (Directory.Exists(Application.BaubitRootPath))
+            //{
+            //    Directory.Delete(Application.BaubitRootPath, true);
+            //}
         }
 
         [Fact]
