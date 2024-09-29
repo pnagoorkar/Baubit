@@ -45,4 +45,31 @@ namespace Baubit.Process
         protected abstract void HandleOutput(IAsyncEnumerable<char> outputMessage);
         protected abstract void HandleError(IAsyncEnumerable<char> errorMessage);
     }
+
+    public class ProcessFailedToStart : IError
+    {
+        public List<IError> Reasons { get; }
+
+        public string Message => "Failed to start process..";
+
+        public Dictionary<string, object> Metadata { get; }
+    }
+
+    public class ProcessExitedWithNonZeroReturnCodeError : IError
+    {
+        public List<IError> Reasons { get; }
+
+        public string Message => "Process exited with non zero code";
+
+        public Dictionary<string, object> Metadata { get; }
+
+        public ProcessStartInfo StartInfo { get; init; }
+        public int ReturnCode { get; init; }
+
+        public ProcessExitedWithNonZeroReturnCodeError(ProcessStartInfo startInfo, int returnCode)
+        {
+            StartInfo = startInfo;
+            ReturnCode = returnCode;
+        }
+    }
 }

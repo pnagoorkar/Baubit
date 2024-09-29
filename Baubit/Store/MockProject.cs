@@ -86,32 +86,6 @@ namespace Baubit.Store
         }
     }
 
-    public static class ProcessExtensions
-    {
-        public static async Task<Result<string>> RunAsync(this ProcessStartInfo processStartInfo)
-        {
-            try
-            {
-                using (System.Diagnostics.Process process = System.Diagnostics.Process.Start(processStartInfo))
-                {
-                    if (process == null) return Result.Fail(new ProcessFailedToStart());
-
-                    await process.WaitForExitAsync();
-
-                    var output = process.StandardOutput.ReadToEnd();
-                    var error = process.StandardError.ReadToEnd();
-
-                    if (process.ExitCode == 0) return Result.Ok(output).WithReason(new ProcessExitedWithZeroReturn(output));
-                    else return Result.Fail(error).WithReason(new ProcessExitedWithNonZeroReturn(process.ExitCode, error));
-                }
-            }
-            catch (Exception exp)
-            {
-                return Result.Fail(new ExceptionalError(exp));
-            }
-        }
-    }
-
     public class ProcessExitedWithZeroReturn : IReason
     {
         public string Message => "";

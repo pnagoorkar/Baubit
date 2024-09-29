@@ -12,83 +12,6 @@ using System.Text.Json.Serialization;
 
 namespace Baubit.Store
 {
-    //public class PackageRegistry : Dictionary<string, List<Package>>
-    //{
-    //    static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
-
-    //    public static Result<PackageRegistry> ReadFrom(string filePath)
-    //    {
-    //        try
-    //        {
-    //            BaubitStoreRegistryAccessor.WaitOne();
-    //            return Result.Try(() => File.ReadAllText(filePath))
-    //                         .Bind(jsonString => Result.Try(() => JsonSerializer.Deserialize<PackageRegistry>(jsonString, Application.IndentedJsonWithCamelCase)!));
-
-    //        }
-    //        catch (Exception exp)
-    //        {
-    //            return Result.Fail(new ExceptionalError(exp));
-    //        }
-    //        finally
-    //        {
-    //            BaubitStoreRegistryAccessor.ReleaseMutex();
-    //        }
-    //    }
-
-    //    public Result WriteTo(string filePath)
-    //    {
-    //        try
-    //        {
-    //            BaubitStoreRegistryAccessor.WaitOne();
-    //            foreach (var key in Keys)
-    //            {
-    //                this[key] = this[key].DistinctBy(package => package.AssemblyName.GetPersistableAssemblyName())
-    //                                     .OrderBy(package => package.AssemblyName.Name)
-    //                                     .ThenBy(package => package.AssemblyName.Version)
-    //                                     .ThenBy(package => package.Dependencies)
-    //                                     .ToList();
-    //            }
-    //            File.WriteAllText(filePath, JsonSerializer.Serialize(this, Serialization.Operations<PackageRegistry>.IndentedJsonWithCamelCase));
-    //            return Result.Ok();
-    //        }
-    //        catch (Exception exp)
-    //        {
-    //            return Result.Fail(new ExceptionalError(exp));
-    //        }
-    //        finally
-    //        {
-    //            BaubitStoreRegistryAccessor.ReleaseMutex();
-    //        }
-    //    }
-
-    //}
-
-    //public record Package
-    //{
-    //    [JsonConverter(typeof(AssemblyNameJsonConverter))]
-    //    public AssemblyName AssemblyName { get; init; }
-    //    public string DllRelativePath { get; init; }
-    //    [JsonIgnore]
-    //    public string DllFile { get => Path.GetFullPath(Path.Combine(Application.BaubitRootPath, AssemblyName.Name!, AssemblyName.Version.ToString()!, DllRelativePath)); }
-    //    public string[] Dependencies { get; init; }
-
-    //    [Obsolete("For use with serialization/deserialization only !")]
-    //    public Package()
-    //    {
-
-    //    }
-
-    //    public Package(string assemblyName,
-    //                   string dllRelativePath, 
-    //                   string[] dependencies)
-    //    {
-    //        var nameParts = assemblyName.Split('/');
-    //        AssemblyName =  new AssemblyName { Name = nameParts[0], Version = new Version(nameParts[1]) };
-    //        DllRelativePath = dllRelativePath;
-    //        Dependencies = dependencies;
-    //    }
-    //}
-
     public class PackageRegistry2 : Dictionary<string, List<Package2>>
     {
         static Mutex BaubitStoreRegistryAccessor = new Mutex(false, nameof(BaubitStoreRegistryAccessor));
@@ -297,7 +220,7 @@ namespace Baubit.Store
             {
                 var searchResult = packages.Search(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Value, StringComparison.OrdinalIgnoreCase));
                 var dependencyPackage = searchResult.ValueOrDefault;
-                //var dependencyPackage = FlattenPackages(packages).FirstOrDefault(package => package.AssemblyName.GetPersistableAssemblyName().Equals(dependency.Value, StringComparison.OrdinalIgnoreCase))!;
+
                 if (dependencyPackage == null)
                 {
                     var dependencyPackageSection = targetFrameworkSection.GetChildren()
@@ -345,21 +268,6 @@ namespace Baubit.Store
             }
             return Result.Ok(packages);
         }
-
-        //public static List<Package2> FlattenPackages(IEnumerable<Package2> packages)
-        //{
-        //    var result = new List<Package2>();
-        //    packages.SelectMany(package => FlattenPackages(package.Dependencies));
-        //    foreach(var dependency in packages.SelectMany(package => FlattenPackages(package.Dependencies)))
-        //    {
-        //    }
-        //    foreach (var package in packages)
-        //    {
-        //        result.AddRange(FlattenPackages(package.Dependencies));
-        //        result.Add(package);
-        //    }
-        //    return result;
-        //}
 
         public static Result TryFlatteningPackage(Package2 package, List<Package2> list)
         {
@@ -413,54 +321,6 @@ namespace Baubit.Store
             }
             return assemblyLoadContext.LoadFromAssemblyPath(DllFile);
         }
-
-        //private Result<ProcessStartInfo> BuildNugetInstallCommand()
-        //{
-        //    string fileName = string.Empty;
-        //    IEnumerable<string> arguments = Enumerable.Empty<string>();
-
-        //    string[] linArgs = ["/nuget.exe"];
-
-        //    string[] commonArgs = ["install", AssemblyName.Name!,
-        //                           "-O", TempDownloadPath,
-        //                           "-DependencyVersion", "Ignore"];
-
-        //    string[] versionArgs = ["-Version", AssemblyName.Version!.ToString()];
-
-        //    if (Application.OSPlatform == OSPlatform.Windows)
-        //    {
-        //        fileName = "nuget";
-        //        arguments = commonArgs;
-        //    }
-        //    else if (Application.OSPlatform == OSPlatform.Linux)
-        //    {
-        //        fileName = "mono";
-        //        arguments = linArgs.Concat(commonArgs);
-        //    }
-        //    else
-        //    {
-        //        throw new NotImplementedException("Undefined OS for Nuget install command !");
-        //    }
-
-        //    if (AssemblyName.Version != null) arguments.Concat(versionArgs);
-
-        //    ProcessStartInfo startInfo = new ProcessStartInfo(fileName, arguments)
-        //    {
-        //        RedirectStandardOutput = true,
-        //        RedirectStandardError = true,
-        //        UseShellExecute = false,
-        //        CreateNoWindow = true
-        //    };
-        //    return startInfo;
-        //}
-
-        //public const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
-        //private Result<SingleValueExtractionContext> BuildOutputDirectoryExtractionContext(string processOutputLine) => Result.Try(() => new SingleValueExtractionContext(processOutputLine, NugetAddedPackageLinePattern, values => values.Skip(1).First()));
-
-        //private Result<string> DetermineDownloadedNugetPackage(string downloadedFolder) => Result.Try(() => Path.Combine(TempDownloadPath, downloadedFolder, $"{downloadedFolder}.nupkg"));
-
-
-        //private Result<FileExtractionContext> BuildDllExtractionContext(string nugetPackageFile) => Result.Try(() => new FileExtractionContext(nugetPackageFile, dllTargetPath, zipExtractionCriteria, overwrite: true));
     }
 
     public static class PackageExtensions
