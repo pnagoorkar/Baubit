@@ -6,12 +6,12 @@ namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
-        public static IEnumerable<AModule> GetNestedModules(this IConfiguration configuration)
+        public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
         {
-            return configuration.GetSection("modules").GetChildren().Select(section => section.AsAModule());
+            return configuration.GetSection("modules").GetChildren().Select(section => section.AsAModule<TModule>());
         }
 
-        public static AModule AsAModule(this IConfigurationSection configurationSection)
+        public static TModule AsAModule<TModule>(this IConfigurationSection configurationSection)
         {
             if (!configurationSection.TryGetModuleType(out var nestedModuleType))
             {
@@ -34,7 +34,7 @@ namespace Baubit.DI
             {
                 nestedModuleConstructionParameter = nestedModuleModuleConfigurationSection;
             }
-            var module = (AModule)Activator.CreateInstance(nestedModuleType, nestedModuleConstructionParameter)!;
+            var module = (TModule)Activator.CreateInstance(nestedModuleType, nestedModuleConstructionParameter)!;
             return module;
         }
 
