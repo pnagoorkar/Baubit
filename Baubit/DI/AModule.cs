@@ -54,7 +54,7 @@ namespace Baubit.DI
         {
 
         }
-        protected AModule(AModuleConfiguration moduleConfiguration, List<AModule> nestedModules) : base(moduleConfiguration, nestedModules)
+        protected AModule(TConfiguration moduleConfiguration, List<AModule> nestedModules) : base(moduleConfiguration, nestedModules)
         {
         }
     }
