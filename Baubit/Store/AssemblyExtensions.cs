@@ -1,5 +1,7 @@
 ﻿using Baubit.IO;
 using FluentResults;
+using FluentResults.Extensions;
+using System;
 using System.Reflection;
 
 namespace Baubit.Store
@@ -8,7 +10,15 @@ namespace Baubit.Store
     {
         public static async Task<Result<Package>> DetermineDownloadablePackagesAsync(this AssemblyName assemblyName, string targetFramework)
         {
-            return await new MockProject(assemblyName, targetFramework).BuildAsync();
+            return await MockProject.Build(assemblyName, targetFramework)
+                                    .Bind(mockProject => mockProject.BuildAsync());
+        }
+        public static async Task<Result> DetermineAssemblyVersion(this AssemblyName assemblyName)
+        {
+            return await NugetPackageDownloader.BuildAsync(assemblyName)
+                                               .Bind(downloader => downloader.RunAsync())
+                                               .Bind(nupkgFile => Result.Try(() => nupkgFile.GetAssemblyVersion(assemblyName.Name!)))
+                                               .Bind(version => Result.Try(() => { assemblyName.Version = version; }));
         }
         public static string GetPersistableAssemblyName(this AssemblyName assemblyName)
         {

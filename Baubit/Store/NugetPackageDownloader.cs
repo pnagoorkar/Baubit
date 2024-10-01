@@ -1,5 +1,4 @@
-﻿using Baubit.Compression;
-using Baubit.Process;
+﻿using Baubit.Process;
 using FluentResults;
 using FluentResults.Extensions;
 using System.Reflection;
@@ -13,6 +12,8 @@ namespace Baubit.Store
         public string DownloadRootDirectory { get; init; }
 
         private StringBuilder outputBuilder = new StringBuilder();
+
+        private StringBuilder errorBuilder = new StringBuilder();
 
         private const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
 
@@ -34,7 +35,7 @@ namespace Baubit.Store
                                    "-O", downloadRootDirectory,
                                    "-DependencyVersion", "Ignore"];
 
-            string[] versionArgs = ["-Version", assemblyName.Version!.ToString()];
+            string[] versionArgs = ["-Version", assemblyName.Version?.ToString()!];
 
             if (Application.OSPlatform == OSPlatform.Windows)
             {
@@ -92,7 +93,7 @@ namespace Baubit.Store
         {
             await foreach (char c in errorMessage)
             {
-
+                errorBuilder.Append(c);
             }
         }
 

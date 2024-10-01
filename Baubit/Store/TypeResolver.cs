@@ -1,4 +1,6 @@
-﻿using FluentResults;
+﻿using Baubit.Compression;
+using FluentResults;
+using FluentResults.Extensions;
 using System.Reflection;
 using System.Runtime.Loader;
 
@@ -59,12 +61,28 @@ namespace Baubit.Store
         {
             try
             {
-                var existingAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
-                if (existingAssembly != null)
+                #region TryLoadingFromCurrentDomain
+                //if (assemblyName.Version == null)
+                //{
+                //    var existingAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().IsSameAs(assemblyName));
+                //    if (existingAssembly != null)
+                //    {
+                //        searchAndLoadResult = Result.Ok(existingAssembly);
+                //        return existingAssembly;
+                //    }
+                //}
+                #endregion
+
+                if (assemblyName.Version == null)
                 {
-                    searchAndLoadResult = Result.Ok(existingAssembly);
-                    return existingAssembly;
+                    var versionDeterminationResult = assemblyName.DetermineAssemblyVersion().GetAwaiter().GetResult();
+                    if (!versionDeterminationResult.IsSuccess)
+                    {
+                        searchAndLoadResult = Result.Fail("").WithReasons(versionDeterminationResult.Reasons);
+                        return null;
+                    }
                 }
+
                 searchAndLoadResult = SearchDownloadAndLoadAssembly(assemblyName).GetAwaiter().GetResult();
 
                 return searchAndLoadResult.IsSuccess ? searchAndLoadResult.Value : null;

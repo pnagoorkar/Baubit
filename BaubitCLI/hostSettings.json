@@ -1,5 +1,5 @@
 {
-  "serviceProviderFactoryRegistrarType": "Baubit.Autofac.ServiceProviderFactoryRegistrar, Baubit.Autofac, Version=2024.38.2",
+  "serviceProviderFactoryRegistrarType": "Baubit.Autofac.ServiceProviderFactoryRegistrar, Baubit.Autofac",
   "hostApplicationBuilderSettings": {
     "applicationName": "MyRandomApplication"
   },

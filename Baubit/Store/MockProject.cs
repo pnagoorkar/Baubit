@@ -14,7 +14,7 @@ namespace Baubit.Store
         public string TempProjBuildOutputFolder { get; init; }
         public string ProjectAssetsJsonFile { get; init; }
 
-        public MockProject(AssemblyName assemblyName, string targetFramework)
+        private MockProject(AssemblyName assemblyName, string targetFramework)
         {
             AssemblyName = assemblyName;
             TargetFramework = targetFramework;
@@ -22,6 +22,11 @@ namespace Baubit.Store
             TempProjFileName = Path.Combine(PackageDeterminationWorkspace, $"BaubitMockConsumer_{AssemblyName.Name}.csproj");
             TempProjBuildOutputFolder = Path.Combine(PackageDeterminationWorkspace, "release");
             ProjectAssetsJsonFile = Path.Combine(PackageDeterminationWorkspace, "obj", $@"project.assets.json");
+        }
+
+        public static Result<MockProject> Build(AssemblyName assemblyName, string targetFramework)
+        {
+            return Result.Try(() => new MockProject(assemblyName, targetFramework));
         }
 
         public async Task<Result<Package>> BuildAsync()

@@ -34,6 +34,11 @@ namespace Baubit.Test.Store.TypeResolver
             foreach (var resolvableType in fixture.ResolvableTypes)
             {
                 var assemblyName = new AssemblyName(resolvableType.Split(',').Skip(1).Aggregate("", (seed, next) => $"{seed},{next}").TrimStart(',').Trim());
+                if (assemblyName.Version == null)
+                {
+                    var versionDeterminationResult = await assemblyName.DetermineAssemblyVersion();
+                    Assert.True(versionDeterminationResult.IsSuccess);
+                }
                 var result = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework);
                 Assert.True(result.IsSuccess);
                 fixture.Downloadables.Add(result.Value);
@@ -118,7 +123,8 @@ namespace Baubit.Test.Store.TypeResolver
 
     public class TypeResolverFixture
     {
-        public string[] ResolvableTypes { get; set; } = ["Autofac.Configuration.ConfigurationModule, Autofac.Configuration, Version=7.0.0"];
+        //public string[] ResolvableTypes { get; set; } = ["Autofac.Configuration.ConfigurationModule, Autofac.Configuration, Version=7.0.0"];
+        public string[] ResolvableTypes { get; set; } = ["Autofac.Configuration.ConfigurationModule, Autofac.Configuration"];
         public List<Package> Downloadables { get; set; } = new List<Package>();
         public AssemblyLoadContext IsolatedContext1 { get; set; } = new AssemblyLoadContext(nameof(IsolatedContext1), true);
         public AssemblyLoadContext IsolatedContext2 { get; set; } = new AssemblyLoadContext(nameof(IsolatedContext2), true);
