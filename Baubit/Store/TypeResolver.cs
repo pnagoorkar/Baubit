@@ -39,7 +39,19 @@ namespace Baubit.Store
 
         private Result<Type> TryResolveFromExisting(string assemblyQualifiedName)
         {
-            return Result.Try(() => Type.GetType(assemblyQualifiedName)!);
+            try
+            {
+                var type = Type.GetType(assemblyQualifiedName);
+                if (type == null)
+                {
+                    return Result.Fail("");
+                }
+                return Result.Ok(type);
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
         }
 
         Result<Assembly> searchAndLoadResult = null;
