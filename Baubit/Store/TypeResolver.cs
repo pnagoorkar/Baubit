@@ -20,6 +20,10 @@ namespace Baubit.Store
             try
             {
                 await Task.Yield();
+
+                var existingTypeResolutionResult = TryResolveFromExisting(assemblyQualifiedName);
+                if(existingTypeResolutionResult.IsSuccess) return existingTypeResolutionResult.Value;
+
                 var type = Type.GetType(assemblyQualifiedName, ResolveAssembly, ResolveType)!;
                 if (type == null)
                 {
@@ -31,6 +35,11 @@ namespace Baubit.Store
             {
                 return Result.Fail(new ExceptionalError(exp));
             }
+        }
+
+        private Result<Type> TryResolveFromExisting(string assemblyQualifiedName)
+        {
+            return Result.Try(() => Type.GetType(assemblyQualifiedName)!);
         }
 
         Result<Assembly> searchAndLoadResult = null;
