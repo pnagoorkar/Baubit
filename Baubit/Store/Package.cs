@@ -73,7 +73,7 @@ namespace Baubit.Store
             return packages.GetAllTrees().Select(p => p.AsSerializable());
         }
 
-        public static IEnumerable<Package> GetAllTrees(this Package package) 
+        public static IEnumerable<Package> GetAllTrees(this Package package)
         {
             yield return package;
 
@@ -119,7 +119,7 @@ namespace Baubit.Store
         }
 
         public static Package AsPackage(this SerializablePackage serializablePackage,
-                                        IEnumerable<SerializablePackage> serializablePackages, 
+                                        IEnumerable<SerializablePackage> serializablePackages,
                                         List<Package> cache)
         {
             var dependencies = new List<Package>();
@@ -132,9 +132,9 @@ namespace Baubit.Store
                 if (cachedPackage == null) cache.Add(dependencyPackage);
             }
 
-            var currentPackage = Package.Build(AssemblyExtensions.GetAssemblyNameFromPersistableString(serializablePackage.AssemblyName).GetPackageRootPath(), 
-                                               serializablePackage.AssemblyName, 
-                                               serializablePackage.DllRelativePath, 
+            var currentPackage = Package.Build(AssemblyExtensions.GetAssemblyNameFromPersistableString(serializablePackage.AssemblyName).GetPackageRootPath(),
+                                               serializablePackage.AssemblyName,
+                                               serializablePackage.DllRelativePath,
                                                dependencies);
             return currentPackage;
         }
@@ -147,7 +147,7 @@ namespace Baubit.Store
                 var cachedPackage = result.Search(serializablePackage.AssemblyName);
                 var package = cachedPackage ?? serializablePackage.AsPackage(serializablePackages, result);
 
-                if(cachedPackage == null) result.Add(package);
+                if (cachedPackage == null) result.Add(package);
             }
             return result;
         }
@@ -167,7 +167,7 @@ namespace Baubit.Store
                                                                  .Bind(downloader => downloader.RunAsync())
                                                                  .Bind(nupkgFile => Result.Try(() => nupkgFile.EnumerateEntriesAsync()));
 
-                if(downloadResult.IsFailed)
+                if (downloadResult.IsFailed)
                 {
                     return Result.Fail("").WithReasons(downloadResult.Reasons);
                 }
@@ -192,8 +192,27 @@ namespace Baubit.Store
         {
             foreach (var dependency in package.Dependencies)
             {
-                await dependency.LoadAsync(assemblyLoadContext);
+                var nestedLoadResult = await dependency.LoadAsync(assemblyLoadContext);
+                if (!nestedLoadResult.IsSuccess)
+                {
+                    return Result.Fail("").WithReasons(nestedLoadResult.Reasons);
+                }
             }
+            #region ConflictCheck
+            var existingAssembly = assemblyLoadContext.Assemblies.FirstOrDefault(assembly => assembly.GetName().Name.Equals(package.AssemblyName.Name, StringComparison.OrdinalIgnoreCase));
+            if (existingAssembly != null)
+            {
+                if (!package.AssemblyName.IsSameAs(existingAssembly.GetName())) //the requested assembly is of a different version than previously loaded one.
+                {
+                    var versionConflict = new AssemblyVersionConflict(package.AssemblyName, existingAssembly.GetName());
+                    return Result.Fail(versionConflict.Message).WithReason(versionConflict);
+                }
+                else
+                {
+                    return Result.Ok(existingAssembly);
+                }
+            }
+            #endregion
             return assemblyLoadContext.LoadFromAssemblyPath(package.DllFile);
         }
     }

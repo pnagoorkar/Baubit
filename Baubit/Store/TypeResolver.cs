@@ -62,6 +62,7 @@ namespace Baubit.Store
                 var existingAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().Name.Equals(assemblyName.Name, StringComparison.OrdinalIgnoreCase));
                 if (existingAssembly != null)
                 {
+                    searchAndLoadResult = Result.Ok(existingAssembly);
                     return existingAssembly;
                 }
                 searchAndLoadResult = SearchDownloadAndLoadAssembly(assemblyName).GetAwaiter().GetResult();
@@ -112,6 +113,22 @@ namespace Baubit.Store
             {
                 return Result.Fail(new ExceptionalError(exp));
             }
+        }
+    }
+
+    public class AssemblyVersionConflict : IReason
+    {
+        public string Message => "The requested assembly is of a different version than assembly already loaded in context";
+
+        public Dictionary<string, object> Metadata { get; } = default!;
+
+        public string RequestedAssembly { get; init; }
+        public string ExistingAssembly { get; init; }
+
+        public AssemblyVersionConflict(AssemblyName requested, AssemblyName existing)
+        {
+            RequestedAssembly = requested.GetPersistableAssemblyName();
+            ExistingAssembly = existing.GetPersistableAssemblyName();
         }
     }
 }

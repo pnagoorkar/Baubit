@@ -80,8 +80,8 @@ namespace Baubit.Test.Store.TypeResolver
         {
             foreach (var package in fixture.Downloadables)
             {
-                var downloadResult = await package.LoadAsync(fixture.IsolatedContext1);
-                Assert.True(downloadResult.IsSuccess);
+                var loadResult = await package.LoadAsync(fixture.IsolatedContext1);
+                Assert.True(loadResult.IsSuccess);
             }
         }
 
