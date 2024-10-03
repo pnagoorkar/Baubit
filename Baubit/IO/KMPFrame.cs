@@ -1,6 +1,6 @@
 ﻿namespace Baubit.IO
 {
-    public class KMPPattern
+    public class KMPFrame
     {
         public string Value { get; init; }
 
@@ -16,17 +16,17 @@
                 currentIndex = value;
                 if (currentIndex == Value.Length)
                 {
-                    PatternFound = true;
+                    ReachedTheEnd = true;
                 }
             }
         }
-        public bool PatternFound { get; private set; }
+        public bool ReachedTheEnd { get; private set; }
 
         private char CurrentValue { get => Value[CurrentIndex]; }
 
         public int[] LPS { get; init; }
 
-        public KMPPattern(string value)
+        public KMPFrame(string value)
         {
             Value = value;
             LPS = BuildLPSArray(Value);
@@ -34,7 +34,7 @@
 
         public void MoveNext(char input)
         {
-            if (PatternFound) return;
+            if (ReachedTheEnd) return;
 
             while (CurrentIndex > 0 && CurrentValue != input) CurrentIndex = LPS[CurrentIndex - 1];
 

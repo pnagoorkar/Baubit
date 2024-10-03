@@ -38,26 +38,26 @@ namespace Baubit.IO
                                                                     string suffix,
                                                                     CancellationToken cancellationToken)
         {
-            var kmpPrefix = new KMPPattern(prefix);
-            var kmpSuffix = new KMPPattern(suffix);
+            var prefixFrame = new KMPFrame(prefix);
+            var suffixFrame = new KMPFrame(suffix);
 
             var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             StringBuilder resultBuilder = new StringBuilder();
-            BoundedQueue<char> suffixWindow = new BoundedQueue<char>(kmpSuffix.Value.Length);
+            BoundedQueue<char> suffixWindow = new BoundedQueue<char>(suffixFrame.Value.Length);
 
             suffixWindow.OnDequeue += @char => resultBuilder.Append(@char);
 
             await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
             {
-                if (!kmpPrefix.PatternFound) kmpPrefix.MoveNext(currentChar);
+                if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
                 else
                 {
                     suffixWindow.Enqueue(currentChar);
-                    kmpSuffix.MoveNext(currentChar);
+                    suffixFrame.MoveNext(currentChar);
                 }
 
-                if (kmpSuffix.PatternFound)
+                if (suffixFrame.ReachedTheEnd)
                 {
                     break;
                 }
@@ -80,11 +80,11 @@ namespace Baubit.IO
                                                                           params string[] suffixes)
         {
             List<string> results = new List<string>();
-            var kmpPrefix = new KMPPattern(prefix);
-            var kmpSuffixes = suffixes.Select(suffix => new KMPPattern(suffix)).ToArray();
-            var pendingSuffixes = kmpSuffixes.Where(suffix => !suffix.PatternFound);
+            var prefixFrame = new KMPFrame(prefix);
+            var suffixFrames = suffixes.Select(suffix => new KMPFrame(suffix)).ToArray();
+            var pendingSuffixFrames = suffixFrames.Where(suffix => !suffix.ReachedTheEnd);
 
-            KMPPattern kmpSuffix = null!;
+            KMPFrame suffixFrame = null!;
 
             var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -94,15 +94,15 @@ namespace Baubit.IO
 
             Func<bool> setNextSuffix = () =>
             {
-                if (kmpSuffix != null) //running for the first time. there will be no result yet.
+                if (suffixFrame != null) //running for the first time. there will be no result yet.
                 {
                     results.Add(resultBuilder.ToString());
                     resultBuilder.Clear();
                 }
 
-                kmpSuffix = pendingSuffixes.FirstOrDefault()!;
-                if (kmpSuffix == null) return false;
-                suffixWindow = new BoundedQueue<char>(kmpSuffix.Value.Length);
+                suffixFrame = pendingSuffixFrames.FirstOrDefault()!;
+                if (suffixFrame == null) return false;
+                suffixWindow = new BoundedQueue<char>(suffixFrame.Value.Length);
                 suffixWindow.OnDequeue += @char => resultBuilder.Append(@char);
                 return true;
             };
@@ -111,14 +111,14 @@ namespace Baubit.IO
 
             await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
             {
-                if (!kmpPrefix.PatternFound) kmpPrefix.MoveNext(currentChar);
+                if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
                 else
                 {
                     suffixWindow.Enqueue(currentChar);
-                    kmpSuffix.MoveNext(currentChar);
+                    suffixFrame.MoveNext(currentChar);
                 }
 
-                if (kmpSuffix.PatternFound && !setNextSuffix())
+                if (suffixFrame.ReachedTheEnd && !setNextSuffix())
                 {
                     break;
                 }
@@ -126,5 +126,19 @@ namespace Baubit.IO
             linkedCancellationTokenSource.Cancel();
             return Result.Ok(results);
         }
+
+        //public static async Task<Result<List<Result<List<string>>>>> ReadSubstringsAsync(this StreamReader streamReader, 
+        //                                                                                 CancellationToken cancellationToken,
+        //                                                                                 params KMPPatternGroup[] kmpPatternGroups)
+        //{
+        //    var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    await Task.WhenAll(kmpPatternGroups.Select(group => group.AwaitResult())).ContinueWith(task => { linkedCancellationTokenSource.Cancel(); });
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
+        //    {
+        //        Parallel.ForEach(kmpPatternGroups, kmpPatternGroup => kmpPatternGroup.Process(currentChar));
+        //    }
+        //}
     }
 }
