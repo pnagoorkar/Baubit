@@ -1,4 +1,5 @@
 ﻿using FluentResults;
+using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -33,98 +34,155 @@ namespace Baubit.IO
             }
         }
 
-        public static async Task<Result<string>> ReadSubstringAsync(this StreamReader streamReader,
-                                                                    string prefix,
-                                                                    string suffix,
-                                                                    CancellationToken cancellationToken)
+        //public static async Task<Result<string>> ReadSubstringAsync1(this StreamReader streamReader,
+        //                                                            string prefix,
+        //                                                            string suffix,
+        //                                                            CancellationToken cancellationToken)
+        //{
+        //    var prefixFrame = new KMPFrame(prefix);
+        //    var suffixFrame = new KMPFrame(suffix);
+
+        //    var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    StringBuilder resultBuilder = new StringBuilder();
+        //    BoundedQueue<char> suffixWindow = new BoundedQueue<char>(suffixFrame.Value.Length);
+
+        //    suffixWindow.OnOverflow += @char => resultBuilder.Append(@char);
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
+        //    {
+        //        if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
+        //        else
+        //        {
+        //            suffixWindow.Enqueue(currentChar);
+        //            suffixFrame.MoveNext(currentChar);
+        //        }
+
+        //        if (suffixFrame.ReachedTheEnd)
+        //        {
+        //            break;
+        //        }
+        //    }
+        //    linkedCancellationTokenSource.Cancel();
+        //    return Result.Ok(resultBuilder.ToString());
+        //}
+
+        ///// <summary>
+        ///// Reads substrings that lie between <paramref name="prefix"/> and each of the <paramref name="suffixes"/>
+        ///// </summary>
+        ///// <param name="streamReader">The input stream reader</param>
+        ///// <param name="cancellationToken">Cancellation token</param>
+        ///// <param name="prefix">A substring that lies prior to the first substring sought</param>
+        ///// <param name="suffixes">A set of substrings that fall squentially after each of the sought substring</param>
+        ///// <returns>A result with substrings found between the <paramref name="prefix"/> and each of the <paramref name="suffixes"/></returns>
+        //public static async Task<Result<List<string>>> ReadSubstringsAsync(this StreamReader streamReader,
+        //                                                                  CancellationToken cancellationToken,
+        //                                                                  string prefix,
+        //                                                                  params string[] suffixes)
+        //{
+        //    List<string> results = new List<string>();
+        //    var prefixFrame = new KMPFrame(prefix);
+        //    var suffixFrames = suffixes.Select(suffix => new KMPFrame(suffix)).ToArray();
+        //    var pendingSuffixFrames = suffixFrames.Where(suffix => !suffix.ReachedTheEnd);
+
+        //    KMPFrame suffixFrame = null!;
+
+        //    var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    StringBuilder resultBuilder = new StringBuilder();
+
+        //    BoundedQueue<char> suffixWindow = null!;
+
+        //    Func<bool> setNextSuffix = () =>
+        //    {
+        //        if (suffixFrame != null) //running for the first time. there will be no result yet.
+        //        {
+        //            results.Add(resultBuilder.ToString());
+        //            resultBuilder.Clear();
+        //        }
+
+        //        suffixFrame = pendingSuffixFrames.FirstOrDefault()!;
+        //        if (suffixFrame == null) return false;
+        //        suffixWindow = new BoundedQueue<char>(suffixFrame.Value.Length);
+        //        suffixWindow.OnOverflow += @char => resultBuilder.Append(@char);
+        //        return true;
+        //    };
+
+        //    setNextSuffix();
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
+        //    {
+        //        if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
+        //        else
+        //        {
+        //            suffixWindow.Enqueue(currentChar);
+        //            suffixFrame.MoveNext(currentChar);
+        //        }
+
+        //        if (suffixFrame.ReachedTheEnd && !setNextSuffix())
+        //        {
+        //            break;
+        //        }
+        //    }
+        //    linkedCancellationTokenSource.Cancel();
+        //    return Result.Ok(results);
+        //}
+
+        //public static async Task<Result<string>> ReadSubstringBetweenAsync(this StreamReader streamReader, string prefix, string suffix, CancellationToken cancellationToken)
+        //{
+        //    var prefixFrame = new KMPFrame(prefix);
+        //    var suffixFrame = new KMPFrame(suffix);
+
+        //    suffixFrame.BeginCaching();
+
+        //    var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
+        //    {
+        //        if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
+        //        else if (!suffixFrame.ReachedTheEnd) suffixFrame.MoveNext(currentChar);
+        //        else linkedCancellationTokenSource.Cancel();
+        //    }
+
+        //    return Result.Try(suffixFrame.GetOverflowedCache);
+        //}
+
+        public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader,
+                                                                            string prefix,
+                                                                            string suffix,
+                                                                            CancellationToken cancellationToken)
         {
-            var prefixFrame = new KMPFrame(prefix);
-            var suffixFrame = new KMPFrame(suffix);
+            var kmpPattern = new KMPPattern(prefix, suffix);
 
-            var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            StringBuilder resultBuilder = new StringBuilder();
-            BoundedQueue<char> suffixWindow = new BoundedQueue<char>(suffixFrame.Value.Length);
-
-            suffixWindow.OnDequeue += @char => resultBuilder.Append(@char);
-
-            await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
+            await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
             {
-                if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
-                else
-                {
-                    suffixWindow.Enqueue(currentChar);
-                    suffixFrame.MoveNext(currentChar);
-                }
-
-                if (suffixFrame.ReachedTheEnd)
-                {
-                    break;
-                }
+                kmpPattern.Process(currentChar);
+                if (kmpPattern.Found) enumerationCancellationTokenSource.Cancel();
             }
-            linkedCancellationTokenSource.Cancel();
-            return Result.Ok(resultBuilder.ToString());
+
+            return Result.Try(kmpPattern.SuffixFrame.GetOverflowedCache);
         }
 
-        /// <summary>
-        /// Reads substrings that lie between <paramref name="prefix"/> and each of the <paramref name="suffixes"/>
-        /// </summary>
-        /// <param name="streamReader">The input stream reader</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <param name="prefix">A substring that lies prior to the first substring sought</param>
-        /// <param name="suffixes">A set of substrings that fall squentially after each of the sought substring</param>
-        /// <returns>A result with substrings found between the <paramref name="prefix"/> and each of the <paramref name="suffixes"/></returns>
-        public static async Task<Result<List<string>>> ReadSubstringsAsync(this StreamReader streamReader,
-                                                                          CancellationToken cancellationToken,
+        public static async IAsyncEnumerable<string> AllSubstringsBetween(this StreamReader streamReader,
                                                                           string prefix,
-                                                                          params string[] suffixes)
+                                                                          string suffix,
+                                                                          [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            List<string> results = new List<string>();
-            var prefixFrame = new KMPFrame(prefix);
-            var suffixFrames = suffixes.Select(suffix => new KMPFrame(suffix)).ToArray();
-            var pendingSuffixFrames = suffixFrames.Where(suffix => !suffix.ReachedTheEnd);
+            var kmpPattern = new KMPPattern(prefix, suffix);
 
-            KMPFrame suffixFrame = null!;
+            var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            var linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-            StringBuilder resultBuilder = new StringBuilder();
-
-            BoundedQueue<char> suffixWindow = null!;
-
-            Func<bool> setNextSuffix = () =>
+            await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
             {
-                if (suffixFrame != null) //running for the first time. there will be no result yet.
+                kmpPattern.Process(currentChar);
+                if (kmpPattern.Found)
                 {
-                    results.Add(resultBuilder.ToString());
-                    resultBuilder.Clear();
-                }
-
-                suffixFrame = pendingSuffixFrames.FirstOrDefault()!;
-                if (suffixFrame == null) return false;
-                suffixWindow = new BoundedQueue<char>(suffixFrame.Value.Length);
-                suffixWindow.OnDequeue += @char => resultBuilder.Append(@char);
-                return true;
-            };
-
-            setNextSuffix();
-
-            await foreach (var currentChar in streamReader.EnumerateAsync(linkedCancellationTokenSource.Token))
-            {
-                if (!prefixFrame.ReachedTheEnd) prefixFrame.MoveNext(currentChar);
-                else
-                {
-                    suffixWindow.Enqueue(currentChar);
-                    suffixFrame.MoveNext(currentChar);
-                }
-
-                if (suffixFrame.ReachedTheEnd && !setNextSuffix())
-                {
-                    break;
+                    yield return kmpPattern.SuffixFrame.GetOverflowedCache();
+                    kmpPattern.Reset();
                 }
             }
-            linkedCancellationTokenSource.Cancel();
-            return Result.Ok(results);
         }
 
         //public static async Task<Result<List<Result<List<string>>>>> ReadSubstringsAsync(this StreamReader streamReader, 

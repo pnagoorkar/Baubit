@@ -16,7 +16,7 @@ namespace Baubit.Store
 
         private StringBuilder errorBuilder = new StringBuilder();
 
-        private const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
+        //private const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
 
         public NugetPackageDownloader(string fileName, IEnumerable<string> arguments, string downloadRoot) : base(fileName, arguments)
         {
@@ -99,11 +99,13 @@ namespace Baubit.Store
         {
             var cancellationTokenSource = new CancellationTokenSource();
 
-            var res = standardOutput.ReadSubstringsAsync(cancellationTokenSource.Token, downloadedFolderPrefix, downloadedFolderSuffix, downloadedToFolderSuffix)
-                                    .GetAwaiter()
-                                    .GetResult();
+            var res = standardOutput.FirstSubstringBetween(downloadedFolderPrefix, downloadedFolderSuffix, cancellationTokenSource.Token).GetAwaiter().GetResult();
 
-            DownloadedFolderExtractorTCS.SetResult(Result.Ok(res.Value.First()));
+            //var res = standardOutput.ReadSubstringsAsync(cancellationTokenSource.Token, downloadedFolderPrefix, downloadedFolderSuffix, downloadedToFolderSuffix)
+            //                        .GetAwaiter()
+            //                        .GetResult();
+
+            DownloadedFolderExtractorTCS.SetResult(Result.Ok(res.Value));
         }
 
         protected override void HandleError(StreamReader standardError)

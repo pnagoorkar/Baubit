@@ -5,7 +5,7 @@
         private readonly Queue<T> _queue = new Queue<T>();
         private readonly int _capacity;
 
-        public event Action<T>? OnDequeue;
+        public event Action<T>? OnOverflow;
 
         public BoundedQueue(int capacity)
         {
@@ -22,10 +22,12 @@
             if (_queue.Count >= _capacity)
             {
                 var dequeuedItem = _queue.Dequeue(); // Remove the oldest item
-                OnDequeue?.Invoke(dequeuedItem);
+                OnOverflow?.Invoke(dequeuedItem);
             }
 
             _queue.Enqueue(item);
         }
+
+        public void Clear () => _queue.Clear();
     }
 }
