@@ -90,43 +90,20 @@ namespace Baubit.Store
             }
         }
 
-        //protected override async void HandleError(IAsyncEnumerable<char> errorMessage)
-        //{
-        //    await foreach (char c in errorMessage)
-        //    {
-        //        errorBuilder.Append(c);
-        //    }
-        //}
-        //protected override async void HandleOutput(IAsyncEnumerable<char> outputMessage)
-        //{
-        //    try
-        //    {
-        //        await foreach (char c in outputMessage)
-        //        {
-        //            outputBuilder.Append(c);
-        //        }
-        //        var downloadedFolder = System.Text
-        //                                     .RegularExpressions
-        //                                     .Regex.Match(outputBuilder.ToString(), NugetAddedPackageLinePattern)
-        //                                     .Groups
-        //                                     .Values
-        //                                     .Select(value => value.Value)
-        //                                     .Skip(1)
-        //                                     .First();
-        //        DownloadedFolderExtractorTCS.SetResult(Result.Ok(downloadedFolder));
-        //    }
-        //    catch (Exception exp)
-        //    {
-        //        DownloadedFolderExtractorTCS.SetResult(Result.Fail(new ExceptionalError(exp)));
-        //    }
-        //}
-
-
         private TaskCompletionSource<Result<string>> DownloadedFolderExtractorTCS = new TaskCompletionSource<Result<string>>();
+        const string downloadedFolderPrefix = "Added package '";
+        const string downloadedFolderSuffix = "' to folder '";
+        const string downloadedToFolderSuffix = "'";
+
         protected override void HandleOutput(StreamReader standardOutput)
         {
             var cancellationTokenSource = new CancellationTokenSource();
-            DownloadedFolderExtractorTCS.SetResult(standardOutput.ReadSubstringAsync("Added package '", "' to folder ", cancellationTokenSource.Token).GetAwaiter().GetResult());
+
+            var res = standardOutput.ReadSubstringsAsync(cancellationTokenSource.Token, downloadedFolderPrefix, downloadedFolderSuffix, downloadedToFolderSuffix)
+                                    .GetAwaiter()
+                                    .GetResult();
+
+            DownloadedFolderExtractorTCS.SetResult(Result.Ok(res.Value.First()));
         }
 
         protected override void HandleError(StreamReader standardError)
