@@ -23,9 +23,10 @@ namespace Baubit.Hosting
         {
             try
             {
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
                 var hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(HostApplicationBuilderSettings);
                 hostApplicationBuilder.Configuration.AddConfiguration(Configuration!);
-                var resolveTypeResult = await TypeResolver.ResolveTypeAsync(ServiceProviderFactoryRegistrarType!);
+                var resolveTypeResult = await TypeResolver.ResolveTypeAsync(ServiceProviderFactoryRegistrarType!, cts.Token);
                 if (!resolveTypeResult.IsSuccess) return Result.Fail("").WithReasons(resolveTypeResult.Reasons);
                 var serviceProviderFactoryRegistrar = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(resolveTypeResult.Value!)!;
                 serviceProviderFactoryRegistrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder);

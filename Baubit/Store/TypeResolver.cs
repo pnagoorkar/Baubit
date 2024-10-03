@@ -1,6 +1,4 @@
-﻿using Baubit.Compression;
-using FluentResults;
-using FluentResults.Extensions;
+﻿using FluentResults;
 using System.Reflection;
 using System.Runtime.Loader;
 
@@ -12,12 +10,12 @@ namespace Baubit.Store
         {
             
         }
-        public static async Task<Result<Type>> ResolveTypeAsync(string assemblyQualifiedName)
+        public static async Task<Result<Type>> ResolveTypeAsync(string assemblyQualifiedName, CancellationToken cancellationToken)
         {
-            return await new TypeResolver().ResolveAsync(assemblyQualifiedName);
+            return await new TypeResolver().ResolveAsync(assemblyQualifiedName, cancellationToken);
         }
 
-        private async Task<Result<Type>> ResolveAsync(string assemblyQualifiedName)
+        private async Task<Result<Type>> ResolveAsync(string assemblyQualifiedName, CancellationToken cancellationToken)
         {
             try
             {

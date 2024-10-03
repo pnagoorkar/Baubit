@@ -113,7 +113,7 @@ namespace Baubit.Test.Store.TypeResolver
             }
             foreach (var resolvableType in fixture.ResolvableTypes)
             {
-                var result = await Baubit.Store.TypeResolver.ResolveTypeAsync(resolvableType);
+                var result = await Baubit.Store.TypeResolver.ResolveTypeAsync(resolvableType, CancellationToken.None);
 
                 Assert.True(result.IsSuccess);
                 Assert.NotNull(result.Value);

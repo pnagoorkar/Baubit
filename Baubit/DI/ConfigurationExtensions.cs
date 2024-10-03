@@ -41,7 +41,7 @@ namespace Baubit.DI
         public static bool TryGetModuleType(this IConfigurationSection configurationSection, out Type moduleType)
         {
             moduleType = null;
-            var resolutionResult = TypeResolver.ResolveTypeAsync(configurationSection["type"]!).GetAwaiter().GetResult();
+            var resolutionResult = TypeResolver.ResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
             if (resolutionResult.IsSuccess)
             {
                 moduleType = resolutionResult.Value;
