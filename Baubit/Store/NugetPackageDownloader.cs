@@ -16,8 +16,6 @@ namespace Baubit.Store
 
         private StringBuilder errorBuilder = new StringBuilder();
 
-        //private const string NugetAddedPackageLinePattern = @"Added package '(.+?)' to folder '(.+?)'";
-
         public NugetPackageDownloader(string fileName, IEnumerable<string> arguments, string downloadRoot) : base(fileName, arguments)
         {
             DownloadRootDirectory = downloadRoot;
@@ -100,10 +98,6 @@ namespace Baubit.Store
             var cancellationTokenSource = new CancellationTokenSource();
 
             var res = standardOutput.FirstSubstringBetween(downloadedFolderPrefix, downloadedFolderSuffix, cancellationTokenSource.Token).GetAwaiter().GetResult();
-
-            //var res = standardOutput.ReadSubstringsAsync(cancellationTokenSource.Token, downloadedFolderPrefix, downloadedFolderSuffix, downloadedToFolderSuffix)
-            //                        .GetAwaiter()
-            //                        .GetResult();
 
             DownloadedFolderExtractorTCS.SetResult(Result.Ok(res.Value));
         }
