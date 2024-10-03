@@ -33,9 +33,9 @@ namespace Baubit.IO
         }
 
         public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader,
-                                                                            string prefix,
-                                                                            string suffix,
-                                                                            CancellationToken cancellationToken)
+                                                                       string prefix,
+                                                                       string suffix,
+                                                                       CancellationToken cancellationToken)
         {
             var kmpPattern = new KMPPattern(prefix, suffix);
 
@@ -47,8 +47,25 @@ namespace Baubit.IO
                 if (kmpPattern.Found) enumerationCancellationTokenSource.Cancel();
             }
 
-            return Result.Try(kmpPattern.SuffixFrame.GetOverflowedCache);
+            return await kmpPattern.AwaitResult();
         }
+
+        //public static async Task<Result> FirstSubstringsBetween(this StreamReader streamReader,
+        //                                                        CancellationToken cancellationToken,
+        //                                                        params KMPPattern[] kmpPatterns)
+        //{
+        //    var pendingPatterns = kmpPatterns.Where(pattern => !pattern.Found);
+
+        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
+        //    {
+        //        Parallel.ForEach(pendingPatterns, pattern =>  { pattern.Process(currentChar); });
+        //        if (!pendingPatterns.Any()) enumerationCancellationTokenSource.Cancel();
+        //    }
+
+        //    return Result.Ok();
+        //}
 
         public static async IAsyncEnumerable<string> AllSubstringsBetween(this StreamReader streamReader,
                                                                           string prefix,
