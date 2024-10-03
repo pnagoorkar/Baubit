@@ -21,14 +21,15 @@ namespace Baubit.Store
                                              "--output", buildOutputFolder];
             return (fileName, arguments);
         }
-        protected override void HandleError(IAsyncEnumerable<char> errorMessage)
+
+        protected override void HandleError(StreamReader standardError)
         {
-            var error = errorMessage.ToBlockingEnumerable().Aggregate("", (seed, current) => $"{seed}{current}");
+            var error = standardError.ReadToEnd();
         }
 
-        protected override void HandleOutput(IAsyncEnumerable<char> outputMessage)
+        protected override void HandleOutput(StreamReader standardOutput)
         {
-            var output = outputMessage.ToBlockingEnumerable().Aggregate("", (seed, current) => $"{seed}{current}");
+            var output = standardOutput.ReadToEnd();
         }
     }
 }

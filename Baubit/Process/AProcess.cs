@@ -27,8 +27,8 @@ namespace Baubit.Process
                 {
                     if (process == null) return Result.Fail(new ProcessFailedToStart());
 
-                    HandleOutput(process.StandardOutput.EnumerateAsync());
-                    HandleError(process.StandardError.EnumerateAsync());
+                    HandleOutput(process.StandardOutput);
+                    HandleError(process.StandardError);
 
                     await process.WaitForExitAsync();
 
@@ -42,8 +42,11 @@ namespace Baubit.Process
             }
         }
 
-        protected abstract void HandleOutput(IAsyncEnumerable<char> outputMessage);
-        protected abstract void HandleError(IAsyncEnumerable<char> errorMessage);
+        //protected abstract void HandleOutput(IAsyncEnumerable<char> outputMessage);
+        //protected abstract void HandleError(IAsyncEnumerable<char> errorMessage);
+
+        protected abstract void HandleOutput(StreamReader standardOutput);
+        protected abstract void HandleError(StreamReader standardError);
     }
 
     public class ProcessFailedToStart : IError

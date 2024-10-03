@@ -1,4 +1,5 @@
-﻿using Baubit.Process;
+﻿using Baubit.IO;
+using Baubit.Process;
 using FluentResults;
 using FluentResults.Extensions;
 using System.Reflection;
@@ -89,37 +90,48 @@ namespace Baubit.Store
             }
         }
 
-        protected override async void HandleError(IAsyncEnumerable<char> errorMessage)
-        {
-            await foreach (char c in errorMessage)
-            {
-                errorBuilder.Append(c);
-            }
-        }
+        //protected override async void HandleError(IAsyncEnumerable<char> errorMessage)
+        //{
+        //    await foreach (char c in errorMessage)
+        //    {
+        //        errorBuilder.Append(c);
+        //    }
+        //}
+        //protected override async void HandleOutput(IAsyncEnumerable<char> outputMessage)
+        //{
+        //    try
+        //    {
+        //        await foreach (char c in outputMessage)
+        //        {
+        //            outputBuilder.Append(c);
+        //        }
+        //        var downloadedFolder = System.Text
+        //                                     .RegularExpressions
+        //                                     .Regex.Match(outputBuilder.ToString(), NugetAddedPackageLinePattern)
+        //                                     .Groups
+        //                                     .Values
+        //                                     .Select(value => value.Value)
+        //                                     .Skip(1)
+        //                                     .First();
+        //        DownloadedFolderExtractorTCS.SetResult(Result.Ok(downloadedFolder));
+        //    }
+        //    catch (Exception exp)
+        //    {
+        //        DownloadedFolderExtractorTCS.SetResult(Result.Fail(new ExceptionalError(exp)));
+        //    }
+        //}
+
 
         private TaskCompletionSource<Result<string>> DownloadedFolderExtractorTCS = new TaskCompletionSource<Result<string>>();
-        protected override async void HandleOutput(IAsyncEnumerable<char> outputMessage)
+        protected override void HandleOutput(StreamReader standardOutput)
         {
-            try
-            {
-                await foreach (char c in outputMessage)
-                {
-                    outputBuilder.Append(c);
-                }
-                var downloadedFolder = System.Text
-                                             .RegularExpressions
-                                             .Regex.Match(outputBuilder.ToString(), NugetAddedPackageLinePattern)
-                                             .Groups
-                                             .Values
-                                             .Select(value => value.Value)
-                                             .Skip(1)
-                                             .First();
-                DownloadedFolderExtractorTCS.SetResult(Result.Ok(downloadedFolder));
-            }
-            catch (Exception exp)
-            {
-                DownloadedFolderExtractorTCS.SetResult(Result.Fail(new ExceptionalError(exp)));
-            }
+            var cancellationTokenSource = new CancellationTokenSource();
+            DownloadedFolderExtractorTCS.SetResult(standardOutput.ReadSubstringAsync("Added package '", "' to folder ", cancellationTokenSource.Token).GetAwaiter().GetResult());
+        }
+
+        protected override void HandleError(StreamReader standardError)
+        {
+            _ = standardError.ReadToEnd();
         }
     }
 }
