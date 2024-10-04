@@ -7,10 +7,11 @@ namespace Baubit.DI
 {
     public interface IModule
     {
-        public AModuleConfiguration ModuleConfiguration { get; init; }
-        public IReadOnlyList<IModule> NestedModules { get; init; }
+        public AModuleConfiguration ModuleConfiguration { get; }
+        public IReadOnlyList<IModule> NestedModules { get; }
         public void Load(IServiceCollection services);
     }
+
     public abstract class AModule : IModule
     {
         [JsonIgnore]
@@ -44,6 +45,11 @@ namespace Baubit.DI
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AModuleConfiguration
     {
+        public new TConfiguration ModuleConfiguration 
+        {
+            get => (TConfiguration)base.ModuleConfiguration;
+            init => base.ModuleConfiguration = value;
+        }
         protected AModule(ConfigurationSource configurationSource) : this(configurationSource.Load())
         {
 
