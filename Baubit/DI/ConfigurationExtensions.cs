@@ -11,7 +11,7 @@ namespace Baubit.DI
             return configuration.GetSection("modules").GetChildren().Select(section => section.AsAModule<TModule>());
         }
 
-        public static TModule AsAModule<TModule>(this IConfigurationSection configurationSection)
+        public static TModule AsAModule<TModule>(this IConfiguration configurationSection)
         {
             if (!configurationSection.TryGetModuleType(out var nestedModuleType))
             {
@@ -28,7 +28,7 @@ namespace Baubit.DI
             }
             else if (nestedMetaModuleConfigurationSection.Exists())
             {
-                nestedModuleConstructionParameter = nestedMetaModuleConfigurationSection.Get<ConfigurationSource>();
+                nestedModuleConstructionParameter = nestedMetaModuleConfigurationSection.Get<ConfigurationSource>()!;
             }
             else
             {
@@ -38,7 +38,7 @@ namespace Baubit.DI
             return module;
         }
 
-        public static bool TryGetModuleType(this IConfigurationSection configurationSection, out Type moduleType)
+        public static bool TryGetModuleType(this IConfiguration configurationSection, out Type moduleType)
         {
             moduleType = null;
             var resolutionResult = TypeResolver.ResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
