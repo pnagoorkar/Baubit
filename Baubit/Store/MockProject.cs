@@ -71,7 +71,7 @@ namespace Baubit.Store
             {
                 await Task.Yield();
 
-                 return ProjectAssets.Read(new Configuration.MetaConfiguration { JsonUriStrings = [ProjectAssetsJsonFile] });
+                 return ProjectAssets.Read(new Configuration.ConfigurationSource { JsonUriStrings = [ProjectAssetsJsonFile] });
             }
             catch (Exception exp)
             {

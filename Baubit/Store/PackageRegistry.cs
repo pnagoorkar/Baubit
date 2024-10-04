@@ -21,7 +21,7 @@ namespace Baubit.Store
             {
                 if (!File.Exists(jsonFileSource)) return Result.Ok(new PackageRegistry(Enumerable.Empty<KeyValuePair<string, List<Package>>>()));
 
-                var source = new MetaConfiguration { JsonUriStrings = [jsonFileSource] };
+                var source = new ConfigurationSource { JsonUriStrings = [jsonFileSource] };
                 var registry = new PackageRegistry(source.Load()
                                                          .GetChildren()
                                                          .Select(targetFrameworkSection => new KeyValuePair<string, List<Package>>(targetFrameworkSection.Key, 

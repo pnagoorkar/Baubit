@@ -10,7 +10,7 @@ namespace Baubit.DI
     }
     public sealed class RootModule : AModule<RootModuleConfiguration>
     {
-        public RootModule(MetaConfiguration metaConfiguration) : base(metaConfiguration)
+        public RootModule(ConfigurationSource configurationSource) : base(configurationSource)
         {
         }
 

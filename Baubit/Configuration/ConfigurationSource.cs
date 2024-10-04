@@ -6,23 +6,23 @@ namespace Baubit.Configuration
     /// <summary>
     /// Configuration source descriptor for <see cref="IConfiguration"/>
     /// </summary>
-    public class MetaConfiguration
+    public class ConfigurationSource
     {
         public List<string> RawJsonStrings { get; set; } = new List<string>();
         public List<string> JsonUriStrings { get; set; } = new List<string>();
     }
 
-    public static class MetaConfigurationExtensions
+    public static class ConfigurationSourceExtensions
     {
         /// <summary>
-        /// Loads an <see cref="IConfiguration"/> using the given <see cref="MetaConfiguration"/>
+        /// Loads an <see cref="IConfiguration"/> using the given <see cref="ConfigurationSource"/>
         /// </summary>
-        /// <param name="metaConfiguration">An instance of <see cref="MetaConfiguration"/></param>
+        /// <param name="configurationSource">An instance of <see cref="ConfigurationSource"/></param>
         /// <returns>The built <see cref="IConfiguration"/></returns>
-        public static IConfiguration Load(this MetaConfiguration metaConfiguration)
+        public static IConfiguration Load(this ConfigurationSource configurationSource)
         {
-            metaConfiguration?.ReplacePathPlaceholders(Application.Paths);
-            var jsonUris = metaConfiguration.JsonUriStrings.Select(uriString => new Uri(uriString));
+            configurationSource?.ReplacePathPlaceholders(Application.Paths);
+            var jsonUris = configurationSource.JsonUriStrings.Select(uriString => new Uri(uriString));
 
             var configurationBuilder = new ConfigurationBuilder();
             foreach (var uri in jsonUris.Where(uri => uri.IsFile))
@@ -30,7 +30,7 @@ namespace Baubit.Configuration
                 configurationBuilder.AddJsonFile(uri.LocalPath);
             }
 
-            var memStreams = metaConfiguration?.RawJsonStrings.Select(rawJson => new MemoryStream(Encoding.UTF8.GetBytes(rawJson)));
+            var memStreams = configurationSource?.RawJsonStrings.Select(rawJson => new MemoryStream(Encoding.UTF8.GetBytes(rawJson)));
 
             foreach (var memStream in memStreams)
             {
@@ -43,16 +43,16 @@ namespace Baubit.Configuration
             }
             return retVal;
         }
-        private static MetaConfiguration ReplacePathPlaceholders(this MetaConfiguration metaConfiguration, Dictionary<string, string> pathMap)
+        private static ConfigurationSource ReplacePathPlaceholders(this ConfigurationSource configurationSource, Dictionary<string, string> pathMap)
         {
             foreach (var kvp in pathMap)
             {
-                for (int i = 0; i < metaConfiguration.JsonUriStrings.Count; i++)
+                for (int i = 0; i < configurationSource.JsonUriStrings.Count; i++)
                 {
-                    metaConfiguration.JsonUriStrings[i] = Path.GetFullPath(metaConfiguration.JsonUriStrings[i].Replace(kvp.Key, kvp.Value));
+                    configurationSource.JsonUriStrings[i] = Path.GetFullPath(configurationSource.JsonUriStrings[i].Replace(kvp.Key, kvp.Value));
                 }
             }
-            return metaConfiguration;
+            return configurationSource;
         }
     }
 }

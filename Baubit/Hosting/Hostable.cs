@@ -11,7 +11,7 @@ namespace Baubit.Hosting
     {
         public string ServiceProviderFactoryRegistrarType { get; init; }
         public HostApplicationBuilderSettings HostApplicationBuilderSettings { get; init; }
-        public MetaConfiguration AppConfiguration { get; init; }
+        public ConfigurationSource AppConfiguration { get; init; }
         public IConfiguration? Configuration { get => AppConfiguration?.Load(); }
 
         public Hostable(HostApplicationBuilderSettings hostApplicationBuilderSettings)

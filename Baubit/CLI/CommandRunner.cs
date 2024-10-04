@@ -34,7 +34,7 @@ namespace Baubit.CLI
         public CLICommand(string[] args)
         {
             Args = args;
-            OperationConfiguration = new MetaConfiguration { JsonUriStrings = [Args[1]] }.Load();
+            OperationConfiguration = new ConfigurationSource { JsonUriStrings = [Args[1]] }.Load();
         }
     }
 }

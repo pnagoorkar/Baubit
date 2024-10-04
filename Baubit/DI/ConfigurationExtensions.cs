@@ -19,16 +19,16 @@ namespace Baubit.DI
             }
 
             var nestedModuleModuleConfigurationSection = configurationSection.GetSection("parameters:moduleConfiguration");
-            var nestedMetaModuleConfigurationSection = configurationSection.GetSection("parameters:metaConfiguration");
+            var nestedMetaModuleConfigurationSection = configurationSection.GetSection("parameters:configurationSource");
 
             object nestedModuleConstructionParameter = null;
             if (nestedModuleModuleConfigurationSection.Exists() && nestedMetaModuleConfigurationSection.Exists())
             {
-                throw new ArgumentException("Cannot pass MetaConfiguration when ModuleConfiguration is passed and vice versa");
+                throw new ArgumentException("Cannot pass ConfigurationSource when ModuleConfiguration is passed and vice versa");
             }
             else if (nestedMetaModuleConfigurationSection.Exists())
             {
-                nestedModuleConstructionParameter = nestedMetaModuleConfigurationSection.Get<MetaConfiguration>();
+                nestedModuleConstructionParameter = nestedMetaModuleConfigurationSection.Get<ConfigurationSource>();
             }
             else
             {

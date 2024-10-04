@@ -44,7 +44,7 @@ namespace Baubit.DI
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AModuleConfiguration
     {
-        protected AModule(MetaConfiguration metaConfiguration) : this(metaConfiguration.Load())
+        protected AModule(ConfigurationSource configurationSource) : this(configurationSource.Load())
         {
 
         }

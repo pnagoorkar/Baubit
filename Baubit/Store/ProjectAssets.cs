@@ -11,7 +11,7 @@ namespace Baubit.Store
         {
             Configuration = configuration;
         }
-        public static Result<ProjectAssets> Read(MetaConfiguration source)
+        public static Result<ProjectAssets> Read(ConfigurationSource source)
         {
             return Result.Try(() => new ProjectAssets(source.Load()));
         }
