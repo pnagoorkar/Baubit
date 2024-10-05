@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Baubit.Store;
+using Microsoft.Extensions.Configuration;
+using System.Reflection;
 using System.Text;
 
 namespace Baubit.Configuration
@@ -10,6 +12,7 @@ namespace Baubit.Configuration
     {
         public List<string> RawJsonStrings { get; set; } = new List<string>();
         public List<string> JsonUriStrings { get; set; } = new List<string>();
+        public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
     }
 
     public static class ConfigurationSourceExtensions
@@ -28,6 +31,30 @@ namespace Baubit.Configuration
             foreach (var uri in jsonUris.Where(uri => uri.IsFile))
             {
                 configurationBuilder.AddJsonFile(uri.LocalPath);
+            }
+
+            foreach (var embeddedJsonResource in configurationSource.EmbeddedJsonResources)
+            {
+                var identifierParts = embeddedJsonResource.Split(';');
+                var assemblyNamePart = identifierParts[0];
+                var fileNamePart = identifierParts[1];
+
+                AssemblyName assemblyName;
+                if(assemblyNamePart.Contains("/"))
+                {
+                    assemblyName = Store.AssemblyExtensions.GetAssemblyNameFromPersistableString(assemblyNamePart);
+                }
+                else
+                {
+                    assemblyName = new AssemblyName(assemblyNamePart);
+                }
+                var resourceName = $"{assemblyName.Name}.{fileNamePart}";
+
+                var result = TypeResolver.TryResolveAssembly(assemblyName, CancellationToken.None).GetAwaiter().GetResult();
+                if (!result.IsSuccess) throw new Exception($"Failed to resolve embedded json resource {embeddedJsonResource}");
+                var readResult = result.Value.ReadResource(resourceName).GetAwaiter().GetResult();
+                if (!readResult.IsSuccess) throw new Exception($"Failed to read embedded json resource {embeddedJsonResource}");
+                configurationSource.RawJsonStrings.Add(readResult.Value);
             }
 
             var memStreams = configurationSource?.RawJsonStrings.Select(rawJson => new MemoryStream(Encoding.UTF8.GetBytes(rawJson)));

@@ -54,23 +54,26 @@ namespace Baubit.Store
             }
         }
 
+        internal static async Task<Result<Assembly>> TryResolveAssembly(AssemblyName assemblyName, CancellationToken cancellationToken)
+        {
+            await Task.Yield();
+            #region TryLoadingFromCurrentDomain
+            var existingAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().IsSameAs(assemblyName));
+            if (existingAssembly != null)
+            {
+                return Result.Ok(existingAssembly);
+            }
+            #endregion
+            var typeResolver = new TypeResolver();
+            typeResolver.ResolveAssembly(assemblyName);
+            return typeResolver.searchAndLoadResult;
+        }
+
         Result<Assembly> searchAndLoadResult = null;
         private Assembly? ResolveAssembly(AssemblyName assemblyName)
         {
             try
             {
-                #region TryLoadingFromCurrentDomain
-                //if (assemblyName.Version == null)
-                //{
-                //    var existingAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().IsSameAs(assemblyName));
-                //    if (existingAssembly != null)
-                //    {
-                //        searchAndLoadResult = Result.Ok(existingAssembly);
-                //        return existingAssembly;
-                //    }
-                //}
-                #endregion
-
                 if (assemblyName.Version == null)
                 {
                     var versionDeterminationResult = assemblyName.DetermineAssemblyVersion().GetAwaiter().GetResult();

@@ -11,10 +11,12 @@
 
   <ItemGroup>
     <None Remove="CLI\Host\hostSettings.json" />
+    <None Remove="Configuration\ConfigurationSource\config.json" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="CLI\Host\hostSettings.json" />
+    <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
   </ItemGroup>
 
   <ItemGroup>
