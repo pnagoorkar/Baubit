@@ -24,15 +24,25 @@ namespace Baubit.Configuration
         /// <returns>The built <see cref="IConfiguration"/></returns>
         public static IConfiguration Load(this ConfigurationSource configurationSource)
         {
+            var configurationBuilder = new ConfigurationBuilder();
+            configurationSource.AddJsonFiles(configurationBuilder).LoadResourceFiles().AddRawJsonStrings(configurationBuilder);
+            return configurationBuilder.Build();
+        }
+
+        private static ConfigurationSource AddJsonFiles(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        {
             configurationSource?.ReplacePathPlaceholders(Application.Paths);
             var jsonUris = configurationSource.JsonUriStrings.Select(uriString => new Uri(uriString));
 
-            var configurationBuilder = new ConfigurationBuilder();
             foreach (var uri in jsonUris.Where(uri => uri.IsFile))
             {
                 configurationBuilder.AddJsonFile(uri.LocalPath);
             }
+            return configurationSource;
+        }
 
+        private static ConfigurationSource LoadResourceFiles(this ConfigurationSource configurationSource)
+        {
             foreach (var embeddedJsonResource in configurationSource.EmbeddedJsonResources)
             {
                 var identifierParts = embeddedJsonResource.Split(';');
@@ -40,7 +50,7 @@ namespace Baubit.Configuration
                 var fileNamePart = identifierParts[1];
 
                 AssemblyName assemblyName;
-                if(assemblyNamePart.Contains("/"))
+                if (assemblyNamePart.Contains("/"))
                 {
                     assemblyName = Store.AssemblyExtensions.GetAssemblyNameFromPersistableString(assemblyNamePart);
                 }
@@ -56,20 +66,21 @@ namespace Baubit.Configuration
                 if (!readResult.IsSuccess) throw new Exception($"Failed to read embedded json resource {embeddedJsonResource}");
                 configurationSource.RawJsonStrings.Add(readResult.Value);
             }
+            return configurationSource;
+        }
 
+        private static ConfigurationSource AddRawJsonStrings(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        {
             var memStreams = configurationSource?.RawJsonStrings.Select(rawJson => new MemoryStream(Encoding.UTF8.GetBytes(rawJson)));
 
             foreach (var memStream in memStreams)
             {
                 configurationBuilder.AddJsonStream(memStream);
             }
-            var retVal = configurationBuilder.Build();
-            foreach (var memStream in memStreams)
-            {
-                memStream.Dispose();
-            }
-            return retVal;
+
+            return configurationSource;
         }
+
         private static ConfigurationSource ReplacePathPlaceholders(this ConfigurationSource configurationSource, Dictionary<string, string> pathMap)
         {
             foreach (var kvp in pathMap)
