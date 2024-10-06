@@ -8,45 +8,45 @@ namespace Baubit.DI
     {
         public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
         {
-            return configuration.GetSection("modules").GetChildren().Select(section => section.AsAModule<TModule>());
+            return configuration.GetSection("modules").GetChildren().Select(section => section.As<TModule>());
         }
 
-        public static TModule AsAModule<TModule>(this IConfiguration configurationSection)
+        public static T As<T>(this IConfiguration configurationSection)
         {
-            if (!configurationSection.TryGetModuleType(out var nestedModuleType))
+            if (!configurationSection.TryGetObjectType(out var objectType))
             {
                 throw new ArgumentException("Unable to determine module type !");
             }
 
-            var nestedModuleModuleConfigurationSection = configurationSection.GetSection("parameters:moduleConfiguration");
-            var nestedMetaModuleConfigurationSection = configurationSection.GetSection("parameters:configurationSource");
+            var objectConfigurationSection = configurationSection.GetSection("parameters:configuration");
+            var objectConfigurationSourceSection = configurationSection.GetSection("parameters:configurationSource");
 
-            object nestedModuleConstructionParameter = null;
-            if (nestedModuleModuleConfigurationSection.Exists() && nestedMetaModuleConfigurationSection.Exists())
+            object objectConstructionParameter = null;
+            if (objectConfigurationSection.Exists() && objectConfigurationSourceSection.Exists())
             {
-                throw new ArgumentException("Cannot pass ConfigurationSource when ModuleConfiguration is passed and vice versa");
+                throw new ArgumentException("Cannot pass ConfigurationSource when Configuration is passed and vice versa");
             }
-            else if (nestedMetaModuleConfigurationSection.Exists())
+            else if (objectConfigurationSourceSection.Exists())
             {
-                nestedModuleConstructionParameter = nestedMetaModuleConfigurationSection.Get<ConfigurationSource>()!;
+                objectConstructionParameter = objectConfigurationSourceSection.Get<ConfigurationSource>()!;
             }
             else
             {
-                nestedModuleConstructionParameter = nestedModuleModuleConfigurationSection;
+                objectConstructionParameter = objectConfigurationSection;
             }
-            var module = (TModule)Activator.CreateInstance(nestedModuleType, nestedModuleConstructionParameter)!;
-            return module;
+            var @object = (T)Activator.CreateInstance(objectType, objectConstructionParameter)!;
+            return @object;
         }
 
-        public static bool TryGetModuleType(this IConfiguration configurationSection, out Type moduleType)
+        public static bool TryGetObjectType(this IConfiguration configurationSection, out Type objectType)
         {
-            moduleType = null;
+            objectType = null;
             var resolutionResult = TypeResolver.ResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
             if (resolutionResult.IsSuccess)
             {
-                moduleType = resolutionResult.Value;
+                objectType = resolutionResult.Value;
             }
-            return moduleType != null;
+            return objectType != null;
         }
     }
 }

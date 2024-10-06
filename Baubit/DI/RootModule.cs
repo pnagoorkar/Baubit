@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.DI
 {
-    public sealed class RootModuleConfiguration : AModuleConfiguration
+    public sealed class RootModuleConfiguration : AConfiguration
     {
 
     }
