@@ -3,7 +3,7 @@
     {
       "type": "Baubit.Aggregation.Autofac.Bounded.Module`1[[System.String, System.Private.CoreLib]], Baubit.Aggregation.Autofac",
       "parameters": {
-        "moduleConfiguration": {
+        "configuration": {
           "Capacity": 10,
           "FullMode": 0,
           "MaxWaitToWriteMS": 10
