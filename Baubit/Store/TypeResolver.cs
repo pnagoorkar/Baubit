@@ -8,7 +8,7 @@ namespace Baubit.Store
     {
         private TypeResolver()
         {
-            
+
         }
         public static async Task<Result<Type>> ResolveTypeAsync(string assemblyQualifiedName, CancellationToken cancellationToken)
         {
@@ -22,7 +22,7 @@ namespace Baubit.Store
                 await Task.Yield();
 
                 var existingTypeResolutionResult = TryResolveFromExisting(assemblyQualifiedName);
-                if(existingTypeResolutionResult.IsSuccess) return existingTypeResolutionResult.Value;
+                if (existingTypeResolutionResult.IsSuccess) return existingTypeResolutionResult.Value;
 
                 var type = Type.GetType(assemblyQualifiedName, ResolveAssembly, ResolveType)!;
                 if (type == null)
@@ -103,7 +103,11 @@ namespace Baubit.Store
             {
                 Package loadablePackage = null;
                 var searchRes = PackageRegistry.Search(Application.BaubitPackageRegistry, Application.TargetFramework, assemblyName);
-                if (!searchRes.IsSuccess)
+                if (searchRes.IsSuccess)
+                {
+                    loadablePackage = searchRes.Value;
+                }
+                else
                 {
                     var packageDeterminationResult = await assemblyName.DetermineDownloadablePackagesAsync(Application.TargetFramework);
                     if (!packageDeterminationResult.IsSuccess)
