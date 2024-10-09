@@ -16,13 +16,9 @@ namespace Baubit.IO
             private set
             {
                 currentIndex = value;
-                if (currentIndex == Value.Length)
-                {
-                    ReachedTheEnd = true;
-                }
             }
         }
-        public bool ReachedTheEnd { get; private set; }
+        public bool ReachedTheEnd { get => CurrentIndex >= Value.Length; }
 
         private char CurrentValue { get => Value[CurrentIndex]; }
 
@@ -70,6 +66,7 @@ namespace Baubit.IO
         {
             CurrentIndex = 0;
             cache.Clear();
+            cacheOverflow.Clear();
         }
 
         private static int[] BuildLPSArray(string pattern)

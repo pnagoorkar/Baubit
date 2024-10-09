@@ -50,23 +50,6 @@ namespace Baubit.IO
             return await kmpPattern.AwaitResult();
         }
 
-        //public static async Task<Result> FirstSubstringsBetween(this StreamReader streamReader,
-        //                                                        CancellationToken cancellationToken,
-        //                                                        params KMPPattern[] kmpPatterns)
-        //{
-        //    var pendingPatterns = kmpPatterns.Where(pattern => !pattern.Found);
-
-        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
-        //    {
-        //        Parallel.ForEach(pendingPatterns, pattern =>  { pattern.Process(currentChar); });
-        //        if (!pendingPatterns.Any()) enumerationCancellationTokenSource.Cancel();
-        //    }
-
-        //    return Result.Ok();
-        //}
-
         public static async IAsyncEnumerable<string> AllSubstringsBetween(this StreamReader streamReader,
                                                                           string prefix,
                                                                           string suffix,
