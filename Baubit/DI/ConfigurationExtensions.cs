@@ -1,5 +1,5 @@
 ﻿using Baubit.Configuration;
-using Baubit.Store;
+using Baubit.Reflection;
 using Microsoft.Extensions.Configuration;
 
 namespace Baubit.DI
@@ -41,10 +41,10 @@ namespace Baubit.DI
         public static bool TryGetObjectType(this IConfiguration configurationSection, out Type objectType)
         {
             objectType = null;
-            var resolutionResult = TypeResolver.ResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
+            var resolutionResult = TypeResolver.TryResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
             if (resolutionResult.IsSuccess)
             {
-                objectType = resolutionResult.Value;
+                objectType = resolutionResult.Value!;
             }
             return objectType != null;
         }

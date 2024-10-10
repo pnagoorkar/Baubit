@@ -3,7 +3,7 @@ using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using FluentResults;
-using Baubit.Store;
+using Baubit.Reflection;
 
 namespace Baubit.Hosting
 {
@@ -26,7 +26,7 @@ namespace Baubit.Hosting
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
                 var hostApplicationBuilder = Host.CreateEmptyApplicationBuilder(HostApplicationBuilderSettings);
                 hostApplicationBuilder.Configuration.AddConfiguration(Configuration!);
-                var resolveTypeResult = await TypeResolver.ResolveTypeAsync(ServiceProviderFactoryRegistrarType!, cts.Token);
+                var resolveTypeResult = await TypeResolver.TryResolveTypeAsync(ServiceProviderFactoryRegistrarType!, cts.Token);
                 if (!resolveTypeResult.IsSuccess) return Result.Fail("").WithReasons(resolveTypeResult.Reasons);
                 var serviceProviderFactoryRegistrar = (IServiceProviderFactoryRegistrar)Activator.CreateInstance(resolveTypeResult.Value!)!;
                 serviceProviderFactoryRegistrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder);

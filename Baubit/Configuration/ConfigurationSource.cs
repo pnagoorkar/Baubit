@@ -1,4 +1,4 @@
-﻿using Baubit.Store;
+﻿using Baubit.Reflection;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Text;
@@ -57,7 +57,7 @@ namespace Baubit.Configuration
                 AssemblyName assemblyName;
                 if (assemblyNamePart.Contains("/"))
                 {
-                    assemblyName = Store.AssemblyExtensions.GetAssemblyNameFromPersistableString(assemblyNamePart);
+                    assemblyName = Reflection.AssemblyExtensions.GetAssemblyNameFromPersistableString(assemblyNamePart);
                 }
                 else
                 {
@@ -65,10 +65,9 @@ namespace Baubit.Configuration
                 }
                 var resourceName = $"{assemblyName.Name}.{fileNamePart}";
 
-                var result = TypeResolver.TryResolveAssembly(assemblyName, CancellationToken.None).GetAwaiter().GetResult();
-                if (!result.IsSuccess) throw new Exception($"Failed to resolve embedded json resource {embeddedJsonResource}");
-                var readResult = result.Value.ReadResource(resourceName).GetAwaiter().GetResult();
-                if (!readResult.IsSuccess) throw new Exception($"Failed to read embedded json resource {embeddedJsonResource}");
+                var readResult = assemblyName.TryResolveAssembly()?.ReadResource(resourceName).GetAwaiter().GetResult();
+
+                if (readResult?.IsSuccess != true) throw new Exception($"Failed to read embedded json resource {embeddedJsonResource}");
                 configurationSource.RawJsonStrings.Add(readResult.Value);
             }
             return configurationSource;
