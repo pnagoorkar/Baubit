@@ -39,7 +39,7 @@ namespace Baubit.IO
             var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             var pendingTriads = kmpTriads.Where(triad => !triad.Found);
-            int index = 0;
+            int index = -1;
             await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
             {
                 index++;

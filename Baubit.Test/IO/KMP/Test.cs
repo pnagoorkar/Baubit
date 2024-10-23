@@ -1,22 +1,16 @@
 ﻿using Baubit.IO;
-using Baubit.Reflection;
 using System.Reflection;
-using System.Text;
 
 namespace Baubit.Test.IO.KMP
 {
     public class Test
     {
-        private static string LoremIpsum; 
-        static Test()
-        {
-            LoremIpsum = Assembly.GetExecutingAssembly().ReadResource("Baubit.Test.IO.KMP.loremIpsum.txt").GetAwaiter().GetResult().Value;
-        }
+        private static string loremIpsumTextResourceName = "Baubit.Test.IO.KMP.loremIpsum.txt";
+
         [Fact]
         public async Task CanSearchForOneOccurrenceOfOneTriad()
         {
-            using MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(LoremIpsum));
-            using StreamReader reader = new StreamReader(stream);
+            using StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(loremIpsumTextResourceName)!);
 
             var kmpTriad = new KMPTriad("eiusmod tempor ", " ut labore", 1);
 
@@ -29,8 +23,7 @@ namespace Baubit.Test.IO.KMP
         [Fact]
         public async Task CanSearchForAllOccurrenceOfOneTriad()
         {
-            using MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(LoremIpsum));
-            using StreamReader reader = new StreamReader(stream);
+            using StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(loremIpsumTextResourceName)!);
 
             var kmpTriad = new KMPTriad("o", "i");
 
@@ -43,8 +36,7 @@ namespace Baubit.Test.IO.KMP
         [Fact]
         public async Task CanSearchForAllOccurrenceOfTwoTriads()
         {
-            using MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(LoremIpsum));
-            using StreamReader reader = new StreamReader(stream);
+            using StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(loremIpsumTextResourceName)!);
 
             var kmpTriad1 = new KMPTriad("o", "i");
             var kmpTriad2 = new KMPTriad("i", "i");
@@ -61,8 +53,7 @@ namespace Baubit.Test.IO.KMP
         [Fact]
         public async Task CanSearchForAllOccurrenceOfOneTriadWhenPrefixIsSameAsSuffix()
         {
-            using MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(LoremIpsum));
-            using StreamReader reader = new StreamReader(stream);
+            using StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream(loremIpsumTextResourceName)!);
 
             var kmpTriad = new KMPTriad("i", "i");
 

@@ -33,7 +33,7 @@
             }
             if (Found)
             {
-                KMPResults.Add(new KMPResult(KMPProspect.Value!, index - SuffixFrame.Value.Length - KMPProspect.Value!.Length, this));
+                KMPResults.Add(new KMPResult(KMPProspect.Value!, index - SuffixFrame.Value.Length - KMPProspect.Value!.Length + 1, this));
                 if (numOfOccurrences != null && --numOfOccurrences <= 0)
                 {
                     //do nothing
