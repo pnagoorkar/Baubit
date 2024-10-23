@@ -32,42 +32,71 @@ namespace Baubit.IO
             }
         }
 
-        public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader,
-                                                                       string prefix,
-                                                                       string suffix,
-                                                                       CancellationToken cancellationToken)
-        {
-            var kmpPattern = new KMPPattern(prefix, suffix);
+        //public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader,
+        //                                                               string prefix,
+        //                                                               string suffix,
+        //                                                               CancellationToken cancellationToken)
+        //{
+        //    var kmpTriad = new KMPTriad(prefix, suffix);
 
+        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
+        //    {
+        //        kmpTriad.Process(currentChar);
+        //        if (kmpTriad.Found) enumerationCancellationTokenSource.Cancel();
+        //    }
+
+        //    return await kmpTriad.AwaitResult();
+        //}
+
+        //public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader, KMPTriad kmpTriad, CancellationToken cancellationToken)
+        //{
+        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
+        //    {
+        //        kmpTriad.Process(currentChar);
+        //        if (kmpTriad.Found) enumerationCancellationTokenSource.Cancel();
+        //    }
+
+        //    return await kmpTriad.AwaitResult();
+        //}
+
+        public static async Task SearchAsync(this StreamReader streamReader,
+                                             CancellationToken cancellationToken,
+                                             params KMPTriad[] kmpTriads)
+        {
             var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
+            var pendingTriads = kmpTriads.Where(triad => !triad.Found);
+            int index = 0;
             await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
             {
-                kmpPattern.Process(currentChar);
-                if (kmpPattern.Found) enumerationCancellationTokenSource.Cancel();
-            }
-
-            return await kmpPattern.AwaitResult();
-        }
-
-        public static async IAsyncEnumerable<string> AllSubstringsBetween(this StreamReader streamReader,
-                                                                          string prefix,
-                                                                          string suffix,
-                                                                          [EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            var kmpPattern = new KMPPattern(prefix, suffix);
-
-            var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-            await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
-            {
-                kmpPattern.Process(currentChar);
-                if (kmpPattern.Found)
-                {
-                    yield return kmpPattern.SuffixFrame.GetOverflowedCache();
-                    kmpPattern.Reset();
-                }
+                index++;
+                Parallel.ForEach(pendingTriads, kmpTriad => kmpTriad.Process(currentChar, index));
+                if (!pendingTriads.Any()) enumerationCancellationTokenSource.Cancel();
             }
         }
+
+        //public static async IAsyncEnumerable<string> AllSubstringsBetween(this StreamReader streamReader,
+        //                                                                  string prefix,
+        //                                                                  string suffix,
+        //                                                                  [EnumeratorCancellation] CancellationToken cancellationToken)
+        //{
+        //    var kmpTriad = new KMPTriad(prefix, suffix);
+
+        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
+        //    {
+        //        kmpTriad.Process(currentChar);
+        //        if (kmpTriad.Found)
+        //        {
+        //            yield return kmpTriad.KMPProspect.Value;
+        //            kmpTriad.Reset();
+        //        }
+        //    }
+        //}
     }
 }

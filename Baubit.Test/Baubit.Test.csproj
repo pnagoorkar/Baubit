@@ -12,11 +12,13 @@
   <ItemGroup>
     <None Remove="CLI\Host\hostSettings.json" />
     <None Remove="Configuration\ConfigurationSource\config.json" />
+    <None Remove="IO\KMP\loremIpsum.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="CLI\Host\hostSettings.json" />
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
+    <EmbeddedResource Include="IO\KMP\loremIpsum.txt" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace Baubit.IO
+﻿namespace Baubit.IO
 {
     public class KMPFrame
     {
@@ -20,20 +18,16 @@ namespace Baubit.IO
         }
         public bool ReachedTheEnd { get => CurrentIndex >= Value.Length; }
 
+        public bool CanMoveForward { get => !ReachedTheEnd; }
+
         private char CurrentValue { get => Value[CurrentIndex]; }
 
         public int[] LPS { get; init; }
-
-        BoundedQueue<char> cache;
-        StringBuilder cacheOverflow = new StringBuilder();
-        private bool cachingEnabled = false;
 
         public KMPFrame(string value)
         {
             Value = value;
             LPS = BuildLPSArray(Value);
-            cache = new BoundedQueue<char>(Value.Length);
-            cache.OnOverflow += @char => cacheOverflow.Append(@char);
         }
 
         public void MoveNext(char input)
@@ -43,30 +37,11 @@ namespace Baubit.IO
             while (CurrentIndex > 0 && CurrentValue != input) CurrentIndex = LPS[CurrentIndex - 1];
 
             if (CurrentValue == input) CurrentIndex++;
-
-            if (cachingEnabled) cache.Enqueue(input);
-        }
-
-        public void BeginCaching()
-        {
-            cachingEnabled = true;
-        }
-
-        private void EndCaching()
-        {
-            cachingEnabled = false;
-        }
-
-        public string GetOverflowedCache()
-        {
-            return cacheOverflow.ToString();
         }
 
         public void Reset()
         {
             CurrentIndex = 0;
-            cache.Clear();
-            cacheOverflow.Clear();
         }
 
         private static int[] BuildLPSArray(string pattern)
