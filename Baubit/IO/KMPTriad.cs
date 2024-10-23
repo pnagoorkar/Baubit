@@ -47,7 +47,14 @@
 
         public void Reset()
         {
-            PrefixFrame.Reset();
+            if (PrefixFrame.Value.Equals(SuffixFrame.Value))
+            {
+                //Prefix is same as suffix. This means we immediately start considering incoming characters as prospective result.
+            }
+            else
+            {
+                PrefixFrame.Reset();
+            }
             SuffixFrame.Reset();
             KMPProspect.Reset();
         }

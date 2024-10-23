@@ -55,7 +55,21 @@ namespace Baubit.Test.IO.KMP
             Assert.Equal(16, kmpTriad1.KMPResults.Count);
 
             Assert.NotEmpty(kmpTriad2.KMPResults);
-            Assert.Equal(21, kmpTriad2.KMPResults.Count);
+            Assert.Equal(41, kmpTriad2.KMPResults.Count);
+        }
+
+        [Fact]
+        public async Task CanSearchForAllOccurrenceOfOneTriadWhenPrefixIsSameAsSuffix()
+        {
+            using MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(LoremIpsum));
+            using StreamReader reader = new StreamReader(stream);
+
+            var kmpTriad = new KMPTriad("i", "i");
+
+            await reader.SearchAsync(CancellationToken.None, kmpTriad);
+
+            Assert.NotEmpty(kmpTriad.KMPResults);
+            Assert.Equal(41, kmpTriad.KMPResults.Count);
         }
     }
 }

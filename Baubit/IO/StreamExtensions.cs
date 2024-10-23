@@ -32,37 +32,6 @@ namespace Baubit.IO
             }
         }
 
-        //public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader,
-        //                                                               string prefix,
-        //                                                               string suffix,
-        //                                                               CancellationToken cancellationToken)
-        //{
-        //    var kmpTriad = new KMPTriad(prefix, suffix);
-
-        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
-        //    {
-        //        kmpTriad.Process(currentChar);
-        //        if (kmpTriad.Found) enumerationCancellationTokenSource.Cancel();
-        //    }
-
-        //    return await kmpTriad.AwaitResult();
-        //}
-
-        //public static async Task<Result<string>> FirstSubstringBetween(this StreamReader streamReader, KMPTriad kmpTriad, CancellationToken cancellationToken)
-        //{
-        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
-        //    {
-        //        kmpTriad.Process(currentChar);
-        //        if (kmpTriad.Found) enumerationCancellationTokenSource.Cancel();
-        //    }
-
-        //    return await kmpTriad.AwaitResult();
-        //}
-
         public static async Task SearchAsync(this StreamReader streamReader,
                                              CancellationToken cancellationToken,
                                              params KMPTriad[] kmpTriads)
@@ -78,25 +47,5 @@ namespace Baubit.IO
                 if (!pendingTriads.Any()) enumerationCancellationTokenSource.Cancel();
             }
         }
-
-        //public static async IAsyncEnumerable<string> AllSubstringsBetween(this StreamReader streamReader,
-        //                                                                  string prefix,
-        //                                                                  string suffix,
-        //                                                                  [EnumeratorCancellation] CancellationToken cancellationToken)
-        //{
-        //    var kmpTriad = new KMPTriad(prefix, suffix);
-
-        //    var enumerationCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        //    await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
-        //    {
-        //        kmpTriad.Process(currentChar);
-        //        if (kmpTriad.Found)
-        //        {
-        //            yield return kmpTriad.KMPProspect.Value;
-        //            kmpTriad.Reset();
-        //        }
-        //    }
-        //}
     }
 }
