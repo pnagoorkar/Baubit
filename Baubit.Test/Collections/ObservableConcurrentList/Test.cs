@@ -29,7 +29,7 @@
 
             Parallel.For(0, numberOfItems, list.Add);
 
-            while (itemsAdded != numberOfItems && itemsRemoved != numberOfItems)
+            while (itemsAdded != numberOfItems || itemsRemoved != numberOfItems)
             {
                 Thread.Sleep(1);
             }
