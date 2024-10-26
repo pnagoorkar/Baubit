@@ -3,7 +3,7 @@ using System.Threading.Channels;
 
 namespace Baubit.IO
 {
-    internal static class ChannelExtensions
+    public static class ChannelExtensions
     {
         public static async IAsyncEnumerable<TEvent> EnumerateAsync<TEvent>(this Channel<TEvent> channel, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
