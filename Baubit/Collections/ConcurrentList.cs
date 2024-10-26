@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 namespace Baubit.Collections
 {
     /// <summary>
@@ -29,7 +30,7 @@ namespace Baubit.Collections
         }
 
         /// <inheritdoc/>
-        public T this[int index]
+        public virtual T this[int index]
         {
             get
             {
@@ -75,7 +76,7 @@ namespace Baubit.Collections
         /// <summary>
         /// <inheritdoc/>
         /// </summary>
-        public void Add(T item)
+        public virtual void Add(T item)
         {
             try
             {
@@ -93,12 +94,31 @@ namespace Baubit.Collections
         }
 
         /// <inheritdoc/>
-        public void Clear()
+        public virtual void Clear()
         {
             try
             {
                 _lock.EnterWriteLock();
                 _store.Clear();
+            }
+            catch
+            {
+                throw;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+        protected T[] RemoveAndReturnAll()
+        {
+            try
+            {
+                _lock.EnterWriteLock();
+                var items = _store.ToArray();
+                _store.Clear();
+                return items;
             }
             catch
             {
@@ -183,7 +203,7 @@ namespace Baubit.Collections
         }
 
         /// <inheritdoc/>
-        public void Insert(int index, T item)
+        public virtual void Insert(int index, T item)
         {
             try
             {
@@ -201,7 +221,7 @@ namespace Baubit.Collections
         }
 
         /// <inheritdoc/>
-        public bool Remove(T item)
+        public virtual bool Remove(T item)
         {
             try
             {
@@ -219,12 +239,31 @@ namespace Baubit.Collections
         }
 
         /// <inheritdoc/>
-        public void RemoveAt(int index)
+        public virtual void RemoveAt(int index)
         {
             try
             {
                 _lock.EnterWriteLock();
                 _store.RemoveAt(index);
+            }
+            catch
+            {
+                throw;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+        protected T RemoveAtAndReturn(int index)
+        {
+            try
+            {
+                _lock.EnterWriteLock();
+                var item = _store[index];
+                _store.RemoveAt(index);
+                return item;
             }
             catch
             {
