@@ -19,7 +19,7 @@ namespace Baubit.IO
             channel.Writer.Complete();
             if (channel.Reader.Count > 0)
             {
-                channel.EnumerateAsync(default).ToBlockingEnumerable().ToArray();
+                _ = channel.EnumerateAsync(default).ToBlockingEnumerable().ToArray();
             }
             channel = null;
         }
