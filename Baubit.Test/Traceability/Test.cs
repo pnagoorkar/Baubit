@@ -1,4 +1,5 @@
 ﻿using Baubit.Test.Traceability.Setup;
+using Baubit.Traceability;
 
 namespace Baubit.Test.Traceability
 {
@@ -9,7 +10,8 @@ namespace Baubit.Test.Traceability
         {
             var notificationCount = 0;
             var traceable = new Traceable();
-            traceable.History.OnCollectionChanged += @event => notificationCount++;
+            traceable.ToggleTracing(true, CancellationToken.None);
+            traceable.History.OnCollectionChangedAsync += async (@event, cancellationToken) => notificationCount++;
 
             traceable.History.Push(new ReachedCheckpoint1());
             traceable.History.Push(new ReachedCheckpoint2());
@@ -21,6 +23,7 @@ namespace Baubit.Test.Traceability
             }
 
             Assert.Equal(notificationCount, traceable.History.Count);
+            traceable.ToggleTracing(false, CancellationToken.None);
 
         }
     }

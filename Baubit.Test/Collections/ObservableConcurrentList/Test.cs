@@ -4,14 +4,17 @@
     {
         [Theory]
         [InlineData(1000)]
-        public void CanAddAndRemoveConcurrentlyWithNotificationsOfEach(int numberOfItems)
+        public async Task CanAddAndRemoveConcurrentlyWithNotificationsOfEach(int numberOfItems)
         {
             int itemsAdded = 0, 
                 itemsRemoved = 0;
 
             var list = new Baubit.Collections.ObservableConcurrentList<int>();
+            Assert.False(list.ObservationEnabled);
+            await list.StartAsync(CancellationToken.None);
+            Assert.True(list.ObservationEnabled);
 
-            list.OnCollectionChanged += @event =>
+            list.OnCollectionChangedAsync += async (@event, cancellationToken) =>
             {
                 switch (@event.ChangeType)
                 {
@@ -36,6 +39,8 @@
 
             Assert.Equal(numberOfItems, itemsAdded);
             Assert.Equal(numberOfItems, itemsRemoved);
+            await list.StopAsync(CancellationToken.None);
+            Assert.False(list.ObservationEnabled);
         }
     }
 }
