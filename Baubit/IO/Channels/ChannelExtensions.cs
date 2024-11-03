@@ -1,8 +1,11 @@
-﻿using FluentResults;
+﻿using Baubit.IO.Channels.Reasons;
+using Baubit.Tasks;
+using Baubit.Tasks.Reasons;
+using FluentResults;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace Baubit.IO
+namespace Baubit.IO.Channels
 {
     public static class ChannelExtensions
     {
@@ -57,36 +60,16 @@ namespace Baubit.IO
             }
         }
 
-        public static void FlushAndDispose<TEvent>(this Channel<TEvent> channel)
-        {
-            channel.Writer.Complete();
-            if (channel.Reader.Count > 0)
-            {
-                _ = channel.EnumerateAsync(default).ToBlockingEnumerable().ToArray();
-            }
-        }
-
-        public static async Task<Result> TryWriteWhenReadyAsync<T>(this Channel<T> channel, 
-                                                                   T item, 
-                                                                   int maxWaitToWriteMS, 
-                                                                   CancellationToken cancellationToken)
+        public static Result FlushAndDispose<TEvent>(this Channel<TEvent> channel)
         {
             try
             {
-                var linkedCancellationToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, new CancellationTokenSource(maxWaitToWriteMS).Token).Token;
-                bool waitResult = await channel.Writer.WaitToWriteAsync(linkedCancellationToken);
-                if (!waitResult)
+                channel.Writer.Complete();
+                if (channel.Reader.Count > 0)
                 {
-                    return Result.Fail("Channel closed for writing !");
+                    _ = channel.EnumerateAsync(default).ToBlockingEnumerable().ToArray();
                 }
-                if (channel.Writer.TryWrite(item))
-                {
-                    return Result.Ok();
-                }
-                else
-                {
-                    return Result.Fail("Unknown write error !");
-                }
+                return Result.Ok();
             }
             catch (Exception exp)
             {
@@ -94,19 +77,26 @@ namespace Baubit.IO
             }
         }
 
-        public static async Task<bool> TryWriteWhenReadyAsync<TEvent>(this Channel<TEvent> channel, TEvent @event, params CancellationToken[] cancellationTokens)
+        public static async Task<Result> TryWriteWhenReadyAsync<T>(this Channel<T> channel,
+                                                                   T item,
+                                                                   TimeSpan? maxWaitToWrite,
+                                                                   CancellationToken cancellationToken)
         {
+            var compositeCancellationTokenSource = new CompositeCancellationTokenSource(maxWaitToWrite, cancellationToken);
             try
             {
-                return await channel.Writer.WaitToWriteAsync(CancellationTokenSource.CreateLinkedTokenSource(cancellationTokens.Where(token => token != default).ToArray()).Token) && channel.Writer.TryWrite(@event);
+                bool waitResult = await channel.Writer.WaitToWriteAsync(compositeCancellationTokenSource.Token);
+                if (!waitResult) return Result.Fail("").WithReason(new ClosedForWriting());
+                if (channel.Writer.TryWrite(item)) return Result.Ok();
+                else return Result.Fail("Unknown write error !");
             }
-            catch (TaskCanceledException tcExp)
+            catch (OperationCanceledException oExp)
             {
-                return false;
+                return Result.Fail(new ExceptionalError(oExp)).WithReason(compositeCancellationTokenSource.CancelledDueToTimeOut == true ? new TimedOut() : new CancelledByCaller());
             }
-            catch (OperationCanceledException ocExp)
+            catch (Exception exp)
             {
-                return false;
+                return Result.Fail(new ExceptionalError(exp));
             }
         }
     }

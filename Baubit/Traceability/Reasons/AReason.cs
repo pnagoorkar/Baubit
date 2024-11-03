@@ -1,6 +1,6 @@
 ﻿using FluentResults;
 
-namespace Baubit.Traceability
+namespace Baubit.Traceability.Reasons
 {
     public abstract class AReason : IReason
     {

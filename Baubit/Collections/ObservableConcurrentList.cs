@@ -1,4 +1,5 @@
-﻿using Baubit.IO;
+﻿using Baubit.IO.Channels;
+using FluentResults;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Channels;
 
@@ -80,11 +81,11 @@ namespace Baubit.Collections
             return item;
         }
 
-        private async void NotifyChange(IList<T> sender, T[] oldItems, T[] newItems, CollectionChangeType collectionChangeType)
+        private async Task<Result> NotifyChange(IList<T> sender, T[] oldItems, T[] newItems, CollectionChangeType collectionChangeType)
         {
             if (_eventChannel == null) throw new InvalidOperationException($"Did you forget to start observation ?{Environment.NewLine}{nameof(ObservableConcurrentList<T>.StartAsync)} has to be called explictly to enable observability on {typeof(ObservableConcurrentList<T>).AssemblyQualifiedName}");
             var changeEvent = new CollectionChangedEventArgs<T>(this, oldItems, newItems, collectionChangeType);
-            await _eventChannel.TryWriteWhenReadyAsync(changeEvent, instanceCancellationTokenSource.Token);
+            return await _eventChannel.TryWriteWhenReadyAsync(changeEvent, Timeout.InfiniteTimeSpan, instanceCancellationTokenSource.Token);
         }
 
         ~ObservableConcurrentList()
