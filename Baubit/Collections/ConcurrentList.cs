@@ -238,6 +238,33 @@ namespace Baubit.Collections
             }
         }
 
+        public virtual bool Remove(Func<IEnumerable<T>, T> selector, out T item)
+        {
+            try
+            {
+                _lock.EnterWriteLock();
+                item = selector(_store);
+                if (item != null)
+                {
+                    _store.Remove(item);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+                throw;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+
         /// <inheritdoc/>
         public virtual void RemoveAt(int index)
         {

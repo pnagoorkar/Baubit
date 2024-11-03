@@ -2,6 +2,7 @@
 using FluentResults;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Channels;
+using Baubit.Tasks;
 
 namespace Baubit.Collections
 {
@@ -15,21 +16,23 @@ namespace Baubit.Collections
         private CancellationTokenSource instanceCancellationTokenSource;
         private Task deliveryTask;
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public Task StartAsync(CancellationToken cancellationToken)
         {
-            await Task.Yield();
+            if (deliveryTask != null) return Task.CompletedTask;
             _eventChannel = Channel.CreateUnbounded<CollectionChangedEventArgs<T>>();
             instanceCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deliveryTask = Task.Run(() => _eventChannel.ReadAsync(DeliverNext, instanceCancellationTokenSource.Token));
+            return Task.CompletedTask;
         }
 
-        public async Task StopAsync(CancellationToken cancellationToken)
+        public Task StopAsync(CancellationToken cancellationToken)
         {
-            await Task.Yield();
             instanceCancellationTokenSource.Cancel();
-            await deliveryTask;
+            deliveryTask?.Wait(true);
+            deliveryTask = null;
             _eventChannel?.FlushAndDispose();
             _eventChannel = null;
+            return Task.CompletedTask;
         }
 
         private Task DeliverNext(CollectionChangedEventArgs<T> item, CancellationToken token)

@@ -3,7 +3,7 @@ using System.Collections;
 
 namespace Baubit.Collections
 {
-    public class ObservableConcurrentStack<T> : IReadOnlyCollection<T>, IHostedService
+    public class ObservableConcurrentQueue<T> : IReadOnlyCollection<T>, IHostedService
     {
         public event Func<CollectionChangedEventArgs<T>, CancellationToken, Task> OnCollectionChangedAsync
         {
@@ -15,9 +15,9 @@ namespace Baubit.Collections
 
         public int Count => _list.Count;
 
-        public void Push(T item) => _list.Add(item);
+        public void Enqueue(T item) => _list.Add(item);
 
-        public bool TryPop(out T item) => _list.Remove(items => items.Last(), out item);
+        public bool TryDequeue(out T item) => _list.Remove(items => items.First(), out item);
 
         public IEnumerator<T> GetEnumerator() => _list.GetEnumerator();
 
