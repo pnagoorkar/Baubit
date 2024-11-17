@@ -1,9 +1,0 @@
-{
-  "serviceProviderFactoryRegistrarType": "Baubit.Autofac.ServiceProviderFactoryRegistrar, Baubit.Autofac",
-  "hostApplicationBuilderSettings": {
-    "applicationName": "MyRandomApplication"
-  },
-  "appConfiguration": {
-    "jsonUriStrings": [ "myRandomApplication.json" ]
-  }
-}
