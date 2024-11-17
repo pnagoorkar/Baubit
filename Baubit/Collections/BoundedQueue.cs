@@ -1,4 +1,4 @@
-﻿namespace Baubit.IO
+﻿namespace Baubit.Collections
 {
     public class BoundedQueue<T>
     {
@@ -28,6 +28,6 @@
             _queue.Enqueue(item);
         }
 
-        public void Clear () => _queue.Clear();
+        public void Clear() => _queue.Clear();
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using Baubit.Collections;
+using System.Text;
 
 namespace Baubit.IO
 {
