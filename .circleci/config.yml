@@ -88,6 +88,8 @@ jobs:
 
             dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" --output ./nupkgs --nowarn:9999  --verbosity d
 
+            ls -R ./nupkgs
+
             dotnet nuget push ./nupkgs/${PROJECT_NAME}.${CURRENT_VERSION}.nupkg --source "github"
 
             git config --global user.email "$GITHUB_EMAIL"
