@@ -61,7 +61,7 @@ jobs:
             PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
             
             YEAR=$(date +%Y)
-            WEEK=$(date +%V)
+            WEEK=$(date +%-V)
 
             # List all tags matching the pattern "v${YEAR}.${WEEK}.*"
             TAG_LIST=$(git tag -l "v${YEAR}.${WEEK}.*")
