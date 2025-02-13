@@ -86,7 +86,7 @@ jobs:
             BUILD_TAG="v${CURRENT_VERSION}"
             echo "Current version tag - $BUILD_TAG"
 
-            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" --output ./nupkgs --nowarn:9999
+            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" --output ./nupkgs --nowarn:9999  --verbosity d
 
             dotnet nuget push ./nupkgs/${PROJECT_NAME}.${CURRENT_VERSION}.nupkg --source "github"
 
