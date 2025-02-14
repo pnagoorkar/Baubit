@@ -12,12 +12,12 @@ public class MyConfiguration : AConfiguration
 
 public class MyModule : AModule<MyConfiguration>
 {
-  protected MyModule(ConfigurationSource configurationSource) : this(configurationSource)
+  protected MyModule(ConfigurationSource configurationSource) : base(configurationSource)
   {
 
   }
 
-  protected MyModule(IConfiguration configuration) : this(configuration)
+  protected MyModule(IConfiguration configuration) : base(configuration)
   {
 
   }
