@@ -1,5 +1,7 @@
 Baubit is a framework for developing modular apps in .NET
 
+[![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main)
+
 # Get started
 
 Creating a module requires creating at least 2 classes - One for the module itself and another for the associated configuration
