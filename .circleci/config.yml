@@ -9,20 +9,23 @@ jobs:
             password: $DOCKER_HUB_PASSWORD
     steps:     
       - checkout
-      # Step 1: Check for config.yml changes.
+      # Step 1: Check for ignored file changes.
       - run:
-          name: Check for config.yml changes
+          name: Check for ignored file changes
           command: |            
               # Capture the list of changed files
               CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
 
-              # Check if only .circleci/config.yml was changed
-              if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
-                  echo "Only .circleci/config.yml was changed. Skipping build."
-                  circleci-agent step halt
-              else
-                  echo "Changes detected outside of .circleci/config.yml. Proceeding with build."
-              fi
+              IGNORED_FILES=(".circleci/config.yml" "README.md")
+
+              for ignored in "${IGNORED_FILES[@]}"; do
+                if [[ "$1" == "$ignored" ]]; then
+                    echo "Only $ignored was changed. Skipping build."
+                    circleci-agent step halt
+                else
+                    echo "Changes detected outside of ignored files. Proceeding with build."
+                fi
+              done
 
       # Step 2: Add github as a nuget package source
       - run:
