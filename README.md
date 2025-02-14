@@ -73,27 +73,28 @@ webApp.Run();
 
 ## Nesting Modules
 
-Modules can be loaded side by side, but can also be loaded as a nested module (sub-module)
+Modules can be loaded side by side. <br>
+They can also be loaded as a nested module (sub-module)
 
 ```csharp
-public class MyNestedModuleConfiguration : AConfiguration
+public class AnotherModuleConfiguration : AConfiguration
 {
   public string AnotherStringProperty { get; set; }
 }
 
-public class MyNestedModule : AModule<MyNestedModuleConfiguration>
+public class AnotherModule : AModule<AnotherModuleConfiguration>
 {
-  protected MyModule(ConfigurationSource configurationSource) : base(configurationSource)
+  protected AnotherModule(ConfigurationSource configurationSource) : base(configurationSource)
   {
 
   }
 
-  protected MyModule(IConfiguration configuration) : base(configuration)
+  protected AnotherModule(IConfiguration configuration) : base(configuration)
   {
 
   }
-  protected MyModule(MyNestedModuleConfiguration configuration,
-                     List<AModule> nestedModules) : base(configuration, nestedModules)
+  protected AnotherModule(AnotherModuleConfiguration configuration,
+                          List<AModule> nestedModules) : base(configuration, nestedModules)
   {
   }
   public override void Load(IServiceCollection services)
@@ -116,7 +117,7 @@ myConfig.json
           "myStringProperty" : "some string value",
           "modules": [
               {
-                "type": "MyProject.MyNestedModule, MyProject",
+                "type": "MyProject.AnotherModule, MyProject",
                 "parameters": {
                   "configuration": {
                     "anotherStringProperty" : "another string value"
@@ -130,3 +131,37 @@ myConfig.json
   ]
 }
 ```
+## Linking configurations
+Module configurations can be loaded by referencing a json file<br>
+myConfig.json
+```json
+{
+  "modules": [
+    {
+      "type": "MyProject.MyModule, MyProject",
+      "parameters": {
+        "configuration": {
+          "myStringProperty" : "some string value",
+          "modules": [
+              {
+                "type": "MyProject.AnotherModule, MyProject",
+                "parameters": {
+                  "configurationSource": {
+                    "jsonUriStrings" : ["anotherModule.json"]
+                    }
+                  }
+              }
+            ]
+          }
+        }
+    }
+  ]
+}
+```
+anotherModule.json
+```json
+{
+  "anotherStringProperty" : "another string value"
+}
+```
+
