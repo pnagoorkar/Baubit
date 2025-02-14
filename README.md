@@ -12,13 +12,12 @@ public class MyConfiguration : AConfiguration
 
 public class MyModule : AModule<MyConfiguration>
 {
-  protected MyModule(ConfigurationSource configurationSource) : this(configurationSource.Load())
+  protected MyModule(ConfigurationSource configurationSource) : this(configurationSource)
   {
 
   }
 
-  protected MyModule(IConfiguration configuration) : this(configuration.Load<TConfiguration>(),
-                                                         configuration.GetNestedModules<AModule>().ToList())
+  protected MyModule(IConfiguration configuration) : this(configuration)
   {
 
   }
