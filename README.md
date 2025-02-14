@@ -70,3 +70,5 @@ new ServiceProviderFactoryRegistrar().UseDefaultServiceProviderFactory(webAppBui
 var webApp = webAppBuilder.Build()
 webApp.Run();
 ```
+
+## Nesting Modules
