@@ -34,13 +34,13 @@ public class MyModule : AModule<MyConfiguration>
 ```
 ## Loading modules
 
-Consider myConfig.json
+myConfig.json
 
 ```json
 {
   "modules": [
     {
-      "type": "MyNamespace.MyModule, MyNamespace",
+      "type": "MyProject.MyModule, MyProject",
       "parameters": {
         "configuration": {
           "myStringProperty" : "some string value"
@@ -72,3 +72,61 @@ webApp.Run();
 ```
 
 ## Nesting Modules
+
+Modules can be loaded side by side, but can also be loaded as a nested module (sub-module)
+
+```csharp
+public class MyNestedModuleConfiguration : AConfiguration
+{
+  public string AnotherStringProperty { get; set; }
+}
+
+public class MyNestedModule : AModule<MyNestedModuleConfiguration>
+{
+  protected MyModule(ConfigurationSource configurationSource) : base(configurationSource)
+  {
+
+  }
+
+  protected MyModule(IConfiguration configuration) : base(configuration)
+  {
+
+  }
+  protected MyModule(MyNestedModuleConfiguration configuration,
+                     List<AModule> nestedModules) : base(configuration, nestedModules)
+  {
+  }
+  public override void Load(IServiceCollection services)
+  {
+    var anotherStringProperty = Configuration.AnotherStringProperty;
+    //continue registering services to the services collection
+  }
+}
+```
+
+myConfig.json
+
+```json
+{
+  "modules": [
+    {
+      "type": "MyProject.MyModule, MyProject",
+      "parameters": {
+        "configuration": {
+          "myStringProperty" : "some string value",
+          "modules": [
+              {
+                "type": "MyProject.MyNestedModule, MyProject",
+                "parameters": {
+                  "configuration": {
+                    "anotherStringProperty" : "another string value"
+                    }
+                  }
+              }
+            ]
+          }
+        }
+    }
+  ]
+}
+```
