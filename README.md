@@ -30,7 +30,7 @@ public class MyModule : AModule<MyConfiguration>
   public override void Load(IServiceCollection services)
   {
     var myStrProp = Configuration.MyStringProperty;
-    //continue registering services to the services collection
+    // add required services to the IServiceCollection based on the module's configured values
   }
 }
 ```
@@ -102,7 +102,7 @@ public class AnotherModule : AModule<AnotherModuleConfiguration>
   public override void Load(IServiceCollection services)
   {
     var anotherStringProperty = Configuration.AnotherStringProperty;
-    //continue registering services to the services collection
+    // add required services to the IServiceCollection based on the module's configured values
   }
 }
 ```
