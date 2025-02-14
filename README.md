@@ -21,7 +21,8 @@ public class MyModule : AModule<MyConfiguration>
   {
 
   }
-  protected MyModule(MyConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
+  protected MyModule(MyConfiguration configuration,
+                     List<AModule> nestedModules) : base(configuration, nestedModules)
   {
   }
   public override void Load(IServiceCollection services)
