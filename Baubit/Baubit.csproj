@@ -10,18 +10,10 @@
     <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
     <FileVersion>$(PackageVersion)</FileVersion>
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
+    <PackageReadmeFile>../README.md</PackageReadmeFile>
+    <PackageLicenseFile>../LICENSE</PackageLicenseFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
-
-  <!-- Build as exe if configured -->
-  <PropertyGroup Condition="'$(OutputType)' == 'exe'">
-    <OutputType>Exe</OutputType>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Operation\**" />
-    <EmbeddedResource Remove="Operation\**" />
-    <None Remove="Operation\**" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FluentResults" Version="3.16.0" />
