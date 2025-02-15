@@ -1,0 +1,12 @@
+{
+  "modules": [
+    {
+      "type": "ConsoleApp.MyModule, ConsoleApp",
+      "parameters": {
+        "configuration": {
+          "myStringProperty": "some string value"
+        }
+      }
+    }
+  ]
+}
