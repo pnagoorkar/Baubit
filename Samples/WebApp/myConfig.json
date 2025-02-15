@@ -1,0 +1,12 @@
+{
+  "modules": [
+    {
+      "type": "WebApp.MyModule, WebApp",
+      "parameters": {
+        "configuration": {
+          "myStringProperty": "some string value"
+        }
+      }
+    }
+  ]
+}
