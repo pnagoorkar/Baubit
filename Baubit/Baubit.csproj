@@ -12,7 +12,6 @@
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
     <PackageReadmeFile>../README.md</PackageReadmeFile>
     <PackageLicenseFile>../LICENSE</PackageLicenseFile>
-    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
