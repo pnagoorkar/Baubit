@@ -10,6 +10,8 @@
     <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
     <FileVersion>$(PackageVersion)</FileVersion>
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
   
   <Target Name="CopyReadme" BeforeTargets="Build">
