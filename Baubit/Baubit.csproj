@@ -10,10 +10,15 @@
     <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
     <FileVersion>$(PackageVersion)</FileVersion>
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
-    <PackageReadmeFile>..\README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  
+  <Target Name="CopyReadme" BeforeTargets="Build">
+    <Copy SourceFiles="../README.md" DestinationFolder="$(ProjectDir)" />
+  </Target>
 
   <ItemGroup>
+    <None Include="README.md" Pack="true"/>
     <PackageReference Include="FluentResults" Version="3.16.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
