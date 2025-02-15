@@ -11,15 +11,22 @@
     <FileVersion>$(PackageVersion)</FileVersion>
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true"/>
+    <None Include="LINCENSE" Pack="true"/>
     <PackageReference Include="FluentResults" Version="3.16.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.2" />
     <PackageReference Include="FluentValidation" Version="11.11.0" />
   </ItemGroup>
+
+  <Target Name="CopyReadme" BeforeTargets="Build">
+    <Copy SourceFiles="../README.md" DestinationFolder="$(ProjectDir)" />
+    <Copy SourceFiles="../LICENSE" DestinationFolder="$(ProjectDir)" />
+  </Target>
 
 </Project>

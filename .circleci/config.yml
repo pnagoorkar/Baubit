@@ -27,10 +27,6 @@ jobs:
                   echo "Changes detected outside of ignored files. Proceeding with build."
               fi
 
-      - run:
-            name: Copy README.md to project folder
-            command: cp ../README.md .
-
       # Step 2: Add github as a nuget package source
       - run:
           name: Add github as a nuget package source
