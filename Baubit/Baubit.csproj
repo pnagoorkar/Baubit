@@ -12,16 +12,13 @@
     <InformationalVersion>$(PackageVersion)</InformationalVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-  </PropertyGroup>
-  
-  <Target Name="CopyReadme" BeforeTargets="Build">
-    <Copy SourceFiles="../README.md" DestinationFolder="$(ProjectDir)" />
-    <Copy SourceFiles="../LICENSE" DestinationFolder="$(ProjectDir)" />
-  </Target>
+    <PackageIcon>assets/icon.png</PackageIcon>
+  </PropertyGroup>  
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="."/>
-    <None Include="LICENSE" Pack="true" PackagePath="."/>
+    <None Include="../README.md" Pack="true" PackagePath="." />
+    <None Include="../LICENSE" Pack="true" PackagePath="." />
+    <None Include="assets/icon.png" Pack="true" PackagePath="assets/icon.png" />
     <PackageReference Include="FluentResults" Version="3.16.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.2" />
