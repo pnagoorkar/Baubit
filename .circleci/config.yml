@@ -52,10 +52,11 @@ jobs:
           name: Restore .snk file
           command: |
             echo -n "$BASE64_ENCODED_BAUBIT_SNK" | base64 --decode > $BAUBIT_SNK_FILE
-            ls -l $BAUBIT_SNK_FILE
-            file $BAUBIT_SNK_FILE
-            wc -c $BAUBIT_SNK_FILE
-            hexdump -C $BAUBIT_SNK_FILE | head -10
+            ls -l $BAUBIT_SNK_FILE        # Check if the file was created
+            file $BAUBIT_SNK_FILE        # Confirm it's a binary file
+            wc -c $BAUBIT_SNK_FILE       # Confirm the byte size matches the original (596 bytes)
+            command -v xxd && xxd $BAUBIT_SNK_FILE | head -10  # Dump first 10 lines (if xxd is available)
+            command -v hexdump && hexdump -C $BAUBIT_SNK_FILE  # Alternative hex dump if hexdump exists
           
       - run:
           name: Pack_and_publish
