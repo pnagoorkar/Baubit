@@ -9,22 +9,22 @@ jobs:
             password: $DOCKER_HUB_PASSWORD
     steps:     
       - checkout
-      - run:
-          name: Check for ignored files
-          command: |            
-              # Capture the list of changed files
-              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+      # - run:
+      #     name: Check for ignored files
+      #     command: |            
+      #         # Capture the list of changed files
+      #         CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
 
-              # Check if only .circleci/config.yml was changed
-              if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
-                  echo "Only .circleci/config.yml was changed. Skipping build."
-                  circleci-agent step halt
-              elif [ "$CHANGED_FILES" = "README.md" ]; then
-                  echo "Only README.md was changed. Skipping build."
-                  circleci-agent step halt
-              else
-                  echo "Changes detected outside of ignored files. Proceeding with build."
-              fi
+      #         # Check if only .circleci/config.yml was changed
+      #         if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
+      #             echo "Only .circleci/config.yml was changed. Skipping build."
+      #             circleci-agent step halt
+      #         elif [ "$CHANGED_FILES" = "README.md" ]; then
+      #             echo "Only README.md was changed. Skipping build."
+      #             circleci-agent step halt
+      #         else
+      #             echo "Changes detected outside of ignored files. Proceeding with build."
+      #         fi
               
       - run:
           name: Add github as a nuget package source
@@ -50,7 +50,9 @@ jobs:
             
       - run:
           name: Restore .snk file
-          command: echo $BASE64_ENCODED_BAUBIT_SNK | base64 --decode > $BAUBIT_SNK_FILE
+          command: |
+            echo $BASE64_ENCODED_BAUBIT_SNK | base64 --decode > $BAUBIT_SNK_FILE
+            ls -R ./
           
       - run:
           name: Pack_and_publish
