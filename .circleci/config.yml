@@ -55,6 +55,7 @@ jobs:
             ls -l $BAUBIT_SNK_FILE
             file $BAUBIT_SNK_FILE
             wc -c $BAUBIT_SNK_FILE
+            hexdump -C $BAUBIT_SNK_FILE | head -10
           
       - run:
           name: Pack_and_publish
