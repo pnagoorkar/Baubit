@@ -16,6 +16,9 @@
     <PreserveCompilationContext>true</PreserveCompilationContext>
     <Deterministic>true</Deterministic>
     <RepositoryUrl>https://github.com/pnagoorkar/Baubit</RepositoryUrl>
+    <Authors>Prashant Nagoorkar</Authors>
+    <SignAssembly>$(SignAssembly)</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(KeyFilePath)</AssemblyOriginatorKeyFile>
   </PropertyGroup>  
 
   <ItemGroup>

@@ -9,7 +9,6 @@ jobs:
             password: $DOCKER_HUB_PASSWORD
     steps:     
       - checkout
-      # Step 1: Check for ignored files.
       - run:
           name: Check for ignored files
           command: |            
@@ -26,14 +25,12 @@ jobs:
               else
                   echo "Changes detected outside of ignored files. Proceeding with build."
               fi
-
-      # Step 2: Add github as a nuget package source
+              
       - run:
           name: Add github as a nuget package source
           command: |
             dotnet nuget add source --username $GITHUB_USERNAME --password $GITHUB_PAT --store-password-in-clear-text --name github "$GITHUB_NUGET_PKG_SOURCE_URL"
-
-      # Step 3: Test
+            
       - run:
           name: Build
           command: |
@@ -42,9 +39,7 @@ jobs:
             PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
                             
             dotnet build ${PROJECT_FILE} --configuration Release --nowarn:9999
-
-
-      # Step 4: Test
+            
       - run:
           name: Test
           command: |
@@ -52,9 +47,11 @@ jobs:
             SOLUTION_FILE="${SOLUTION_FOLDER}.sln"
                 
             dotnet test ${SOLUTION_FILE}
-
-
-      # Step 5: Pack and publish
+            
+      - run:
+          name: Restore .snk file
+          command: echo $BASE64_ENCODED_BAUBIT_SNK | base64 --decode > $BAUBIT_SNK_FILE
+          
       - run:
           name: Pack_and_publish
           command: |
@@ -89,7 +86,7 @@ jobs:
             BUILD_TAG="v${CURRENT_VERSION}"
             echo "Current version tag - $BUILD_TAG"
 
-            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" --output ./nupkgs --nowarn:9999  --verbosity d
+            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" /p:SignAssembly=true /p:KeyFilePath=$BAUBIT_SNK_FILE --output ./nupkgs --nowarn:9999  --verbosity d
 
             ls -R ./nupkgs
 
