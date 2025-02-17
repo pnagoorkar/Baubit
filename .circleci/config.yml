@@ -52,7 +52,8 @@ jobs:
           name: Restore .snk file
           command: |
             echo "$BASE64_ENCODED_BAUBIT_SNK" | base64 --decode > $BAUBIT_SNK_FILE
-            ls -R ./
+            ls -l $BAUBIT_SNK_FILE
+            file $BAUBIT_SNK_FILE
           
       - run:
           name: Pack_and_publish
