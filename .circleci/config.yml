@@ -9,28 +9,31 @@ jobs:
             password: $DOCKER_HUB_PASSWORD
     steps:     
       - checkout
-      # - run:
-      #     name: Check for ignored files
-      #     command: |            
-      #         # Capture the list of changed files
-      #         CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+      # Step 1: Check for ignored files.
+      - run:
+          name: Check for ignored files
+          command: |            
+              # Capture the list of changed files
+              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
 
-      #         # Check if only .circleci/config.yml was changed
-      #         if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
-      #             echo "Only .circleci/config.yml was changed. Skipping build."
-      #             circleci-agent step halt
-      #         elif [ "$CHANGED_FILES" = "README.md" ]; then
-      #             echo "Only README.md was changed. Skipping build."
-      #             circleci-agent step halt
-      #         else
-      #             echo "Changes detected outside of ignored files. Proceeding with build."
-      #         fi
-              
+              # Check if only .circleci/config.yml was changed
+              if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
+                  echo "Only .circleci/config.yml was changed. Skipping build."
+                  circleci-agent step halt
+              elif [ "$CHANGED_FILES" = "README.md" ]; then
+                  echo "Only README.md was changed. Skipping build."
+                  circleci-agent step halt
+              else
+                  echo "Changes detected outside of ignored files. Proceeding with build."
+              fi
+
+      # Step 2: Add github as a nuget package source
       - run:
           name: Add github as a nuget package source
           command: |
             dotnet nuget add source --username $GITHUB_USERNAME --password $GITHUB_PAT --store-password-in-clear-text --name github "$GITHUB_NUGET_PKG_SOURCE_URL"
-            
+
+      # Step 3: Test
       - run:
           name: Build
           command: |
@@ -39,7 +42,9 @@ jobs:
             PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
                             
             dotnet build ${PROJECT_FILE} --configuration Release --nowarn:9999
-            
+
+
+      # Step 4: Test
       - run:
           name: Test
           command: |
@@ -47,17 +52,9 @@ jobs:
             SOLUTION_FILE="${SOLUTION_FOLDER}.sln"
                 
             dotnet test ${SOLUTION_FILE}
-            
-      - run:
-          name: Restore .snk file
-          command: |
-            echo -n "$BASE64_ENCODED_BAUBIT_SNK" | base64 --decode > $BAUBIT_SNK_FILE
-            ls -l $BAUBIT_SNK_FILE        # Check if the file was created
-            # file $BAUBIT_SNK_FILE        # Confirm it's a binary file
-            # wc -c $BAUBIT_SNK_FILE       # Confirm the byte size matches the original (596 bytes)
-            # command -v xxd && xxd $BAUBIT_SNK_FILE | head -10  # Dump first 10 lines (if xxd is available)
-            # command -v hexdump && hexdump -C $BAUBIT_SNK_FILE  # Alternative hex dump if hexdump exists
-          
+
+
+      # Step 5: Pack and publish
       - run:
           name: Pack_and_publish
           command: |
@@ -92,7 +89,7 @@ jobs:
             BUILD_TAG="v${CURRENT_VERSION}"
             echo "Current version tag - $BUILD_TAG"
 
-            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" -p:SignAssembly=true -p:KeyFilePath=$BAUBIT_SNK_FILE --output ./nupkgs --nowarn:9999  --verbosity d
+            dotnet pack ${PROJECT_FILE} --configuration Release -p:PackageVersion="${CURRENT_VERSION}" --output ./nupkgs --nowarn:9999  --verbosity d
 
             ls -R ./nupkgs
 
