@@ -28,7 +28,7 @@ dotnet add package Baubit
 Baubit is based on **modules** and **configuration**.
 
 ### 📦 Defining a Module
-A Baubit **module** is a self-contained unit that registers one or more services in the application's IoC container.
+A Baubit **module** is a self-contained unit that adds one or more services to the application's IoC container.
 
 ```csharp
 public class MyConfiguration : AConfiguration
