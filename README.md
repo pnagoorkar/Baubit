@@ -59,7 +59,7 @@ Configuration for each registered service can be passed via the Module's specifi
 Baubit supports various ways to manage module configurations.
 
 ```csharp
-var configSource = new ConfigurationSource("config.json");
+var configSource = new ConfigurationSource { JsonUriStrings = ["myConfig.json"] };
 var myModule = new MyModule(configSource);
 ```
 - **File-based**: Load configurations from JSON, XML, or environment variables.
