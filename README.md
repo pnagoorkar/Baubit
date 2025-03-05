@@ -1,60 +1,91 @@
-Baubit is a framework for developing modular apps in .NET
+# Baubit
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main.svg?style=svg&circle-token=CCIPRJ_Laqns3C4sRXuApqb6m3r4s_1b81262a15527abad719fc5e0cfbf205e5cef624)](https://dl.circleci.com/status-badge/redirect/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main)
 
-# Get started
+## Introduction
+**Baubit** is a modular framework for .NET applications that allows developers to build structured and scalable applications using independent modules. It simplifies dependency management and promotes reusability by enforcing a modular architecture.
 
-Creating a module requires creating at least 2 classes - One for the module itself and another for the associated configuration
+## Why Use Baubit?
+- 🚀 **Modular Architecture**: Define independent modules with their own configurations.
+- 🔧 **Configuration Management**: Each module can have its own configuration, making applications more flexible.
+- 🔗 **Seamless Integration**: Supports dependency injection using `IServiceCollection`.
+- 📏 **Scalability & Maintainability**: Encourages a clean and structured application design.
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Installation
+
+```
+dotnet add package Baubit
+```
+
+---
+
+## 📌 How Baubit Works
+
+Baubit is based on **modules** and **configuration**.
+
+### 📦 Defining a Module
+A **module** in Baubit is a self-contained unit that inherits from `AModule<TConfiguration>`.
 
 ```csharp
 public class MyConfiguration : AConfiguration
 {
-  public string MyStringProperty { get; set; }
+    public string MyStringProperty { get; set; }
 }
 
 public class MyModule : AModule<MyConfiguration>
 {
-  protected MyModule(ConfigurationSource configurationSource) : base(configurationSource)
-  {
+    public MyModule(ConfigurationSource configurationSource) : base(configurationSource) { }
+    public MyModule(IConfiguration configuration) : base(configuration) { }
+    public MyModule(MyConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules) { }
 
-  }
-
-  protected MyModule(IConfiguration configuration) : base(configuration)
-  {
-
-  }
-  protected MyModule(MyConfiguration configuration,
-                     List<AModule> nestedModules) : base(configuration, nestedModules)
-  {
-  }
-  public override void Load(IServiceCollection services)
-  {
-    var myStrProp = Configuration.MyStringProperty;
-    // add required services to the IServiceCollection based on the module's configuration
-    base.Load(services);
-  }
-}
-```
-## Loading modules
-
-myConfig.json
-
-```json
-{
-  "modules": [
+    public override void Load(IServiceCollection services)
     {
-      "type": "MyProject.MyModule, MyProject",
-      "parameters": {
-        "configuration": {
-          "myStringProperty" : "some string value"
-          }
-        }
+        var myStrProp = Configuration.MyStringProperty;
+        services.AddSingleton(new MyService(myStrProp));
+        //register other services as needed
+        base.Load(services);
     }
-  ]
 }
 ```
+In this example:
+- `MyConfiguration` holds the module-specific configuration.
+- `MyModule` extends `AModule<TConfiguration>`, allowing dependency injection and service registration.
 
-### Using HostApplicationBuilder
+---
+
+### 📁 Configuration Management
+Baubit supports various ways to manage module configurations.
+
+```csharp
+var configSource = new ConfigurationSource("config.json");
+var myModule = new MyModule(configSource);
+```
+- **File-based**: Load configurations from JSON, XML, or environment variables.
+- **Code-based**: Manually define configurations in C#.
+
+---
+
+### 🏗 Dependency Injection & Services
+Modules can register services with `IServiceCollection`:
+```csharp
+public override void Load(IServiceCollection services)
+{
+    services.AddTransient<IMyService, MyService>();
+}
+```
+This enables modularized service registration, making dependency management cleaner.
+
+---
+
+## 🔍 Example Usage
+
+### Bootstrapping the Application
+
+#### Using HostApplicationBuilder
 
 ```csharp
 var hostApplicationBuilder = new HostApplicationBuilder();
@@ -64,7 +95,7 @@ var host = hostApplicationBuilder.Build();
 host.Run();
 ```
 
-### Using WebApplicationBuilder
+#### Using WebApplicationBuilder
 
 ```csharp
 var webAppBuilder = WebApplication.CreateBuilder();
@@ -74,98 +105,46 @@ var webApp = webAppBuilder.Build()
 webApp.Run();
 ```
 
-## Nesting Modules
+---
 
-Modules can be loaded side by side. <br>
-They can also be loaded as a nested module (sub-module)
+## 📜 Roadmap
+Future enhancements for Baubit:
+- ✅ **Configuration Extensions**: Support for more configuration sources.
+- ✅ **Middleware Support**: Integrate modules with ASP.NET middleware.
+- 🚧 **Logging & Monitoring**: Improve logging support within modules.
+- 🚧 **Community Contributions**: Open-source enhancements and community-driven improvements.
 
-```csharp
-public class AnotherModuleConfiguration : AConfiguration
-{
-  public string AnotherStringProperty { get; set; }
-}
+---
 
-public class AnotherModule : AModule<AnotherModuleConfiguration>
-{
-  protected AnotherModule(ConfigurationSource configurationSource) : base(configurationSource)
-  {
+## 🤝 Contributing
+Contributions are welcome! If you’d like to improve Baubit:
+1. **Fork the repository**.
+2. **Create a new branch** (`feature/new-feature`).
+3. **Submit a pull request** with detailed changes.
 
-  }
+For major contributions, open an issue first to discuss the change.
 
-  protected AnotherModule(IConfiguration configuration) : base(configuration)
-  {
+---
 
-  }
-  protected AnotherModule(AnotherModuleConfiguration configuration,
-                          List<AModule> nestedModules) : base(configuration, nestedModules)
-  {
-  }
-  public override void Load(IServiceCollection services)
-  {
-    var anotherStringProperty = Configuration.AnotherStringProperty;
-    // add required services to the IServiceCollection based on the module's configuration
-    base.Load(services);
-  }
-}
-```
+## 🛠 Troubleshooting & FAQs
 
-myConfig.json
+### Q: How do I use multiple modules together?
+A: You can initialize multiple modules and inject them into your service container.
 
-```json
-{
-  "modules": [
-    {
-      "type": "MyProject.MyModule, MyProject",
-      "parameters": {
-        "configuration": {
-          "myStringProperty" : "some string value",
-          "modules": [
-              {
-                "type": "MyProject.AnotherModule, MyProject",
-                "parameters": {
-                  "configuration": {
-                    "anotherStringProperty" : "another string value"
-                    }
-                  }
-              }
-            ]
-          }
-        }
-    }
-  ]
-}
-```
-## Linking configurations
-Module configurations can be loaded by referencing a json file<br>
-myConfig.json
-```json
-{
-  "modules": [
-    {
-      "type": "MyProject.MyModule, MyProject",
-      "parameters": {
-        "configuration": {
-          "myStringProperty" : "some string value",
-          "modules": [
-              {
-                "type": "MyProject.AnotherModule, MyProject",
-                "parameters": {
-                  "configurationSource": {
-                    "jsonUriStrings" : ["anotherModule.json"]
-                    }
-                  }
-              }
-            ]
-          }
-        }
-    }
-  ]
-}
-```
-anotherModule.json
-```json
-{
-  "anotherStringProperty" : "another string value"
-}
-```
+### Q: Can I override module configurations?
+A: Yes! You can extend configurations by passing custom settings to `ConfigurationSource`.
+
+For more support, open an issue on GitHub.
+
+---
+
+## 📄 License
+Baubit is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🔗 Resources
+- Official Documentation (Coming Soon)
+- Issue Tracker: [GitHub Issues](https://github.com/pnagoorkar/Baubit/issues)
+- Discussions: [GitHub Discussions](https://github.com/pnagoorkar/Baubit/discussions)
 
