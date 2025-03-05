@@ -28,7 +28,7 @@ dotnet add package Baubit
 Baubit is based on **modules** and **configuration**.
 
 ### 📦 Defining a Module
-A **module** in Baubit is a self-contained unit that inherits from `AModule<TConfiguration>`.
+A Baubit **module** is a self-contained unit that registers one or more services in the application's IoC container.
 
 ```csharp
 public class MyConfiguration : AConfiguration
@@ -51,9 +51,7 @@ public class MyModule : AModule<MyConfiguration>
     }
 }
 ```
-In this example:
-- `MyConfiguration` holds the module-specific configuration.
-- `MyModule` extends `AModule<TConfiguration>`, allowing dependency injection and service registration.
+Configuration for each registered service can be passed via the Module's specific configuration
 
 ---
 
