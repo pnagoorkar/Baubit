@@ -103,6 +103,23 @@ var webApp = webAppBuilder.Build()
 webApp.Run();
 ```
 
+myConfig.json
+
+```json
+{
+  "modules": [
+    {
+      "type": "MyProject.MyModule, MyProject",
+      "parameters": {
+        "configuration": {
+          "myStringProperty" : "some string value"
+          }
+        }
+    }
+  ]
+}
+```
+
 ---
 
 ## 📜 Roadmap
