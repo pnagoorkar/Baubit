@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
+    <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfiguration.json" />
+    <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfigurationSource.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\secrets.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithSecrets.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\config.json" />

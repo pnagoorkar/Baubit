@@ -35,7 +35,7 @@ namespace Baubit.DI
                 throw new ArgumentException("Unable to determine module type !");
             }
 
-            ConfigurationSource configurationSource = null;
+            ConfigurationSource configurationSource = new ConfigurationSource();
             IConfiguration iConfiguration = null;
 
             var configurationSectionGetResult = GetModuleConfigurationSection(configurationSection);
