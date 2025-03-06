@@ -11,10 +11,15 @@ namespace Baubit.DI
     {
         public static IServiceProvider Load(this IConfiguration configuration)
         {
-            var rootModule = new RootModule(configuration);
             var services = new ServiceCollection();
-            rootModule.Load(services);
+            services.AddFrom(configuration);
             return services.BuildServiceProvider();
+        }
+        public static IServiceCollection AddFrom(this IServiceCollection services, IConfiguration configuration)
+        {
+            var rootModule = new RootModule(configuration);
+            rootModule.Load(services);
+            return services;
         }
         public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
         {
