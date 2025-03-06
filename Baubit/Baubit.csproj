@@ -19,7 +19,6 @@
     <Authors>Prashant Nagoorkar</Authors>
     <SignAssembly>$(SignAssembly)</SignAssembly>
     <AssemblyOriginatorKeyFile>$(KeyFilePath)</AssemblyOriginatorKeyFile>
-    <UserSecretsId>$(UserSecretsId)</UserSecretsId>
   </PropertyGroup>  
 
   <ItemGroup>
