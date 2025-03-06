@@ -21,6 +21,8 @@ namespace Baubit.DI
             rootModule.Load(services);
             return services;
         }
+        public static IServiceCollection AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) => services.AddFrom(configurationSource.Build());
+
         public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
         {
             return configuration.GetSection("modules").GetChildren().Select(section => section.As<TModule>());
