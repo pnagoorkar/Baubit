@@ -1,5 +1,7 @@
 ﻿using Baubit.Configuration;
+using Baubit.DI.Reasons;
 using Baubit.Reflection;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
 
 namespace Baubit.DI
@@ -18,24 +20,31 @@ namespace Baubit.DI
                 throw new ArgumentException("Unable to determine module type !");
             }
 
-            var objectConfigurationSection = configurationSection.GetSection("parameters:configuration");
-            var objectConfigurationSourceSection = configurationSection.GetSection("parameters:configurationSource");
+            ConfigurationSource configurationSource = null;
+            IConfiguration iConfiguration = null;
 
-            object objectConstructionParameter = null;
-            if (objectConfigurationSection.Exists() && objectConfigurationSourceSection.Exists())
-            {
-                throw new ArgumentException("Cannot pass ConfigurationSource when Configuration is passed and vice versa");
-            }
-            else if (objectConfigurationSourceSection.Exists())
-            {
-                objectConstructionParameter = objectConfigurationSourceSection.Get<ConfigurationSource>()!;
-            }
-            else
-            {
-                objectConstructionParameter = objectConfigurationSection;
-            }
-            var @object = (T)Activator.CreateInstance(objectType, objectConstructionParameter)!;
+            var configurationSectionGetResult = GetModuleConfigurationSection(configurationSection);
+            var configurationSourceSectionGetResult = GetModuleConfigurationSourceSection(configurationSection);
+
+            if (configurationSectionGetResult.IsSuccess) iConfiguration = configurationSectionGetResult.Value;
+            if (configurationSourceSectionGetResult.IsSuccess) configurationSource = configurationSourceSectionGetResult.Value.Get<ConfigurationSource>()!;
+
+            iConfiguration = configurationSource.Load(iConfiguration);
+
+            var @object = (T)Activator.CreateInstance(objectType, iConfiguration)!;
             return @object;
+        }
+
+        private static Result<IConfigurationSection> GetModuleConfigurationSection(IConfiguration configurationSection)
+        {
+            var objectConfigurationSection = configurationSection.GetSection("parameters:configuration");
+            return objectConfigurationSection.Exists() ? Result.Ok(objectConfigurationSection) : Result.Fail("").WithReason(new ConfigurationNotDefined());
+        }
+
+        private static Result<IConfigurationSection> GetModuleConfigurationSourceSection(IConfiguration configurationSection)
+        {
+            var objectConfigurationSourceSection = configurationSection.GetSection("parameters:configurationSource");
+            return objectConfigurationSourceSection.Exists() ? Result.Ok(objectConfigurationSourceSection) : Result.Fail("").WithReason(new ConfigurationSourceNotDefined());
         }
 
         public static bool TryGetObjectType(this IConfiguration configurationSection, out Type objectType)

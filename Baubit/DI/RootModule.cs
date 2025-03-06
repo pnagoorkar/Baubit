@@ -4,11 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.DI
 {
-    public sealed class RootModuleConfiguration : AConfiguration
+    internal sealed class RootModuleConfiguration : AConfiguration
     {
 
     }
-    public sealed class RootModule : AModule<RootModuleConfiguration>
+    internal sealed class RootModule : AModule<RootModuleConfiguration>
     {
         public RootModule(ConfigurationSource configurationSource) : base(configurationSource)
         {

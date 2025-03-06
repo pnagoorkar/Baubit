@@ -1,0 +1,12 @@
+{
+  "modules": [
+    {
+      "type": "Baubit.Test.DI.Setup.Module, Baubit.Test",
+      "parameters": {
+        "configuration": {
+          "someString": "some string value"
+        }
+      }
+    }
+  ]
+}
