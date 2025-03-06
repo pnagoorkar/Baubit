@@ -11,11 +11,15 @@
 
   <ItemGroup>
     <None Remove="Configuration\ConfigurationSource\config.json" />
+    <None Remove="DI\ServiceProviderFactoryRegistrar\config.json" />
     <None Remove="IO\KMP\loremIpsum.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
+    <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\secrets.json" />
+    <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithSecrets.json" />
+    <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\config.json" />
     <EmbeddedResource Include="IO\KMP\loremIpsum.txt" />
   </ItemGroup>
 

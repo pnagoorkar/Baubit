@@ -13,6 +13,7 @@ namespace Baubit.Configuration
         public List<string> RawJsonStrings { get; set; } = new List<string>();
         public List<string> JsonUriStrings { get; set; } = new List<string>();
         public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
+        public List<string> LocalSecrets { get; init; } = new List<string>();
 
         public static IConfiguration BuildUsingEmbeddedJsonResources(params string[] embeddedJsonResources)
         {
@@ -30,7 +31,7 @@ namespace Baubit.Configuration
         public static IConfiguration Load(this ConfigurationSource configurationSource)
         {
             var configurationBuilder = new ConfigurationBuilder();
-            configurationSource.AddJsonFiles(configurationBuilder).LoadResourceFiles().AddRawJsonStrings(configurationBuilder);
+            configurationSource.AddJsonFiles(configurationBuilder).LoadResourceFiles().AddRawJsonStrings(configurationBuilder).AddSecrets(configurationBuilder);
             return configurationBuilder.Build();
         }
 
@@ -80,6 +81,16 @@ namespace Baubit.Configuration
             foreach (var memStream in memStreams)
             {
                 configurationBuilder.AddJsonStream(memStream);
+            }
+
+            return configurationSource;
+        }
+
+        private static ConfigurationSource AddSecrets(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        {
+            foreach(var localSecretsId in configurationSource.LocalSecrets.Distinct())
+            {
+                configurationBuilder.AddUserSecrets(localSecretsId);
             }
 
             return configurationSource;
