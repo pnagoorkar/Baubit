@@ -1,47 +1,39 @@
 ﻿using Baubit.Configuration;
+using Baubit.Reflection;
 using Baubit.Test.DI.Setup;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Runtime.InteropServices;
 
 namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
 {
     public class Test
     {
         private const string UserSecretsId = "0657aef1-6dc5-48f1-8ae4-172674291be0";
-        private static readonly string SecretsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) ?? 
-                                                                  Environment.GetEnvironmentVariable("HOME") ?? 
-                                                                  Environment.GetEnvironmentVariable("USERPROFILE") ?? 
-                                                                  throw new InvalidOperationException("Could not determine user home directory"),
-                                                                  ".microsoft", "usersecrets", UserSecretsId, "secrets.json");
-        static Test()
+
+        private static readonly string SecretsPath = GetUserSecretsPath(UserSecretsId);
+
+        private static string GetUserSecretsPath(string userSecretsId)
         {
-            EnsureUserSecretsExist();
+            string basePath;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                basePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Microsoft", "UserSecrets");
+            }
+            else // Linux and macOS
+            {
+                basePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".microsoft", "usersecrets");
+            }
+
+            return Path.Combine(basePath, userSecretsId, "secrets.json");
         }
 
-        private static void EnsureUserSecretsExist()
-        {
-            try
-            {
-                // Ensure the directory exists
-                Directory.CreateDirectory(Path.GetDirectoryName(SecretsPath)!);
-
-                // If the file does not exist, create it
-                if (!File.Exists(SecretsPath))
-                {
-                    var jsonContent = @"{
-                  ""someSecretString"": ""shhhh.. 🤫""
-                }";
-
-                    File.WriteAllText(SecretsPath, jsonContent);
-                    Console.WriteLine("User secrets JSON created at: " + SecretsPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Failed to create user secrets: " + ex.Message);
-            }
-        }
         [Theory]
         [InlineData("config.json")]
         public void CanLoadModulesFromJson(string fileName)
@@ -60,9 +52,16 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         }
 
         [Theory]
-        [InlineData("configWithSecrets.json")]
-        public void CanLoadModulesWithSecretsFromJson(string fileName)
+        [InlineData("configWithSecrets.json", "secrets.json")]
+        public void CanLoadModulesWithSecretsFromJson(string fileName, string secretsFile)
         {
+            var readResult = this.GetType().Assembly.ReadResource($"{this.GetType().Namespace}.{secretsFile}").GetAwaiter().GetResult();
+            Assert.True(readResult.IsSuccess);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(SecretsPath)!);
+
+            File.WriteAllText(SecretsPath, readResult.Value);
+
             var hostAppBuilder = new HostApplicationBuilder();
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
             hostAppBuilder.Configuration.AddConfiguration(configurationSource.Load());

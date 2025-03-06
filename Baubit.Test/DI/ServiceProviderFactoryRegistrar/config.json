@@ -1,7 +1,7 @@
 {
   "modules": [
     {
-      "type": "Baubit.Test.DI.ServiceProviderFactoryRegistrar.Setup.Module, Baubit.Test",
+      "type": "Baubit.Test.DI.Setup.Module, Baubit.Test",
       "parameters": {
         "configuration": {
           "someString": "some string value"

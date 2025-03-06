@@ -5,11 +5,7 @@
       "parameters": {
         "configuration": {
           "myStringProperty": "some string value"
-        },
-        "localSecrets": [
-          "secretId1",
-          "secretId2"
-        ]
+        }
       }
     }
   ]
