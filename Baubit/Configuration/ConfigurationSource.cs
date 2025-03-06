@@ -17,7 +17,7 @@ namespace Baubit.Configuration
 
         public static IConfiguration BuildUsingEmbeddedJsonResources(params string[] embeddedJsonResources)
         {
-            return new ConfigurationSource { EmbeddedJsonResources = embeddedJsonResources.ToList() }.Load();
+            return new ConfigurationSource { EmbeddedJsonResources = embeddedJsonResources.ToList() }.Build();
         }
     }
 
@@ -28,9 +28,9 @@ namespace Baubit.Configuration
         /// </summary>
         /// <param name="configurationSource">An instance of <see cref="ConfigurationSource"/></param>
         /// <returns>The built <see cref="IConfiguration"/></returns>
-        public static IConfiguration Load(this ConfigurationSource configurationSource) => configurationSource.Load(null);
+        public static IConfiguration Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
 
-        public static IConfiguration Load(this ConfigurationSource configurationSource, IConfiguration configuration)
+        public static IConfiguration Build(this ConfigurationSource configurationSource, IConfiguration configuration)
         {
             if (configurationSource == null) return configuration;
             var configurationBuilder = new ConfigurationBuilder();

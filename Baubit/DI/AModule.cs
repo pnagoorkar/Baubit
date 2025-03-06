@@ -50,7 +50,7 @@ namespace Baubit.DI
             get => (TConfiguration)base.Configuration;
             init => base.Configuration = value;
         }
-        protected AModule(ConfigurationSource configurationSource) : this(configurationSource.Load())
+        protected AModule(ConfigurationSource configurationSource) : this(configurationSource.Build())
         {
 
         }

@@ -3,11 +3,19 @@ using Baubit.DI.Reasons;
 using Baubit.Reflection;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
+        public static IServiceProvider Load(this IConfiguration configuration)
+        {
+            var rootModule = new RootModule(configuration);
+            var services = new ServiceCollection();
+            rootModule.Load(services);
+            return services.BuildServiceProvider();
+        }
         public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
         {
             return configuration.GetSection("modules").GetChildren().Select(section => section.As<TModule>());
@@ -29,7 +37,7 @@ namespace Baubit.DI
             if (configurationSectionGetResult.IsSuccess) iConfiguration = configurationSectionGetResult.Value;
             if (configurationSourceSectionGetResult.IsSuccess) configurationSource = configurationSourceSectionGetResult.Value.Get<ConfigurationSource>()!;
 
-            iConfiguration = configurationSource.Load(iConfiguration);
+            iConfiguration = configurationSource.Build(iConfiguration);
 
             var @object = (T)Activator.CreateInstance(objectType, iConfiguration)!;
             return @object;

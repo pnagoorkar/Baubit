@@ -1,9 +1,8 @@
 ﻿using Baubit.Configuration;
+using Baubit.DI;
 using Baubit.Reflection;
 using Baubit.Test.DI.Setup;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using System.Runtime.InteropServices;
 
 namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
@@ -38,14 +37,9 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         [InlineData("config.json")]
         public void CanLoadModulesFromJson(string fileName)
         {
-            var hostAppBuilder = new HostApplicationBuilder();
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-            hostAppBuilder.Configuration.AddConfiguration(configurationSource.Load());
-            new Baubit.DI.ServiceProviderFactoryRegistrar().UseDefaultServiceProviderFactory(hostAppBuilder);
 
-            var host = hostAppBuilder.Build();
-
-            var component = host.Services.GetRequiredService<Component>();
+            var component = configurationSource.Build().Load().GetRequiredService<Component>();
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
@@ -62,14 +56,9 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
 
             File.WriteAllText(SecretsPath, readResult.Value);
 
-            var hostAppBuilder = new HostApplicationBuilder();
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-            hostAppBuilder.Configuration.AddConfiguration(configurationSource.Load());
-            new Baubit.DI.ServiceProviderFactoryRegistrar().UseDefaultServiceProviderFactory(hostAppBuilder);
 
-            var host = hostAppBuilder.Build();
-
-            var component = host.Services.GetRequiredService<Component>();
+            var component = configurationSource.Build().Load().GetRequiredService<Component>();
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
