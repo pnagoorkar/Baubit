@@ -1,14 +1,6 @@
 {
   "modules": [
     {
-      "type": "ConsoleApp.MyModule, ConsoleApp",
-      "parameters": {
-        "configuration": {
-          "myStringProperty": "some string value"
-        }
-      }
-    },
-    {
       "type": "Baubit.Logging.DI.Default.Module, Baubit",
       "parameters": {
         "configuration": {
