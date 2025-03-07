@@ -2,9 +2,9 @@
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 
-namespace Baubit.Logging
+namespace Baubit.Logging.DI.Default
 {
-    public sealed class Module : Baubit.Logging.DI.AModule<Configuration>
+    public sealed class Module : AModule<Configuration>
     {
         public Module(ConfigurationSource configurationSource) : base(configurationSource)
         {
