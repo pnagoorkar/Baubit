@@ -1,0 +1,12 @@
+{
+  "modules": [
+    {
+      "type": "Baubit.Logging.Module, Baubit",
+      "parameters": {
+        "configuration": {
+          "addConsole": true
+        }
+      }
+    }
+  ]
+}

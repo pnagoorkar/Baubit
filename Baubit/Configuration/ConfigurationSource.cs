@@ -14,11 +14,6 @@ namespace Baubit.Configuration
         public List<string> JsonUriStrings { get; set; } = new List<string>();
         public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
         public List<string> LocalSecrets { get; init; } = new List<string>();
-
-        public static IConfiguration BuildUsingEmbeddedJsonResources(params string[] embeddedJsonResources)
-        {
-            return new ConfigurationSource { EmbeddedJsonResources = embeddedJsonResources.ToList() }.Build();
-        }
     }
 
     public static class ConfigurationSourceExtensions

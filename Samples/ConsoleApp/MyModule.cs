@@ -2,6 +2,7 @@
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ConsoleApp
 {
@@ -20,7 +21,7 @@ namespace ConsoleApp
         }
         public override void Load(IServiceCollection services)
         {
-            services.AddSingleton(new MyComponent(Configuration.MyStringProperty));
+            services.AddSingleton(serviceProvider => new MyComponent(Configuration.MyStringProperty, serviceProvider.GetRequiredService<ILogger<MyComponent>>()));
             services.AddHostedService<MyHostedService>();
             base.Load(services);
         }

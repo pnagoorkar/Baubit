@@ -23,6 +23,7 @@
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithSecrets.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\config.json" />
     <EmbeddedResource Include="IO\KMP\loremIpsum.txt" />
+    <EmbeddedResource Include="Logging\Console\config.json" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,6 +7,14 @@
           "myStringProperty": "some string value"
         }
       }
+    },
+    {
+      "type": "Baubit.Logging.Module, Baubit",
+      "parameters": {
+        "configuration": {
+          "addConsole": true
+        }
+      }
     }
   ]
 }
