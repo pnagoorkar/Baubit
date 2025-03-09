@@ -7,6 +7,44 @@
           "myStringProperty": "some string value"
         }
       }
+    },
+    {
+      "type": "Baubit.Logging.Telemetry.DI.Module, Baubit",
+      "parameters": {
+        "configuration": {
+          "logger": {
+            "addConsoleExporter": true,
+            "serviceName": "WebApp",
+            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+          },
+          "metrics": {
+            "addConsoleExporter": true,
+            "meters": [],
+            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+          },
+          "tracer": {
+            "addConsoleExporter": true,
+            "sources": [],
+            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+          },
+          "perfTrackerConfiguration": {
+            "meterConfig": {
+              "serviceName": "WebApp",
+              "serviceVersion": "1.0.0.0"
+            },
+            "counterConfig": {
+              "label": ""
+            },
+            "gaugeConfig": {
+              "label": ""
+            },
+            "histogramConfig": {
+              "label": "",
+              "unit": "ms"
+            }
+          }
+        }
+      }
     }
   ]
 }
