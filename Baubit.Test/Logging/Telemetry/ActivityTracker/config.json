@@ -1,36 +1,28 @@
 {
   "modules": [
     {
-      "type": "WebApp.MyModule, WebApp",
-      "parameters": {
-        "configuration": {
-          "myStringProperty": "some string value"
-        }
-      }
-    },
-    {
       "type": "Baubit.Logging.Telemetry.DI.Module, Baubit",
       "parameters": {
         "configuration": {
           "logger": {
             "addConsoleExporter": true,
-            "serviceName": "WebApp",
+            "serviceName": "Baubit.Test",
             "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
           },
           "metrics": {
             "addConsoleExporter": true,
-            "meters": [ "WebApp" ],
+            "meters": [ "Baubit.Test" ],
             "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
           },
           "tracer": {
             "addConsoleExporter": true,
-            "sources": [ "WebApp" ],
+            "sources": [ "Baubit.Test" ],
             "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ],
             "samplerType": "AlwaysOnSampler"
           },
           "activityTrackerConfiguration": {
             "meterConfig": {
-              "serviceName": "WebApp",
+              "serviceName": "Baubit.Test",
               "serviceVersion": "1.0.0.0"
             },
             "counterConfig": {

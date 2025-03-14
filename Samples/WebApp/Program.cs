@@ -8,6 +8,6 @@ var app = builder.Build();
 
 app.MapGet("/", () => "Hello World!");
 
-app.MapGet("/myComponent", (MyComponent myComponent) => myComponent.SomeStringValue);
+app.MapGet("/myComponent", (MyComponent myComponent) => myComponent.DoSomething());
 
 app.Run();
