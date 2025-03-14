@@ -2,39 +2,37 @@
   "modules": [
     {
       "type": "Baubit.Logging.Telemetry.DI.Module, Baubit",
-      "parameters": {
-        "configuration": {
-          "logger": {
-            "addConsoleExporter": true,
+      "configuration": {
+        "logger": {
+          "addConsoleExporter": true,
+          "serviceName": "Baubit.Test",
+          "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+        },
+        "metrics": {
+          "addConsoleExporter": true,
+          "meters": [ "Baubit.Test" ],
+          "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+        },
+        "tracer": {
+          "addConsoleExporter": true,
+          "sources": [ "Baubit.Test" ],
+          "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ],
+          "samplerType": "AlwaysOnSampler"
+        },
+        "activityTrackerConfiguration": {
+          "meterConfig": {
             "serviceName": "Baubit.Test",
-            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+            "serviceVersion": "1.0.0.0"
           },
-          "metrics": {
-            "addConsoleExporter": true,
-            "meters": [ "Baubit.Test" ],
-            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+          "counterConfig": {
+            "label": "counter"
           },
-          "tracer": {
-            "addConsoleExporter": true,
-            "sources": [ "Baubit.Test" ],
-            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ],
-            "samplerType": "AlwaysOnSampler"
+          "gaugeConfig": {
+            "label": "gauge"
           },
-          "activityTrackerConfiguration": {
-            "meterConfig": {
-              "serviceName": "Baubit.Test",
-              "serviceVersion": "1.0.0.0"
-            },
-            "counterConfig": {
-              "label": "counter"
-            },
-            "gaugeConfig": {
-              "label": "gauge"
-            },
-            "histogramConfig": {
-              "label": "histogram",
-              "unit": "ms"
-            }
+          "histogramConfig": {
+            "label": "histogram",
+            "unit": "ms"
           }
         }
       }

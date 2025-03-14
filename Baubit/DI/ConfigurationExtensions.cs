@@ -52,13 +52,13 @@ namespace Baubit.DI
 
         private static Result<IConfigurationSection> GetModuleConfigurationSection(IConfiguration configurationSection)
         {
-            var objectConfigurationSection = configurationSection.GetSection("parameters:configuration");
+            var objectConfigurationSection = configurationSection.GetSection("configuration");
             return objectConfigurationSection.Exists() ? Result.Ok(objectConfigurationSection) : Result.Fail("").WithReason(new ConfigurationNotDefined());
         }
 
         private static Result<IConfigurationSection> GetModuleConfigurationSourceSection(IConfiguration configurationSection)
         {
-            var objectConfigurationSourceSection = configurationSection.GetSection("parameters:configurationSource");
+            var objectConfigurationSourceSection = configurationSection.GetSection("configurationSource");
             return objectConfigurationSourceSection.Exists() ? Result.Ok(objectConfigurationSourceSection) : Result.Fail("").WithReason(new ConfigurationSourceNotDefined());
         }
 
