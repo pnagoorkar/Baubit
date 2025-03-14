@@ -9,8 +9,8 @@ namespace Baubit.Logging.Telemetry.DI
         public LoggerConfig Logger { get; init; }
         public MetricsConfig Metrics { get; init; }
         public TracerConfig Tracer { get; init; }
-        public ServiceLifetime PerfMonitorLifetime { get; init; } = ServiceLifetime.Scoped;
-        public PerfTracker.Configuration PerfTrackerConfiguration { get; init; }
+        public ServiceLifetime ActivityMonitorLifetime { get; init; } = ServiceLifetime.Scoped;
+        public ActivityTracker.Configuration ActivityTrackerConfiguration { get; init; }
 
         public class LoggerConfig
         {

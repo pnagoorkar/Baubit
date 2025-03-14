@@ -41,13 +41,13 @@ namespace Baubit.Logging.Telemetry.DI
             {
                 openTelemetryBuilder.WithTracing(ConfigureTracerProvider);
             }
-            switch (Configuration.PerfMonitorLifetime)
+            switch (Configuration.ActivityMonitorLifetime)
             {
                 case ServiceLifetime.Scoped:
-                    loggingBuilder.Services.AddScoped<PerfTracker>(serviceProvider => new PerfTracker(Configuration.PerfTrackerConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
+                    loggingBuilder.Services.AddScoped<ActivityTracker>(serviceProvider => new ActivityTracker(Configuration.ActivityTrackerConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
                     break;
                 default:
-                    loggingBuilder.Services.AddSingleton<PerfTracker>(serviceProvider => new PerfTracker(Configuration.PerfTrackerConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
+                    loggingBuilder.Services.AddSingleton<ActivityTracker>(serviceProvider => new ActivityTracker(Configuration.ActivityTrackerConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
                     break;
             }
 

@@ -20,7 +20,7 @@ namespace WebApp
         }
         public override void Load(IServiceCollection services)
         {
-            services.AddScoped(serviceProvider => new MyComponent(Configuration.MyStringProperty, serviceProvider.GetRequiredService<PerfTracker>()));
+            services.AddScoped(serviceProvider => new MyComponent(Configuration.MyStringProperty, serviceProvider.GetRequiredService<ActivityTracker>()));
             base.Load(services);
         }
     }

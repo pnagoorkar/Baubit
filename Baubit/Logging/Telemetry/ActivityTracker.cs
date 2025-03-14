@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Baubit.Logging.Telemetry
 {
-    public sealed class PerfTracker
+    public sealed class ActivityTracker
     {
         private readonly Meter _meter;
         private readonly Counter<int> _requestCounter;
@@ -14,7 +14,7 @@ namespace Baubit.Logging.Telemetry
         private readonly ActivitySource _activitySource;
 
         private readonly ILoggerFactory _loggerFactory; //use logger factory to log anything from this class. This is to avoid recursive logging
-        public PerfTracker(Configuration configuration, ILoggerFactory loggerFactory)
+        public ActivityTracker(Configuration configuration, ILoggerFactory loggerFactory)
         {
             _meter = new Meter(configuration.MeterConfig.ServiceName, configuration.MeterConfig.ServiceVersion);
             _activitySource = new ActivitySource(configuration.MeterConfig.ServiceName);
