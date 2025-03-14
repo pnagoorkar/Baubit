@@ -110,12 +110,10 @@ myConfig.json
   "modules": [
     {
       "type": "MyProject.MyModule, MyProject",
-      "parameters": {
-        "configuration": {
+      "configuration": {
           "myStringProperty" : "some string value"
           }
-        }
-    }
+     }
   ]
 }
 ```

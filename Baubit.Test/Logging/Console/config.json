@@ -2,10 +2,8 @@
   "modules": [
     {
       "type": "Baubit.Logging.DI.Default.Module, Baubit",
-      "parameters": {
-        "configuration": {
-          "addConsole": true
-        }
+      "configuration": {
+        "addConsole": true
       }
     }
   ]
