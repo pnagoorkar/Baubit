@@ -11,7 +11,7 @@ namespace Baubit.Test.Logging.Telemetry.ActivityTracker
     {
         [Theory]
         [InlineData("config.json")]
-        public void ActivityTrackerCapturesLogs(string fileName)
+        public void ActivityTrackerWorks(string fileName)
         {
             var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};Logging.Telemetry.ActivityTracker.{fileName}"] };
             var serviceProvider = new ServiceCollection().AddFrom(configurationSource.Build()).BuildServiceProvider();
@@ -25,7 +25,7 @@ namespace Baubit.Test.Logging.Telemetry.ActivityTracker
                 .AddInMemoryExporter(exportedItems)
                 .Build();
 
-            var activity = activityTracker.StartTracking(nameof(ActivityTrackerCapturesLogs), System.Diagnostics.ActivityKind.Internal);
+            var activity = activityTracker.StartTracking(nameof(ActivityTrackerWorks), System.Diagnostics.ActivityKind.Internal);
             activityTracker.StopTracking(activity);
 
             metricProvider.ForceFlush();
