@@ -62,10 +62,7 @@ namespace Baubit.Logging.Telemetry.DI
         private void ConfigureOTELLogging(OpenTelemetryLoggerOptions options)
         {
             options.SetResourceBuilder(ConfigureOTELResourceBuilder());
-            if (Configuration.Logger.AddConsoleExporter)
-            {
-                options.AddConsoleExporter(ConfigureOTELConsoleExporterOptions);
-            }
+            AddLoggingExporters(options);
             foreach (var exporterId in Configuration.Logger.CustomExporters)
             {
                 var exporterGetResult = ExporterLookup.TryGetExporter(exporterId);
@@ -73,6 +70,14 @@ namespace Baubit.Logging.Telemetry.DI
                 {
                     options.AddProcessor(new SimpleLogRecordExportProcessor(exporterGetResult.Value));
                 }
+            }
+        }
+
+        protected virtual void AddLoggingExporters(OpenTelemetryLoggerOptions options)
+        {
+            if (Configuration.Logger.AddConsoleExporter)
+            {
+                options.AddConsoleExporter(ConfigureOTELConsoleExporterOptions);
             }
         }
 
@@ -91,6 +96,11 @@ namespace Baubit.Logging.Telemetry.DI
         private void ConfigureMeterProvider(MeterProviderBuilder meterProviderBuilder)
         {
             meterProviderBuilder.AddMeter(Configuration.Metrics.Meters.ToArray());
+            AddMetricsExporters(meterProviderBuilder);
+        }
+
+        protected virtual void AddMetricsExporters(MeterProviderBuilder meterProviderBuilder)
+        {
             if (Configuration.Metrics.AddConsoleExporter)
             {
                 meterProviderBuilder.AddConsoleExporter(ConfigureOTELConsoleExporterOptions);
@@ -101,6 +111,11 @@ namespace Baubit.Logging.Telemetry.DI
         {
             tracerProviderBuilder.AddSource(Configuration.Tracer.Sources.ToArray());
             tracerProviderBuilder.SetSampler(GetConfiguredSampler());
+            AddTracingExporters(tracerProviderBuilder);
+        }
+
+        protected virtual void AddTracingExporters(TracerProviderBuilder tracerProviderBuilder)
+        {
             if (Configuration.Tracer.AddConsoleExporter)
             {
                 tracerProviderBuilder.AddConsoleExporter(ConfigureOTELConsoleExporterOptions);
