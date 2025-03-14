@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 using System.Reflection;
 
 namespace Baubit.Logging.Telemetry.DI
@@ -31,6 +32,10 @@ namespace Baubit.Logging.Telemetry.DI
             public bool AddConsoleExporter { get; init; }
             public List<string> Sources { get; init; } = new List<string>();
             public List<string> CustomExporters { get; init; } = new List<string>();
+            public bool ParentBased { get; init; }
+            public string SamplerType { get; init; }
+            public double SamplingRatio { get; init; }
         }
+
     }
 }

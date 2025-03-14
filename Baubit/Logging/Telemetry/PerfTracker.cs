@@ -26,13 +26,13 @@ namespace Baubit.Logging.Telemetry
             _loggerFactory = loggerFactory;
         }
 
-        public Activity? StartTracking(string operationName)
+        public Activity? StartTracking(string operationName, ActivityKind kind)
         {
             Interlocked.Increment(ref _activeRequestCount);
             _requestCounter.Add(1);
 
             // Start distributed tracing
-            return _activitySource.StartActivity(operationName);
+            return _activitySource.StartActivity(operationName, kind);
         }
 
         public void StopTracking(Activity? activity)

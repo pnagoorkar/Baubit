@@ -100,10 +100,33 @@ namespace Baubit.Logging.Telemetry.DI
         private void ConfigureTracerProvider(TracerProviderBuilder tracerProviderBuilder)
         {
             tracerProviderBuilder.AddSource(Configuration.Tracer.Sources.ToArray());
+            tracerProviderBuilder.SetSampler(GetConfiguredSampler());
             if (Configuration.Tracer.AddConsoleExporter)
             {
                 tracerProviderBuilder.AddConsoleExporter(ConfigureOTELConsoleExporterOptions);
             }
+        }
+
+        /// <summary>
+        /// If sampling is parent based, build a sampler such that:
+        /// If the current app is responsible for parent span, rootSampler is defined by the Configuration SamplerType
+        /// Else current use the sampler defined by the upstream service
+        /// If sampling is not parent based, build a sampler as defined by the Configuration SamplerType
+        /// </summary>
+        /// <returns></returns>
+        private Sampler GetConfiguredSampler()
+        {
+            Func<Sampler> generateRootSampler = () =>
+            {
+                return Configuration.Tracer.SamplerType switch
+                {
+                    nameof(AlwaysOnSampler) => new AlwaysOnSampler(),
+                    nameof(TraceIdRatioBasedSampler) => new TraceIdRatioBasedSampler(Configuration.Tracer.SamplingRatio),
+                    _ => new AlwaysOffSampler()
+                };
+            };
+
+            return Configuration.Tracer.ParentBased ? new ParentBasedSampler(generateRootSampler()) : generateRootSampler();
         }
     }
 }

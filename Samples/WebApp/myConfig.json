@@ -19,13 +19,14 @@
           },
           "metrics": {
             "addConsoleExporter": true,
-            "meters": [],
+            "meters": [ "WebApp" ],
             "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
           },
           "tracer": {
             "addConsoleExporter": true,
-            "sources": [],
-            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ]
+            "sources": [ "WebApp" ],
+            "customExporters": [ "be19939a-e8ee-40e9-aea3-567a29175be8" ],
+            "samplerType": "AlwaysOnSampler"
           },
           "perfTrackerConfiguration": {
             "meterConfig": {
@@ -33,13 +34,13 @@
               "serviceVersion": "1.0.0.0"
             },
             "counterConfig": {
-              "label": ""
+              "label": "counter_label"
             },
             "gaugeConfig": {
-              "label": ""
+              "label": "gauge_label"
             },
             "histogramConfig": {
-              "label": "",
+              "label": "histogram_label",
               "unit": "ms"
             }
           }

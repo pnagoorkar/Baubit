@@ -1,5 +1,7 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI;
+using Baubit.Logging.Telemetry;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WebApp
 {
@@ -18,7 +20,7 @@ namespace WebApp
         }
         public override void Load(IServiceCollection services)
         {
-            services.AddSingleton(new MyComponent(Configuration.MyStringProperty));
+            services.AddScoped(serviceProvider => new MyComponent(Configuration.MyStringProperty, serviceProvider.GetRequiredService<PerfTracker>()));
             base.Load(services);
         }
     }
