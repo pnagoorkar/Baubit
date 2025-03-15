@@ -5,21 +5,23 @@ namespace Baubit.DI
 {
     public interface IServiceProviderFactoryRegistrar
     {
-        public IHostApplicationBuilder UseConfiguredServiceProviderFactory(IHostApplicationBuilder hostApplicationBuilder);
+        public THostApplicationBuilder UseConfiguredServiceProviderFactory<THostApplicationBuilder>(THostApplicationBuilder hostApplicationBuilder) where THostApplicationBuilder : IHostApplicationBuilder;
     }
 
     public static class HostBuilderExtensions
     {
-        public static IHostApplicationBuilder UseConfiguredServiceProviderFactory(this IHostApplicationBuilder hostApplicationBuilder)
+        public static THostApplicationBuilder UseConfiguredServiceProviderFactory<THostApplicationBuilder>(this THostApplicationBuilder hostApplicationBuilder) where THostApplicationBuilder : IHostApplicationBuilder
         {
             var serviceProviderFactorySection = hostApplicationBuilder.Configuration
                                                                       .GetSection("serviceProviderFactory");
 
-            var serviceProviderFactoryRegistrar = serviceProviderFactorySection.Exists() ? 
-                                                  serviceProviderFactorySection.As<IServiceProviderFactoryRegistrar>() : 
-                                                  new DefaultServiceProviderFactoryRegistrar();
+            if(serviceProviderFactorySection.Exists())
+            {
+                var serviceProviderFactoryRegistrar = serviceProviderFactorySection.As<IServiceProviderFactoryRegistrar>();
+                return serviceProviderFactoryRegistrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
+            }
 
-            return serviceProviderFactoryRegistrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder);
+            return hostApplicationBuilder;
         }
     }
 }
