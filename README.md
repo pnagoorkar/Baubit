@@ -88,7 +88,7 @@ This enables modularized service registration, making dependency management clea
 ```csharp
 var hostApplicationBuilder = new HostApplicationBuilder();
 hostApplicationBuilder.Configuration.AddJsonFile("myConfig.json");
-new ServiceProviderFactoryRegistrar().UseDefaultServiceProviderFactory(hostApplicationBuilder);
+hostApplicationBuilder.UseConfiguredServiceProviderFactory();
 var host = hostApplicationBuilder.Build();
 host.Run();
 ```
@@ -98,7 +98,7 @@ host.Run();
 ```csharp
 var webAppBuilder = WebApplication.CreateBuilder();
 webAppBuilder.Configuration.AddJsonFile("myConfig.json");
-new ServiceProviderFactoryRegistrar().UseDefaultServiceProviderFactory(webAppBuilder.Host);
+webAppBuilder.UseConfiguredServiceProviderFactory();
 var webApp = webAppBuilder.Build()
 webApp.Run();
 ```
