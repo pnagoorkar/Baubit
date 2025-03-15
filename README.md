@@ -86,23 +86,37 @@ This enables modularized service registration, making dependency management clea
 #### Using HostApplicationBuilder
 
 ```csharp
-var hostApplicationBuilder = new HostApplicationBuilder();
-hostApplicationBuilder.Configuration.AddJsonFile("myConfig.json");
-hostApplicationBuilder.UseConfiguredServiceProviderFactory();
-var host = hostApplicationBuilder.Build();
-host.Run();
+await Host.CreateApplicationBuilder()
+          .UseConfiguredServiceProviderFactory()
+          .Build()
+          .RunAsync();
 ```
 
 #### Using WebApplicationBuilder
 
 ```csharp
-var webAppBuilder = WebApplication.CreateBuilder();
-webAppBuilder.Configuration.AddJsonFile("myConfig.json");
-webAppBuilder.UseConfiguredServiceProviderFactory();
-var webApp = webAppBuilder.Build()
-webApp.Run();
-```
+var webApp = WebApplication.CreateBuilder()
+                           .UseConfiguredServiceProviderFactory()
+                           .Build();
 
+// use CORS, Auth and other middleware
+// map endpoints
+
+await webApp.RunAsync();
+```
+appsettings.json
+```json
+
+{
+  "serviceProviderFactory": {
+    "type": "Baubit.DI.ServiceProviderFactoryRegistrar, Baubit",
+    "configurationSource": {
+      "embeddedJsonResources": [ "MyApp;myConfig.json" ]
+    }
+  }
+}
+
+```
 myConfig.json
 
 ```json

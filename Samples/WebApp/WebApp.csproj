@@ -11,9 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="myConfig.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="myConfig.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
