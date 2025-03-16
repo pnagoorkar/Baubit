@@ -1,0 +1,9 @@
+{
+  "modules": [
+    {
+      "configuration": {
+        "addConsole": true
+      }
+    }
+  ]
+}

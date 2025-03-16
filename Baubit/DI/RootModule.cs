@@ -22,9 +22,29 @@ namespace Baubit.DI
         {
         }
 
-        public new void Load(IServiceCollection services)
+        public override void Load(IServiceCollection services)
         {
-            base.Load(services);
+            var modules = new List<IModule>();
+            this.TryFlatten(modules);
+            modules.Remove(this);
+            modules.ForEach(module => module.Load(services));
+        }
+    }
+
+    public static class ModuleExtensions
+    {
+        public static bool TryFlatten<TModule>(this TModule module, List<IModule> modules) where TModule : IModule
+        {
+            if (modules == null) modules = new List<IModule>();
+
+            modules.Add(module);
+
+            foreach (var nestedModule in module.NestedModules)
+            {
+                nestedModule.TryFlatten(modules);
+            }
+
+            return true;
         }
     }
 }

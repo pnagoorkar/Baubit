@@ -19,7 +19,17 @@
     <Authors>Prashant Nagoorkar</Authors>
     <SignAssembly>$(SignAssembly)</SignAssembly>
     <AssemblyOriginatorKeyFile>$(KeyFilePath)</AssemblyOriginatorKeyFile>
-  </PropertyGroup>  
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Logging\DI\Default\Config\consoleEnabled.json" />
+    <None Remove="Logging\DI\Default\Config\defaultLogging.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Logging\DI\Default\Config\consoleEnabled.json" />
+    <EmbeddedResource Include="Logging\DI\Default\Config\defaultLogging.json" />
+  </ItemGroup>  
 
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="." />
