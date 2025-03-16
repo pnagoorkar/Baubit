@@ -34,13 +34,15 @@ namespace Baubit.DI
 
         }
 
-        public virtual void Load(IServiceCollection services)
-        {
-            foreach (var module in NestedModules)
-            {
-                module.Load(services);
-            }
-        }
+        public abstract void Load(IServiceCollection services);
+
+        //public virtual void Load(IServiceCollection services)
+        //{
+        //    foreach (var module in NestedModules)
+        //    {
+        //        module.Load(services);
+        //    }
+        //}
     }
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AConfiguration
@@ -62,6 +64,11 @@ namespace Baubit.DI
         }
         protected AModule(TConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
         {
+        }
+
+        public override void Load(IServiceCollection services)
+        {
+
         }
     }
 }
