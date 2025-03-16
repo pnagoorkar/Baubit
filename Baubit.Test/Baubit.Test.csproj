@@ -12,17 +12,22 @@
   <ItemGroup>
     <None Remove="Configuration\ConfigurationSource\config.json" />
     <None Remove="DI\ServiceProviderFactoryRegistrar\config.json" />
+    <None Remove="DI\Setup\Config\module.json" />
+    <None Remove="DI\Setup\Config\moduleConfig.json" />
     <None Remove="IO\KMP\loremIpsum.txt" />
     <None Remove="Logging\Telemetry\ActivityTracker\config.json" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
+    <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyModuleWithReferenceOfAnotherModule.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfiguration.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfigurationSource.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\secrets.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithSecrets.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\config.json" />
+    <EmbeddedResource Include="DI\Setup\Config\module.json" />
+    <EmbeddedResource Include="DI\Setup\Config\moduleConfig.json" />
     <EmbeddedResource Include="IO\KMP\loremIpsum.txt" />
     <EmbeddedResource Include="Logging\Console\config.json" />
     <EmbeddedResource Include="Logging\Telemetry\ActivityTracker\config.json" />

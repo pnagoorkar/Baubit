@@ -86,5 +86,18 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
 
             Assert.NotNull(component);
         }
+
+
+        [Theory]
+        [InlineData("configWithEmptyModuleWithReferenceOfAnotherModule.json")]
+        public void CanLoadPartialConfigurations_ModuleAndConfigSeparate(string fileName)
+        {
+            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
+
+            var component = configurationSource.Build().Load().GetRequiredService<Component>();
+
+            Assert.NotNull(component);
+            Assert.False(string.IsNullOrEmpty(component.SomeString));
+        }
     }
 }

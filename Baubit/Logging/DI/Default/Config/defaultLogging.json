@@ -1,0 +1,7 @@
+{
+  "modules": [
+    {
+      "type": "Baubit.Logging.DI.Default.Module, Baubit"
+    }
+  ]
+}
