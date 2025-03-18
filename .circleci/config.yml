@@ -23,6 +23,9 @@ jobs:
               elif [ "$CHANGED_FILES" = "README.md" ]; then
                   echo "Only README.md was changed. Skipping build."
                   circleci-agent step halt
+              elif [[ "$CHANGED_FILES" =~ ^.github/ ]]; then
+                  echo "Only .github files were changed. Skipping build."
+                  circleci-agent step halt
               else
                   echo "Changes detected outside of ignored files. Proceeding with build."
               fi
