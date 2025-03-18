@@ -9,11 +9,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment: release
-    container:
-      image: docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/baubit:base
-      credentials:
-        username: ${{ secrets.DOCKER_HUB_USERNAME }}
-        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
     steps:
       - name: Debug Secrets
