@@ -8,6 +8,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: release
     container:
       image: ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/baubit:base
       credentials:
