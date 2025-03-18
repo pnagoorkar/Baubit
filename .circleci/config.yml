@@ -152,7 +152,6 @@ workflows:
             tags:
               only: /^release.*/  # Run only if the tag starts with "release"
             branches:
-              only:
-                - master
+              ignore: /.*/  # Ignore all branch commits
       
       
