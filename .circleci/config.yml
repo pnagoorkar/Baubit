@@ -101,6 +101,35 @@ jobs:
             git push origin "$BUILD_TAG"
             echo "Tagged commit with $BUILD_TAG"
 
+  push_to_nuget:
+    docker:
+      - image: $DOCKER_HUB_USERNAME/baubit:base
+        auth:
+            username: $DOCKER_HUB_USERNAME
+            password: $DOCKER_HUB_PASSWORD
+    steps:
+      - run:
+          name: Add github as a nuget package source
+          command: |
+            dotnet nuget add source --username $GITHUB_USERNAME --password $GITHUB_PAT --store-password-in-clear-text --name github "$GITHUB_NUGET_PKG_SOURCE_URL"
+      - run:
+          name: Download nuget from github
+          command: |
+            TAG_NAME=${CIRCLE_TAG}
+            VERSION=${TAG_NAME#release.}
+            PROJECT_NAME="Baubit"
+            PACKAGE_NAME = "${PROJECT_NAME}.${VERSION}.nupkg"
+            OWNER = ${GITHUB_USERNAME}
+
+            echo "Downloading from github - $PACKAGE_NAME"
+
+            curl -H "Authorization: Bearer $GITHUB_PAT" \
+                 -H "Accept: application/octet-stream" \
+                 -L "https://nuget.pkg.github.com/$GITHUB_USERNAME/download/${PACKAGE_NAME}" \
+                 -o ./nupkgs/${PACKAGE_NAME}
+            
+            ls -R ./nupkgs
+
 
 workflows:
   version: 2
@@ -112,6 +141,16 @@ workflows:
           filters:
             tags:
               ignore: /.*/ #ignore any builds triggered by tags
+            branches:
+              only:
+                - master
+                
+      - push_to_nuget:
+          context:
+            - Context_Prashant
+          filters:
+            tags:
+              only: /^release.*/  # Run only if the tag starts with "release"
             branches:
               only:
                 - master
