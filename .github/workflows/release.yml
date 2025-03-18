@@ -1,0 +1,38 @@
+name: Release to NuGet
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/baubit:base
+      credentials:
+        username: ${{ github.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+    steps:
+      - name: Log in to GitHub Packages
+        run: |
+          dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --name "github" \
+            --username "${{ github.actor }}" \
+            --password "${{ secrets.GH_PAT }}" \
+            --store-password-in-clear-text
+
+      - name: Download latest .nupkg
+        run: |
+          PACKAGE_NAME="Baubit"
+          PACKAGE_VERSION="${{ github.event.release.tag_name }}"
+          curl -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+               -H "Accept: application/octet-stream" \
+               -L "https://nuget.pkg.github.com/${{ github.repository_owner }}/download/${PACKAGE_NAME}/${PACKAGE_VERSION}" \
+               -o ${PACKAGE_NAME}.${PACKAGE_VERSION}.nupkg
+
+      - name: Push to NuGet.org
+        run: |
+            PACKAGE_NAME="Baubit"
+            PACKAGE_VERSION="${{ github.event.release.tag_name }}"
+            dotnet nuget push "${PACKAGE_NAME}.${PACKAGE_VERSION}.nupkg" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
+
