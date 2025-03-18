@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     container:
-      image: ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/baubit:base
+      image: docker.io/${{ secrets.DOCKER_HUB_USERNAME }}/baubit:base
       credentials:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_PASSWORD }}
