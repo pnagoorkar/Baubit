@@ -13,7 +13,13 @@ jobs:
       credentials:
         username: ${{ github.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
     steps:
+      - name: Debug Secrets
+        run: echo "Secret exists"
+        env:
+            DOCKER_USER: ${{ secrets.DOCKER_HUB_USERNAME || 'NOT SET' }}
+
       - name: Log in to GitHub Packages
         run: |
           dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
