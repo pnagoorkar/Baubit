@@ -6,8 +6,8 @@ workflows:
   build:
     jobs:
       - build_and_pack:
-          solution_folder: "Baubit"
-          project_name: "Baubit"
+          dotnet_solution_folder: "Baubit"
+          dotnet_project_name: "Baubit"
           context:
             - Context_Prashant
           filters:
@@ -21,10 +21,10 @@ workflows:
 jobs:
   build_and_pack:
     parameters:
-      solution_folder:
+      dotnet_solution_folder:
         type: string
         default: ""
-      project_name:
+      dotnet_project_name:
         type: string
         default: ""
     docker:
@@ -37,18 +37,18 @@ jobs:
           name: Parameter check
           command: |
               # Check all parameters are passed
-              if [ -z "<< parameters.solution_folder >>" ]; then
-                echo "solution_folder must be passed as a parameter!"
+              if [ -z "<< parameters.dotnet_solution_folder >>" ]; then
+                echo "dotnet_solution_folder must be passed as a parameter!"
                 circleci-agent step halt
               else
-                export SOLUTION_FOLDER="<< parameters.solution_folder >>"
+                export SOLUTION_FOLDER="<< parameters.dotnet_solution_folder >>"
               fi
 
-              if [ -z "<< parameters.project_name >>" ]; then
-                echo "project_name must be passed as a parameter!"
+              if [ -z "<< parameters.dotnet_project_name >>" ]; then
+                echo "dotnet_project_name must be passed as a parameter!"
                 circleci-agent step halt
               else
-                export PROJECT_NAME="<< parameters.project_name >>"
+                export PROJECT_NAME="<< parameters.dotnet_project_name >>"
               fi
 
               echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
