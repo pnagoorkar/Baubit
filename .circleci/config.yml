@@ -32,7 +32,9 @@ jobs:
               else
                 export PROJECT_NAME="<< parameters.project_name >>"
               fi
-              
+
+              echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
+              echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
       - checkout
       # Step 1: Check for ignored files.
       - run:
