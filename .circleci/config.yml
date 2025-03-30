@@ -2,12 +2,37 @@ version: 2.1
 
 jobs:
   build_and_pack:
+    parameters:
+      solution_folder:
+        type: string
+        default: ""
+      project_name:
+        type: string
+        default: ""
     docker:
       - image: $DOCKER_HUB_USERNAME/baubit:base
         auth:
             username: $DOCKER_HUB_USERNAME
             password: $DOCKER_HUB_PASSWORD
-    steps:     
+    steps:
+      - run:
+          name: Parameter check
+          command: |
+              # Check all parameters are passed
+              if [ -z "<< parameters.solution_folder >>" ]; then
+                echo "solution_folder must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export SOLUTION_FOLDER="<< parameters.solution_folder >>"
+              fi
+
+              if [ -z "<< parameters.project_name >>" ]; then
+                echo "project_name must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export PROJECT_NAME="<< parameters.project_name >>"
+              fi
+              
       - checkout
       # Step 1: Check for ignored files.
       - run:
@@ -37,8 +62,6 @@ jobs:
       - run:
           name: Build
           command: |
-            SOLUTION_FOLDER="Baubit"
-            PROJECT_NAME="Baubit"
             PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
                             
             dotnet build ${PROJECT_FILE} --configuration Release --nowarn:9999
@@ -48,7 +71,6 @@ jobs:
       - run:
           name: Test
           command: |
-            SOLUTION_FOLDER="Baubit"
             SOLUTION_FILE="${SOLUTION_FOLDER}.sln"
                 
             dotnet test ${SOLUTION_FILE}
@@ -58,9 +80,6 @@ jobs:
       - run:
           name: Pack_and_publish
           command: |
-
-            SOLUTION_FOLDER="Baubit"
-            PROJECT_NAME="Baubit"
             PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
             
             YEAR=$(date +%Y)
@@ -101,41 +120,14 @@ jobs:
             git push origin "$BUILD_TAG"
             echo "Tagged commit with $BUILD_TAG"
 
-  push_to_nuget:
-    docker:
-      - image: $DOCKER_HUB_USERNAME/baubit:base
-        auth:
-            username: $DOCKER_HUB_USERNAME
-            password: $DOCKER_HUB_PASSWORD
-    steps:
-      - run:
-          name: Add github as a nuget package source
-          command: |
-            dotnet nuget add source --username $GITHUB_USERNAME --password $GITHUB_PAT --store-password-in-clear-text --name github "$GITHUB_NUGET_PKG_SOURCE_URL"
-      - run:
-          name: Download nuget from github
-          command: |
-            TAG_NAME=${CIRCLE_TAG}
-            VERSION=${TAG_NAME#release.}
-            PROJECT_NAME="Baubit"
-            PACKAGE_NAME = "${PROJECT_NAME}.${VERSION}.nupkg"
-            OWNER = ${GITHUB_USERNAME}
-
-            echo "Downloading from github - $PACKAGE_NAME"
-
-            curl -H "Authorization: Bearer $GITHUB_PAT" \
-                 -H "Accept: application/octet-stream" \
-                 -L "https://nuget.pkg.github.com/$GITHUB_USERNAME/download/${PACKAGE_NAME}" \
-                 -o ./nupkgs/${PACKAGE_NAME}
-            
-            ls -R ./nupkgs
-
 
 workflows:
   version: 2
   build:
     jobs:
       - build_and_pack:
+          solution_folder: "Baubit"
+          project_name: "Baubit"
           context:
             - Context_Prashant
           filters:
@@ -144,14 +136,5 @@ workflows:
             branches:
               only:
                 - master
-                
-      - push_to_nuget:
-          context:
-            - Context_Prashant
-          filters:
-            tags:
-              only: /^release.*/  # Run only if the tag starts with "release"
-            branches:
-              ignore: /.*/  # Ignore all branch commits
       
       
