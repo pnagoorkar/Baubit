@@ -16,6 +16,16 @@ workflows:
             branches:
               only:
                 - master
+      - release:
+          dotnet_project_name: "Baubit"
+          context:
+            - Context_Prashant
+          filters:
+            tags:
+              ignore: /.*/ #ignore any builds triggered by tags
+            branches:
+              only:
+                - release
 #======================================= End Workflows ===================================
 
 jobs:
@@ -83,5 +93,32 @@ jobs:
           name: Pack_and_publish
           command: | 
               pack_and_publish
+
+  release:
+    parameters:
+      dotnet_project_name:
+        type: string
+        default: ""
+    docker:
+      - image: $DOCKER_HUB_USERNAME/baubit:base
+        auth:
+            username: $DOCKER_HUB_USERNAME
+            password: $DOCKER_HUB_PASSWORD
+    steps:
+      - run:
+          name: Parameter check
+          command: |
+              # Check all parameters are passed
+              if [ -z "<< parameters.dotnet_project_name >>" ]; then
+                echo "dotnet_project_name must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export PROJECT_NAME="<< parameters.dotnet_project_name >>"
+              fi
+              echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+      - run:
+          name: Publish_to_nuget_org
+          command: | 
+              publish_to_nuget_org
       
       
