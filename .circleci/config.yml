@@ -38,7 +38,7 @@ jobs:
         type: string
         default: ""
     docker:
-      - image: $DOCKER_HUB_USERNAME/baubit:base2
+      - image: $DOCKER_HUB_USERNAME/baubit:base
         auth:
             username: $DOCKER_HUB_USERNAME
             password: $DOCKER_HUB_PASSWORD
@@ -100,7 +100,7 @@ jobs:
         type: string
         default: ""
     docker:
-      - image: $DOCKER_HUB_USERNAME/baubit:base2
+      - image: $DOCKER_HUB_USERNAME/baubit:base
         auth:
             username: $DOCKER_HUB_USERNAME
             password: $DOCKER_HUB_PASSWORD
