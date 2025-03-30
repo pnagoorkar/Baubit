@@ -1,5 +1,23 @@
 version: 2.1
 
+#======================================= Workflows =======================================
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build_and_pack:
+          solution_folder: "Baubit"
+          project_name: "Baubit"
+          context:
+            - Context_Prashant
+          filters:
+            tags:
+              ignore: /.*/ #ignore any builds triggered by tags
+            branches:
+              only:
+                - master
+#======================================= End Workflows =======================================
+
 jobs:
   build_and_pack:
     parameters:
@@ -121,22 +139,5 @@ jobs:
             git tag -a "$BUILD_TAG" -m "Build $BUILD_TAG"
             git push origin "$BUILD_TAG"
             echo "Tagged commit with $BUILD_TAG"
-
-
-workflows:
-  version: 2
-  build:
-    jobs:
-      - build_and_pack:
-          solution_folder: "Baubit"
-          project_name: "Baubit"
-          context:
-            - Context_Prashant
-          filters:
-            tags:
-              ignore: /.*/ #ignore any builds triggered by tags
-            branches:
-              only:
-                - master
       
       
