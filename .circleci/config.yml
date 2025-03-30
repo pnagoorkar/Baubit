@@ -116,6 +116,7 @@ jobs:
                 export PROJECT_NAME="<< parameters.dotnet_project_name >>"
               fi
               echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+      - checkout
       - run:
           name: Publish_to_nuget_org
           command: | 
