@@ -27,9 +27,6 @@ jobs:
       project_name:
         type: string
         default: ""
-      publish_script:
-        type: string
-        default: "/opt/PackAndPublish.sh"
     docker:
       - image: $DOCKER_HUB_USERNAME/baubit:base
         auth:
@@ -61,50 +58,30 @@ jobs:
       - run:
           name: Check for ignored files
           command: |            
-              # Capture the list of changed files
-              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
-
-              # Check if only .circleci/config.yml was changed
-              if [ "$CHANGED_FILES" = ".circleci/config.yml" ]; then
-                  echo "Only .circleci/config.yml was changed. Skipping build."
-                  circleci-agent step halt
-              elif [ "$CHANGED_FILES" = "README.md" ]; then
-                  echo "Only README.md was changed. Skipping build."
-                  circleci-agent step halt
-              else
-                  echo "Changes detected outside of ignored files. Proceeding with build."
-              fi
+              check_for_processable_changes
 
       # Step 2: Add github as a nuget package source
       - run:
           name: Add github as a nuget package source
           command: |
-            dotnet nuget add source --username $GITHUB_USERNAME --password $GITHUB_PAT --store-password-in-clear-text --name github "$GITHUB_NUGET_PKG_SOURCE_URL"
+            nuget_add_github
 
       # Step 3: Test
       - run:
           name: Build
           command: |
-            PROJECT_FILE="${SOLUTION_FOLDER}/${PROJECT_NAME}.csproj"
-                            
-            dotnet build ${PROJECT_FILE} --configuration Release --nowarn:9999
-
+            dotnet_build
 
       # Step 4: Test
       - run:
           name: Test
           command: |
-            SOLUTION_FILE="${SOLUTION_FOLDER}.sln"
-                
-            dotnet test ${SOLUTION_FILE}
-
+            dotnet_test
 
       # Step 5: Pack and publish
       - run:
           name: Pack_and_publish
-          command: |
-            cp << parameters.publish_script >> ./publish.sh
-            chmod +x publish.sh
-            ./publish.sh
+          command: | 
+              pack_and_publish
       
       
