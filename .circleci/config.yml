@@ -84,6 +84,10 @@ jobs:
           command: check_for_processable_changes
           
       - run:
+          name: Add github as a nuget package source
+          command: nuget_add_github
+          
+      - run:
           name: Build
           command: dotnet_build
           
