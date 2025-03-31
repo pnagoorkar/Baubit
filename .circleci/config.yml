@@ -5,7 +5,20 @@ workflows:
   version: 2
   build:
     jobs:
-      - build_and_pack:
+      - build_and_test:
+          dotnet_solution_folder: "Baubit"
+          dotnet_project_name: "Baubit"
+          context:
+            - Context_Prashant
+          filters:
+            tags:
+              ignore: /.*/ #ignore any builds triggered by tags
+            branches:
+              ignore:
+                - master
+                - release
+
+      - build_test_and_pack:
           dotnet_solution_folder: "Baubit"
           dotnet_project_name: "Baubit"
           context:
@@ -16,6 +29,7 @@ workflows:
             branches:
               only:
                 - master
+
       - release:
           dotnet_project_name: "Baubit"
           context:
@@ -27,9 +41,9 @@ workflows:
               only:
                 - release
 #======================================= End Workflows ===================================
-
 jobs:
-  build_and_pack:
+#======================================= BuildAndTest ====================================
+  build_and_test:
     parameters:
       dotnet_solution_folder:
         type: string
@@ -64,36 +78,79 @@ jobs:
               echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
               echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
       - checkout
-      # Step 1: Check for ignored files.
+
       - run:
           name: Check for ignored files
-          command: |            
-              check_for_processable_changes
-
-      # Step 2: Add github as a nuget package source
-      - run:
-          name: Add github as a nuget package source
-          command: |
-            nuget_add_github
-
-      # Step 3: Test
+          command: check_for_processable_changes
+          
       - run:
           name: Build
-          command: |
-            dotnet_build
-
-      # Step 4: Test
+          command: dotnet_build
+          
       - run:
           name: Test
-          command: |
-            dotnet_test
+          command: dotnet_test
+#======================================= End BuildAndTest ================================
 
-      # Step 5: Pack and publish
+#======================================= BuildTestAndPack ================================
+  build_test_and_pack:
+    parameters:
+      dotnet_solution_folder:
+        type: string
+        default: ""
+      dotnet_project_name:
+        type: string
+        default: ""
+    docker:
+      - image: $DOCKER_HUB_USERNAME/baubit:base
+        auth:
+            username: $DOCKER_HUB_USERNAME
+            password: $DOCKER_HUB_PASSWORD
+    steps:
+      - run:
+          name: Parameter check
+          command: |
+              # Check all parameters are passed
+              if [ -z "<< parameters.dotnet_solution_folder >>" ]; then
+                echo "dotnet_solution_folder must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export SOLUTION_FOLDER="<< parameters.dotnet_solution_folder >>"
+              fi
+
+              if [ -z "<< parameters.dotnet_project_name >>" ]; then
+                echo "dotnet_project_name must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export PROJECT_NAME="<< parameters.dotnet_project_name >>"
+              fi
+
+              echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
+              echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+      - checkout
+
+      - run:
+          name: Check for ignored files
+          command: check_for_processable_changes
+          
+      - run:
+          name: Add github as a nuget package source
+          command: nuget_add_github
+          
+      - run:
+          name: Build
+          command: dotnet_build
+          
+      - run:
+          name: Test
+          command: dotnet_test
+
       - run:
           name: Pack_and_publish
-          command: | 
-              pack_and_publish
+          command: pack_and_publish
+#======================================= End BuildTestAndPack ============================
 
+#======================================= Release =========================================
   release:
     parameters:
       dotnet_project_name:
@@ -116,10 +173,12 @@ jobs:
                 export PROJECT_NAME="<< parameters.dotnet_project_name >>"
               fi
               echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+
       - checkout
+
       - run:
           name: Publish_to_nuget_org
-          command: | 
-              publish_to_nuget_org
+          command: publish_to_nuget_org
+#======================================= End Release =====================================
       
       
