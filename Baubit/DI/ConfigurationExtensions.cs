@@ -25,7 +25,16 @@ namespace Baubit.DI
 
         public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
         {
-            return configuration.GetSection("modules").GetChildren().Select(section => section.As<TModule>());
+            var directlyDefinedModules = configuration.GetSection("modules")
+                                                      .GetChildren()
+                                                      .Select(section => section.As<TModule>());
+
+            var indirectlyDefinedModules = configuration.GetSection("moduleSources")
+                                                     .GetChildren()
+                                                     .SelectMany(section => section.Get<ConfigurationSource>()
+                                                                                   .Build()
+                                                                                   .GetNestedModules<TModule>());
+            return directlyDefinedModules.Concat(indirectlyDefinedModules);
         }
 
         public static T As<T>(this IConfiguration configurationSection)
