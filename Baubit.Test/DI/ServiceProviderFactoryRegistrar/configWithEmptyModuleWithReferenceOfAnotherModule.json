@@ -1,14 +1,9 @@
 {
-  "modules": [
+  "moduleSources": [
     {
-      "type": "Baubit.DI.EmptyModule, Baubit",
-      "moduleSources": [
-        {
-          "embeddedJsonResources": [
-            "Baubit.Test;DI.Setup.Config.module.json",
-            "Baubit.Test;DI.Setup.Config.moduleConfig.json"
-          ]
-        }
+      "embeddedJsonResources": [
+        "Baubit.Test;DI.Setup.Config.module.json",
+        "Baubit.Test;DI.Setup.Config.moduleConfig.json"
       ]
     }
   ]
