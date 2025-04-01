@@ -40,11 +40,21 @@ namespace Baubit.DI
 
             var configurationSectionGetResult = GetModuleConfigurationSection(configurationSection);
             var configurationSourceSectionGetResult = GetModuleConfigurationSourceSection(configurationSection);
+            var moduleSourcesSectionGetResult = GetNestedModuleSourcesSection(configurationSection);
 
             if (configurationSectionGetResult.IsSuccess) iConfiguration = configurationSectionGetResult.Value;
             if (configurationSourceSectionGetResult.IsSuccess) configurationSource = configurationSourceSectionGetResult.Value.Get<ConfigurationSource>()!;
 
             iConfiguration = configurationSource.Build(iConfiguration);
+
+            if (moduleSourcesSectionGetResult.IsSuccess)
+            {
+                var moduleSourcesConfigurations = moduleSourcesSectionGetResult.Value.Get<List<ConfigurationSource>>().Select(configSource => configSource.Build());
+                if (moduleSourcesConfigurations.Any())
+                {
+                    iConfiguration = AddModuleSources(iConfiguration, moduleSourcesConfigurations);
+                }
+            }
 
             var @object = (T)Activator.CreateInstance(objectType, iConfiguration)!;
             return @object;
@@ -60,6 +70,27 @@ namespace Baubit.DI
         {
             var objectConfigurationSourceSection = configurationSection.GetSection("configurationSource");
             return objectConfigurationSourceSection.Exists() ? Result.Ok(objectConfigurationSourceSection) : Result.Fail("").WithReason(new ConfigurationSourceNotDefined());
+        }
+
+        private static Result<IConfigurationSection> GetNestedModuleSourcesSection(IConfiguration configurationSection)
+        {
+            var moduleSourcesSection = configurationSection.GetSection("moduleSources");
+            return moduleSourcesSection.Exists() ? Result.Ok(moduleSourcesSection) : Result.Fail("").WithReason(new ModuleSourcesNotDefined());
+        }
+
+        private static IConfiguration AddModuleSources(IConfiguration iConfiguration, IEnumerable<IConfiguration> moduleSourcesConfigurations)
+        {
+            var configurationBuilder = new ConfigurationBuilder();
+            foreach (var moduleSourcesConfiguration in moduleSourcesConfigurations)
+            {
+                configurationBuilder.AddConfiguration(moduleSourcesConfiguration);
+            }
+            if (iConfiguration != null)
+            {
+                configurationBuilder.AddConfiguration(iConfiguration);
+            }
+            iConfiguration = configurationBuilder.Build();
+            return iConfiguration;
         }
 
         public static bool TryGetObjectType(this IConfiguration configurationSection, out Type objectType)
