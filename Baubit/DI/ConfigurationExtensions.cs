@@ -59,6 +59,28 @@ namespace Baubit.DI
             return @object;
         }
 
+        public static Result<T> TryAs<T>(this IConfiguration configurationSection)
+        {
+            if (!configurationSection.TryGetObjectType(out var objectType))
+            {
+                throw new ArgumentException("Unable to determine module type !");
+            }
+
+            ConfigurationSource configurationSource = new ConfigurationSource();
+            IConfiguration iConfiguration = null;
+
+            var configurationSectionGetResult = GetModuleConfigurationSection(configurationSection);
+            var configurationSourceSectionGetResult = GetModuleConfigurationSourceSection(configurationSection);
+
+            if (configurationSectionGetResult.IsSuccess) iConfiguration = configurationSectionGetResult.Value;
+            if (configurationSourceSectionGetResult.IsSuccess) configurationSource = configurationSourceSectionGetResult.Value.Get<ConfigurationSource>()!;
+
+            iConfiguration = configurationSource.Build(iConfiguration);
+
+            var @object = (T)Activator.CreateInstance(objectType, iConfiguration)!;
+            return @object;
+        }
+
         private static Result<IConfigurationSection> GetModuleConfigurationSection(IConfiguration configurationSection)
         {
             var objectConfigurationSection = configurationSection.GetSection("configuration");
@@ -71,15 +93,28 @@ namespace Baubit.DI
             return objectConfigurationSourceSection.Exists() ? Result.Ok(objectConfigurationSourceSection) : Result.Fail("").WithReason(new ConfigurationSourceNotDefined());
         }
 
+        public static Result<IConfigurationSection> GetServiceProviderFactorySection(this IConfiguration configurationSection)
+        {
+            var serviceProviderFactorySection = configurationSection.GetSection("serviceProviderFactory");
+            return serviceProviderFactorySection.Exists() ? Result.Ok(serviceProviderFactorySection) : Result.Fail("").WithReason(new ServiceProviderFactorySectionNotDefined());
+        }
+
         public static bool TryGetObjectType(this IConfiguration configurationSection, out Type objectType)
         {
             objectType = null;
-            var resolutionResult = TypeResolver.TryResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
+            var resolutionResult = TypeResolver.TryResolveTypeAsync(configurationSection["type"]!);
             if (resolutionResult.IsSuccess)
             {
                 objectType = resolutionResult.Value!;
             }
             return objectType != null;
         }
+
+        //private static Result<(Type, IConfiguration)> LoadConfiguration(this Type type, IConfiguration configuration)
+        //{
+        //    Result.Merge(GetModuleConfigurationSection(configuration),
+        //                 GetModuleConfigurationSourceSection(configuration))
+        //          .Bind(sections => sections.Skip(1).First().Get<ConfigurationSource>().Build(sections.First()));
+        //}
     }
 }

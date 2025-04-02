@@ -4,6 +4,8 @@ namespace Baubit.DI.Reasons
 {
     public class ConfigurationSourceNotDefined : AReason
     {
-        public override string Message => "Configuration source not defined !";
+        public ConfigurationSourceNotDefined() : base("Configuration source not defined !", default)
+        {
+        }
     }
 }
