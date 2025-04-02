@@ -1,4 +1,5 @@
 ﻿using Baubit.Reflection;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Text;
@@ -32,6 +33,20 @@ namespace Baubit.Configuration
             configurationSource.AddJsonFiles(configurationBuilder).LoadResourceFiles().AddRawJsonStrings(configurationBuilder).AddSecrets(configurationBuilder);
             if (configuration != null) configurationBuilder.AddConfiguration(configuration);
             return configurationBuilder.Build();
+        }
+        public static Result<IConfiguration> Build2(this ConfigurationSource configurationSource, IConfiguration configuration)
+        {
+            var configurationBuilder = new ConfigurationBuilder();
+            return Result.OkIf(configurationSource != null, "")
+                         .Bind(() =>
+                         {
+                             configurationSource.AddJsonFiles(configurationBuilder)
+                                                .LoadResourceFiles()
+                                                .AddRawJsonStrings(configurationBuilder)
+                                                .AddSecrets(configurationBuilder);
+                             if (configuration != null) configurationBuilder.AddConfiguration(configuration);
+                             return Result.Ok<IConfiguration>(configurationBuilder.Build());
+                         });
         }
 
         private static ConfigurationSource AddJsonFiles(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
