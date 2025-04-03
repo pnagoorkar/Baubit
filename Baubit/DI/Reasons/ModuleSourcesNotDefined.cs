@@ -4,6 +4,8 @@ namespace Baubit.DI.Reasons
 {
     public class ModuleSourcesNotDefined : AReason
     {
-        public override string Message => "Module sources not defined !";
+        public ModuleSourcesNotDefined() : base("Module sources not defined !", default)
+        {
+        }
     }
 }

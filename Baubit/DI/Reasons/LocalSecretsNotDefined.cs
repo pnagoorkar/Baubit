@@ -4,6 +4,8 @@ namespace Baubit.DI.Reasons
 {
     public class LocalSecretsNotDefined : AReason
     {
-        public override string Message => "Local secrets not defined !";
+        public LocalSecretsNotDefined() : base("Local secrets not defined !", default)
+        {
+        }
     }
 }

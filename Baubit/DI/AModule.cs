@@ -1,4 +1,5 @@
 ﻿using Baubit.Configuration;
+using Baubit.Traceability.Errors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
@@ -35,14 +36,6 @@ namespace Baubit.DI
         }
 
         public abstract void Load(IServiceCollection services);
-
-        //public virtual void Load(IServiceCollection services)
-        //{
-        //    foreach (var module in NestedModules)
-        //    {
-        //        module.Load(services);
-        //    }
-        //}
     }
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AConfiguration
@@ -52,13 +45,12 @@ namespace Baubit.DI
             get => (TConfiguration)base.Configuration;
             init => base.Configuration = value;
         }
-        protected AModule(ConfigurationSource configurationSource) : this(configurationSource.Build())
+        protected AModule(ConfigurationSource configurationSource) : this(TryBuildConfigurationSource(configurationSource))
         {
 
         }
 
-        protected AModule(IConfiguration configuration) : this(configuration.Load<TConfiguration>(),
-                                                               configuration.GetNestedModules<AModule>().ToList())
+        protected AModule(IConfiguration configuration) : this(TryLoadConfiguration(configuration), TryLoadNestedModules(configuration))
         {
 
         }
@@ -69,6 +61,36 @@ namespace Baubit.DI
         public override void Load(IServiceCollection services)
         {
 
+        }
+
+        private static IConfiguration TryBuildConfigurationSource(ConfigurationSource configurationSource)
+        {
+            var buildResult = configurationSource.Build();
+            if (!buildResult.IsSuccess)
+            {
+                throw new AggregateException(new CompositeError<IConfiguration>(buildResult).ToString());
+            }
+            return buildResult.Value;
+        }
+
+        private static TConfiguration TryLoadConfiguration(IConfiguration configuration)
+        {
+            var loadResult = configuration.Load<TConfiguration>();
+            if (!loadResult.IsSuccess)
+            {
+                throw new AggregateException(new CompositeError<TConfiguration>(loadResult).ToString());
+            }
+            return loadResult.Value;
+        }
+
+        private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
+        {
+            var loadResult = configuration.GetNestedModules<AModule>();
+            if (!loadResult.IsSuccess)
+            {
+                throw new AggregateException(new CompositeError<List<AModule>>(loadResult).ToString());
+            }
+            return loadResult.Value;
         }
     }
 }

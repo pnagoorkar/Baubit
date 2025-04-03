@@ -14,7 +14,7 @@ namespace Baubit.Test.Logging.Telemetry.ActivityTracker
         public void ActivityTrackerWorks(string fileName)
         {
             var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};Logging.Telemetry.ActivityTracker.{fileName}"] };
-            var serviceProvider = new ServiceCollection().AddFrom(configurationSource.Build()).BuildServiceProvider();
+            var serviceProvider = new ServiceCollection().AddFrom(configurationSource.Build().ValueOrDefault).ValueOrDefault.BuildServiceProvider();
             var activityTracker = serviceProvider.GetRequiredService<Baubit.Logging.Telemetry.ActivityTracker>();
 
             var exportedItems = new List<Metric>();

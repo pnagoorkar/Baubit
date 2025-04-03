@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using FluentResults;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -11,7 +12,7 @@ namespace Baubit.DI
         {
             _rootModule = new RootModule(configuration);
         }
-        public THostApplicationBuilder UseConfiguredServiceProviderFactory<THostApplicationBuilder>(THostApplicationBuilder hostApplicationBuilder) where THostApplicationBuilder : IHostApplicationBuilder
+        public Result<THostApplicationBuilder> UseConfiguredServiceProviderFactory<THostApplicationBuilder>(THostApplicationBuilder hostApplicationBuilder) where THostApplicationBuilder : IHostApplicationBuilder
         {
             hostApplicationBuilder.ConfigureContainer(new DefaultServiceProviderFactory(), _rootModule.Load);
             return hostApplicationBuilder;
