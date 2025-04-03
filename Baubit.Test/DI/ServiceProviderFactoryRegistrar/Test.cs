@@ -2,6 +2,7 @@
 using Baubit.DI;
 using Baubit.Reflection;
 using Baubit.Test.DI.Setup;
+using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 
@@ -39,7 +40,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-            var component = configurationSource.Build().Load().GetRequiredService<Component>();
+            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
+
+            var component = configurationSource.Build()
+                                               .Bind(config => config.Load())
+                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
@@ -58,7 +63,12 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
 
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-            var component = configurationSource.Build().Load().GetRequiredService<Component>();
+
+            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
+
+            var component = configurationSource.Build()
+                                               .Bind(config => config.Load())
+                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
@@ -71,7 +81,12 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-            var component = configurationSource.Build().Load().GetRequiredService<Component>();
+
+            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
+
+            var component = configurationSource.Build()
+                                               .Bind(config => config.Load())
+                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
 
             Assert.NotNull(component);
         }
@@ -82,7 +97,12 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-            var component = configurationSource.Build().Load().GetRequiredService<Component>();
+
+            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
+
+            var component = configurationSource.Build()
+                                               .Bind(config => config.Load())
+                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
 
             Assert.NotNull(component);
         }
@@ -94,7 +114,12 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-            var component = configurationSource.Build().Load().GetRequiredService<Component>();
+
+            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
+
+            var component = configurationSource.Build()
+                                               .Bind(config => config.Load())
+                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));

@@ -9,7 +9,7 @@ namespace Baubit.Test.Configuration.ConfigurationSource
         public void CanReadConfigurationFromEmbeddedJsonResource(string fileName)
         {
             var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};Configuration.ConfigurationSource.{fileName}"] };
-            var configuration = configurationSource.Build();
+            var configuration = configurationSource.Build().ValueOrDefault;
             Assert.NotNull(configuration);
             Assert.Equal("value", configuration["key"]);
         }

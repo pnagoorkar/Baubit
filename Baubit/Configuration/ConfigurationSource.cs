@@ -24,17 +24,20 @@ namespace Baubit.Configuration
         /// </summary>
         /// <param name="configurationSource">An instance of <see cref="ConfigurationSource"/></param>
         /// <returns>The built <see cref="IConfiguration"/></returns>
-        public static IConfiguration Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
+        //public static IConfiguration Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
 
-        public static IConfiguration Build(this ConfigurationSource configurationSource, IConfiguration configuration)
-        {
-            if (configurationSource == null) return configuration;
-            var configurationBuilder = new ConfigurationBuilder();
-            configurationSource.AddJsonFiles(configurationBuilder).LoadResourceFiles().AddRawJsonStrings(configurationBuilder).AddSecrets(configurationBuilder);
-            if (configuration != null) configurationBuilder.AddConfiguration(configuration);
-            return configurationBuilder.Build();
-        }
-        public static Result<IConfiguration> Build2(this ConfigurationSource configurationSource, IConfiguration configuration)
+        //public static IConfiguration Build(this ConfigurationSource configurationSource, IConfiguration configuration)
+        //{
+        //    if (configurationSource == null) return configuration;
+        //    var configurationBuilder = new ConfigurationBuilder();
+        //    configurationSource.AddJsonFiles(configurationBuilder).LoadResourceFiles().AddRawJsonStrings(configurationBuilder).AddSecrets(configurationBuilder);
+        //    if (configuration != null) configurationBuilder.AddConfiguration(configuration);
+        //    return configurationBuilder.Build();
+        //}
+
+        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
+
+        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, IConfiguration configuration)
         {
             var configurationBuilder = new ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
