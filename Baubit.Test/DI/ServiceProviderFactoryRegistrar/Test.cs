@@ -40,8 +40,6 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
-
             var component = configurationSource.Build()
                                                .Bind(config => config.Load())
                                                .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
@@ -63,9 +61,6 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
 
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-
-            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
-
             var component = configurationSource.Build()
                                                .Bind(config => config.Load())
                                                .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
@@ -81,9 +76,6 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
 
-
-            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
-
             var component = configurationSource.Build()
                                                .Bind(config => config.Load())
                                                .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
@@ -96,9 +88,6 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         public void CanLoadModulesFromJsonWhenConfigurationSourceIsEmpty(string fileName)
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-
-            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
 
             var component = configurationSource.Build()
                                                .Bind(config => config.Load())
@@ -113,9 +102,6 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         public void CanLoadPartialConfigurations_ModuleAndConfigSeparate(string fileName)
         {
             var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-
-            //var component = configurationSource.Build().ValueOrDefault.Load().GetRequiredService<Component>();
 
             var component = configurationSource.Build()
                                                .Bind(config => config.Load())
