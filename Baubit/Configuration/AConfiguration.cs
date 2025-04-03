@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using FluentResults;
+using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 
@@ -11,26 +12,25 @@ namespace Baubit.Configuration
 
     public static class ConfigurationExtensions
     {
-        public static TConfiguration Load<TConfiguration>(this IConfiguration iConfiguration) where TConfiguration : AConfiguration
+        public static Result<TConfiguration> Load<TConfiguration>(this IConfiguration iConfiguration) where TConfiguration : AConfiguration
         {
-            // Create the configuration first
-            var configuration = iConfiguration.Get<TConfiguration>() ??
-                                      Activator.CreateInstance<TConfiguration>()!;
-            configuration.Validate();
-
-            return configuration;
+            return Result.Try(() => iConfiguration.Get<TConfiguration>() ?? Activator.CreateInstance<TConfiguration>()!)
+                         .Bind(config => config.Validate());
         }
-        public static TConfiguration Validate<TConfiguration>(this TConfiguration configuration) where TConfiguration : AConfiguration
+        public static Result<TConfiguration> Validate<TConfiguration>(this TConfiguration configuration) where TConfiguration : AConfiguration
         {
-            if (AConfigurationValidator<TConfiguration>.CurrentValidators.TryGetValue(configuration.ValidatorKey, out var validator))
+            return Result.Try(() =>
             {
-                var validationResult = validator.Validate(configuration);
-                if (validationResult != null && !validationResult.IsValid)
+                if (AConfigurationValidator<TConfiguration>.CurrentValidators.TryGetValue(configuration.ValidatorKey, out var validator))
                 {
-                    throw new ValidationException($"Invalid configuration !{string.Join(Environment.NewLine, validationResult.Errors)}");
+                    var validationResult = validator.Validate(configuration);
+                    if (validationResult != null && !validationResult.IsValid)
+                    {
+                        throw new ValidationException($"Invalid configuration !{string.Join(Environment.NewLine, validationResult.Errors)}");
+                    }
                 }
-            }
-            return configuration;
+                return configuration;
+            });
         }
 
         // convert AConfiguration to its most specific type and then serialize

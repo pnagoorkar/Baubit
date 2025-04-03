@@ -36,14 +36,6 @@ namespace Baubit.DI
         }
 
         public abstract void Load(IServiceCollection services);
-
-        //public virtual void Load(IServiceCollection services)
-        //{
-        //    foreach (var module in NestedModules)
-        //    {
-        //        module.Load(services);
-        //    }
-        //}
     }
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AConfiguration
@@ -83,7 +75,12 @@ namespace Baubit.DI
 
         private static TConfiguration TryLoadConfiguration(IConfiguration configuration)
         {
-            return configuration.Load<TConfiguration>();
+            var loadResult = configuration.Load<TConfiguration>();
+            if (!loadResult.IsSuccess)
+            {
+                throw new AggregateException(new CompositeError<TConfiguration>(loadResult).ToString());
+            }
+            return loadResult.Value;
         }
 
         private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
