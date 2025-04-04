@@ -4,9 +4,9 @@ namespace Baubit.Traceability.Errors
 {
     public abstract class AError : IError
     {
-        public List<IReason> NonErrorReasons { get; init; }
+        public List<IReason> NonErrorReasons { get; init; } = new List<IReason>();
 
-        public List<IError> Reasons { get; init; }
+        public List<IError> Reasons { get; init; } = new List<IError>();
 
         public string Message { get; init; }
 
