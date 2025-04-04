@@ -4,6 +4,7 @@ using Baubit.Reflection;
 using Baubit.Test.DI.Setup;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Runtime.InteropServices;
 
 namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
@@ -106,6 +107,22 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
             var component = configurationSource.Build()
                                                .Bind(config => config.Load())
                                                .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
+
+            Assert.NotNull(component);
+            Assert.False(string.IsNullOrEmpty(component.SomeString));
+        }
+
+        [Theory]
+        [InlineData("configWithDefaultServiceProviderFactory.json")]
+        public void CanLoadIServiceProviderFactoryFromAdditionallyPassedConfiguration(string fileName)
+        {
+            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
+
+            var host = Host.CreateApplicationBuilder()
+                           .UseConfiguredServiceProviderFactory(configurationSource.Build().ValueOrDefault)
+                           .Build();
+
+            var component = host.Services.GetRequiredService<Component>();
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
