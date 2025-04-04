@@ -12,5 +12,10 @@ namespace Baubit.Traceability.Reasons
             Message = message;
             Metadata = metadata;
         }
+
+        public override string ToString()
+        {
+            return Message;
+        }
     }
 }

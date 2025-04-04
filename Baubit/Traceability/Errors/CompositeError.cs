@@ -26,14 +26,14 @@ namespace Baubit.Traceability.Errors
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(Message);
             stringBuilder.AppendLine("Reasons(non-error):");
-            for (int i = 0; i < NonErrorReasons.Count; i++)
+            for (int i = 0; i < NonErrorReasons?.Count; i++)
             {
-                stringBuilder.AppendLine($"{i}. {NonErrorReasons[i].ToString()}");
+                stringBuilder.AppendLine($"{i + 1}. {NonErrorReasons[i].ToString()}");
             }
             stringBuilder.AppendLine("Reasons(errors):");
-            for (int i = 0; i < Reasons.Count; i++)
+            for (int i = 0; i < Reasons?.Count; i++)
             {
-                stringBuilder.AppendLine($"{i}. {Reasons[i].ToString()}");
+                stringBuilder.AppendLine($"{i + 1}. {Reasons[i].ToString()}");
             }
             return stringBuilder.ToString();
         }
