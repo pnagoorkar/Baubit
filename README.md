@@ -175,3 +175,7 @@ Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) 
 - Issue Tracker: [GitHub Issues](https://github.com/pnagoorkar/Baubit/issues)
 - Discussions: [GitHub Discussions](https://github.com/pnagoorkar/Baubit/discussions)
 
+---
+## Acknowledgments & Inspiration
+
+See [INSPIRATION.md](./INSPIRATION.md) for details on libraries and ideas that influenced this project.
