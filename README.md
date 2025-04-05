@@ -15,12 +15,11 @@
 
 ## 🚀 Getting Started
 
+[![NuGet](https://img.shields.io/nuget/v/Baubit.svg)](https://www.nuget.org/packages/Baubit)
 ### 1️⃣ Installation
-
-```
+```bash
 dotnet add package Baubit
 ```
-
 ---
 
 ## 📌 How Baubit Works
