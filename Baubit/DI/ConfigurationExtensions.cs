@@ -1,6 +1,7 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
+using Baubit.Traceability.Errors;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,68 +10,116 @@ namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
-        public static IServiceProvider Load(this IConfiguration configuration)
+        public static Result<IServiceProvider> Load(this IConfiguration configuration)
         {
-            var services = new ServiceCollection();
-            services.AddFrom(configuration);
-            return services.BuildServiceProvider();
+            return Result.Try(() => new ServiceCollection())
+                         .Bind(services => services.AddFrom(configuration))
+                         .Bind(services => Result.Ok<IServiceProvider>(services.BuildServiceProvider()));
         }
-        public static IServiceCollection AddFrom(this IServiceCollection services, IConfiguration configuration)
+        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, IConfiguration configuration)
         {
-            var rootModule = new RootModule(configuration);
-            rootModule.Load(services);
-            return services;
-        }
-        public static IServiceCollection AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) => services.AddFrom(configurationSource.Build());
-
-        public static IEnumerable<TModule> GetNestedModules<TModule>(this IConfiguration configuration)
-        {
-            return configuration.GetSection("modules").GetChildren().Select(section => section.As<TModule>());
-        }
-
-        public static T As<T>(this IConfiguration configurationSection)
-        {
-            if (!configurationSection.TryGetObjectType(out var objectType))
+            return Result.Try(() =>
             {
-                throw new ArgumentException("Unable to determine module type !");
-            }
+                var rootModule = new RootModule(configuration);
+                rootModule.Load(services);
+                return services;
+            });
+        }
+        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) => services.AddFrom(configurationSource.Build().ValueOrDefault);
 
-            ConfigurationSource configurationSource = new ConfigurationSource();
-            IConfiguration iConfiguration = null;
+        public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration)
+        {
+            List<TModule> directlyDefinedModules = new List<TModule>();
+            List<TModule> indirectlyDefinedModules = new List<TModule>();
 
-            var configurationSectionGetResult = GetModuleConfigurationSection(configurationSection);
-            var configurationSourceSectionGetResult = GetModuleConfigurationSourceSection(configurationSection);
+            var directlyDefinedModulesExtractionResult = configuration.GetModulesSectionOrDefault()
+                                                                      .Bind(modulesSection => Result.Try(() => modulesSection?.GetChildren() ?? new List<IConfigurationSection>()))
+                                                                      .Bind(sections => Result.Merge(sections.Select(section => section.TryAs<TModule>()).ToArray()))
+                                                                      .Bind(modules => { directlyDefinedModules = modules.ToList(); return Result.Ok(); });
 
-            if (configurationSectionGetResult.IsSuccess) iConfiguration = configurationSectionGetResult.Value;
-            if (configurationSourceSectionGetResult.IsSuccess) configurationSource = configurationSourceSectionGetResult.Value.Get<ConfigurationSource>()!;
+            var indirectlyDefinedModulesExtractionResult = configuration.GetModuleSourcesSectionOrDefault()
+                                                                        .Bind(moduleSourceSection => Result.Try(() => moduleSourceSection?.GetChildren() ?? new List<IConfigurationSection>()))
+                                                                        .Bind(configSections => Result.Merge(configSections.Select(section => section.Get<ConfigurationSource>().Build()).ToArray()))
+                                                                        .Bind(configs => Result.Merge(configs.Select(config => config.GetNestedModules<TModule>()).ToArray()))
+                                                                        .Bind(modules => { indirectlyDefinedModules = modules.SelectMany(x => x).ToList(); return Result.Ok(); });
 
-            iConfiguration = configurationSource.Build(iConfiguration);
-
-            var @object = (T)Activator.CreateInstance(objectType, iConfiguration)!;
-            return @object;
+            return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
+                   Result.Ok<List<TModule>>([.. directlyDefinedModules, .. indirectlyDefinedModules]) :
+                   Result.Fail(new CompositeError<IEnumerable<TModule>>(directlyDefinedModulesExtractionResult, indirectlyDefinedModulesExtractionResult));
         }
 
-        private static Result<IConfigurationSection> GetModuleConfigurationSection(IConfiguration configurationSection)
+        public static Result<T> TryAs<T>(this IConfiguration configuration)
+        {
+            Type type = null;
+            ConfigurationSource objectConfigurationSource = null;
+
+            return TypeResolver.TryResolveTypeAsync(configuration["type"]!)
+                               .Bind(typ => { type = typ; return Result.Ok(); })
+                               .Bind(configuration.GetObjectConfigurationSourceOrDefault)
+                               .Bind(configSource => { objectConfigurationSource = configSource; return Result.Ok(); })
+                               .Bind(configuration.GetObjectConfigurationOrDefault)
+                               .Bind(config => objectConfigurationSource!.Build(config))
+                               .Bind(config => Result.Try(() => (T)Activator.CreateInstance(type, config)!));
+        }
+
+        public static Result<IConfigurationSection> GetModulesSection(this IConfiguration configurationSection)
+        {
+            var modulesSection = configurationSection.GetSection("modules");
+            return modulesSection.Exists() ?
+                   Result.Ok(modulesSection) :
+                   Result.Fail(new CompositeError<IConfigurationSection>([new ModulesNotDefined()], default, default, default));
+        }
+
+        public static Result<IConfigurationSection> GetModuleSourcesSection(this IConfiguration configurationSection)
+        {
+            var moduleSourcesSection = configurationSection.GetSection("moduleSources");
+            return moduleSourcesSection.Exists() ?
+                   Result.Ok(moduleSourcesSection) :
+                   Result.Fail(new CompositeError<IConfigurationSection>([new ModuleSourcesNotDefined()], default, default, default));
+        }
+
+        public static Result<IConfigurationSection> GetObjectConfigurationSection(this IConfiguration configurationSection)
         {
             var objectConfigurationSection = configurationSection.GetSection("configuration");
-            return objectConfigurationSection.Exists() ? Result.Ok(objectConfigurationSection) : Result.Fail("").WithReason(new ConfigurationNotDefined());
+            return objectConfigurationSection.Exists() ?
+                   Result.Ok(objectConfigurationSection) :
+                   Result.Fail(new CompositeError<IConfigurationSection>([new ConfigurationNotDefined()], default, default, default));
         }
 
-        private static Result<IConfigurationSection> GetModuleConfigurationSourceSection(IConfiguration configurationSection)
+        public static Result<IConfigurationSection> GetObjectConfigurationSourceSection(this IConfiguration configurationSection)
         {
             var objectConfigurationSourceSection = configurationSection.GetSection("configurationSource");
-            return objectConfigurationSourceSection.Exists() ? Result.Ok(objectConfigurationSourceSection) : Result.Fail("").WithReason(new ConfigurationSourceNotDefined());
+            return objectConfigurationSourceSection.Exists() ?
+                   Result.Ok(objectConfigurationSourceSection) :
+                   Result.Fail(new CompositeError<IConfigurationSection>([new ConfigurationSourceNotDefined()], default, default, default));
         }
 
-        public static bool TryGetObjectType(this IConfiguration configurationSection, out Type objectType)
+        public static Result<IConfigurationSection> GetModulesSectionOrDefault(this IConfiguration configuration)
         {
-            objectType = null;
-            var resolutionResult = TypeResolver.TryResolveTypeAsync(configurationSection["type"]!, default).GetAwaiter().GetResult();
-            if (resolutionResult.IsSuccess)
-            {
-                objectType = resolutionResult.Value!;
-            }
-            return objectType != null;
+            return Result.Ok(configuration.GetModulesSection().ValueOrDefault);
+        }
+
+        public static Result<IConfigurationSection> GetModuleSourcesSectionOrDefault(this IConfiguration configuration)
+        {
+            return Result.Ok(configuration.GetModuleSourcesSection().ValueOrDefault);
+        }
+
+        public static Result<ConfigurationSource> GetObjectConfigurationSourceOrDefault(this IConfiguration configuration)
+        {
+            return Result.Ok(configuration.GetObjectConfigurationSourceSection().ValueOrDefault?.Get<ConfigurationSource>() ?? new ConfigurationSource());
+        }
+
+        public static Result<IConfigurationSection> GetObjectConfigurationOrDefault(this IConfiguration configuration)
+        {
+            return Result.Ok(configuration.GetObjectConfigurationSection().ValueOrDefault);
+        }
+
+        public static Result<IConfigurationSection> GetServiceProviderFactorySection(this IConfiguration configurationSection)
+        {
+            var serviceProviderFactorySection = configurationSection.GetSection("serviceProviderFactory");
+            return serviceProviderFactorySection.Exists() ? 
+                   Result.Ok(serviceProviderFactorySection) :
+                   Result.Fail(new CompositeError<IConfigurationSection>([new ServiceProviderFactorySectionNotDefined()], default, default, default));
         }
     }
 }
