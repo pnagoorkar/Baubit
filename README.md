@@ -1,6 +1,7 @@
 # Baubit
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main.svg?style=svg&circle-token=CCIPRJ_Laqns3C4sRXuApqb6m3r4s_1b81262a15527abad719fc5e0cfbf205e5cef624)](https://dl.circleci.com/status-badge/redirect/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main)
+[![NuGet](https://img.shields.io/nuget/v/Baubit.svg)](https://www.nuget.org/packages/Baubit)
 
 ## Introduction
 **Baubit** is a modular framework for .NET applications that allows developers to build structured and scalable applications using independent modules. It simplifies dependency management and promotes reusability by enforcing a modular architecture.
@@ -15,7 +16,6 @@
 
 ## 🚀 Getting Started
 
-[![NuGet](https://img.shields.io/nuget/v/Baubit.svg)](https://www.nuget.org/packages/Baubit)
 ### 1️⃣ Installation
 ```bash
 dotnet add package Baubit
@@ -98,7 +98,7 @@ var webApp = WebApplication.CreateBuilder()
                            .UseConfiguredServiceProviderFactory()
                            .Build();
 
-// use CORS, Auth and other middleware
+// use HTTPS, HSTS, CORS, Auth and other middleware
 // map endpoints
 
 await webApp.RunAsync();
