@@ -118,13 +118,5 @@ namespace Baubit.DI
                    Result.Ok(rootModuleSection) :
                    Result.Fail(new CompositeError<IConfigurationSection>([new RootModuleNotDefined()], default, default, default));
         }
-
-        public static Result<IConfigurationSection> GetServiceProviderFactorySection(this IConfiguration configurationSection)
-        {
-            var serviceProviderFactorySection = configurationSection.GetSection("serviceProviderFactory");
-            return serviceProviderFactorySection.Exists() ?
-                   Result.Ok(serviceProviderFactorySection) :
-                   Result.Fail(new CompositeError<IConfigurationSection>([new ServiceProviderFactorySectionNotDefined()], default, default, default));
-        }
     }
 }
