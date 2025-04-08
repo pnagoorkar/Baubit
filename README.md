@@ -107,8 +107,8 @@ appsettings.json
 ```json
 
 {
-  "serviceProviderFactory": {
-    "type": "Baubit.DI.ServiceProviderFactoryRegistrar, Baubit",
+  "rootModule": {
+    "type": "Baubit.DI.RootModule, Baubit",
     "configurationSource": {
       "embeddedJsonResources": [ "MyApp;myConfig.json" ]
     }

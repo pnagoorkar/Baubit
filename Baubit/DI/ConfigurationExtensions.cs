@@ -14,18 +14,15 @@ namespace Baubit.DI
         {
             return Result.Try(() => new ServiceCollection())
                          .Bind(services => services.AddFrom(configuration))
-                         .Bind(services => Result.Ok<IServiceProvider>(services.BuildServiceProvider()));
+                         .Bind(services => Result.Try<IServiceProvider>(() => services.BuildServiceProvider()));
         }
         public static Result<IServiceCollection> AddFrom(this IServiceCollection services, IConfiguration configuration)
         {
-            return Result.Try(() =>
-            {
-                var rootModule = new RootModule(configuration);
-                rootModule.Load(services);
-                return services;
-            });
+            return Result.Try(() => new RootModule(configuration))
+                         .Bind(rootModule => Result.Try(() => rootModule.Load(services)))
+                         .Bind(() => Result.Ok(services));
         }
-        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) => services.AddFrom(configurationSource.Build().ValueOrDefault);
+        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) =>  configurationSource.Build().Bind(services.AddFrom);
 
         public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration)
         {
@@ -114,10 +111,18 @@ namespace Baubit.DI
             return Result.Ok(configuration.GetObjectConfigurationSection().ValueOrDefault);
         }
 
+        public static Result<IConfigurationSection> GetRootModuleSection(this IConfiguration configurationSection)
+        {
+            var rootModuleSection = configurationSection.GetSection("rootModule");
+            return rootModuleSection.Exists() ?
+                   Result.Ok(rootModuleSection) :
+                   Result.Fail(new CompositeError<IConfigurationSection>([new RootModuleNotDefined()], default, default, default));
+        }
+
         public static Result<IConfigurationSection> GetServiceProviderFactorySection(this IConfiguration configurationSection)
         {
             var serviceProviderFactorySection = configurationSection.GetSection("serviceProviderFactory");
-            return serviceProviderFactorySection.Exists() ? 
+            return serviceProviderFactorySection.Exists() ?
                    Result.Ok(serviceProviderFactorySection) :
                    Result.Fail(new CompositeError<IConfigurationSection>([new ServiceProviderFactorySectionNotDefined()], default, default, default));
         }
