@@ -1,6 +1,6 @@
 {
-  "serviceProviderFactory": {
-    "type": "Baubit.DI.ServiceProviderFactoryRegistrar, Baubit",
+  "rootModule": {
+    "type": "Baubit.DI.RootModule, Baubit",
     "configurationSource": {
       "embeddedJsonResources": [ "Baubit.Test;DI.ServiceProviderFactoryRegistrar.config.json" ]
     }

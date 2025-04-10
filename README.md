@@ -1,6 +1,7 @@
 # Baubit
 
 [![CircleCI](https://dl.circleci.com/status-badge/img/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main.svg?style=svg&circle-token=CCIPRJ_Laqns3C4sRXuApqb6m3r4s_1b81262a15527abad719fc5e0cfbf205e5cef624)](https://dl.circleci.com/status-badge/redirect/circleci/TpM4QUH8Djox7cjDaNpup5/2zTgJzKbD2m3nXCf5LKvqS/tree/main)
+[![NuGet](https://img.shields.io/nuget/v/Baubit.svg)](https://www.nuget.org/packages/Baubit)
 
 ## Introduction
 **Baubit** is a modular framework for .NET applications that allows developers to build structured and scalable applications using independent modules. It simplifies dependency management and promotes reusability by enforcing a modular architecture.
@@ -16,11 +17,9 @@
 ## 🚀 Getting Started
 
 ### 1️⃣ Installation
-
-```
+```bash
 dotnet add package Baubit
 ```
-
 ---
 
 ## 📌 How Baubit Works
@@ -99,7 +98,7 @@ var webApp = WebApplication.CreateBuilder()
                            .UseConfiguredServiceProviderFactory()
                            .Build();
 
-// use CORS, Auth and other middleware
+// use HTTPS, HSTS, CORS, Auth and other middleware
 // map endpoints
 
 await webApp.RunAsync();
@@ -108,8 +107,8 @@ appsettings.json
 ```json
 
 {
-  "serviceProviderFactory": {
-    "type": "Baubit.DI.ServiceProviderFactoryRegistrar, Baubit",
+  "rootModule": {
+    "type": "Baubit.DI.RootModule, Baubit",
     "configurationSource": {
       "embeddedJsonResources": [ "MyApp;myConfig.json" ]
     }
@@ -175,3 +174,7 @@ Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) 
 - Issue Tracker: [GitHub Issues](https://github.com/pnagoorkar/Baubit/issues)
 - Discussions: [GitHub Discussions](https://github.com/pnagoorkar/Baubit/discussions)
 
+---
+## Acknowledgments & Inspiration
+
+See [INSPIRATION.md](./INSPIRATION.md) for details on libraries and ideas that influenced this project.
