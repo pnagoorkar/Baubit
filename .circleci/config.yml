@@ -78,10 +78,6 @@ jobs:
               echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
               echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
       - checkout
-
-      - run:
-          name: Check for ignored files
-          command: check_for_processable_changes
           
       - run:
           name: Add github as a nuget package source
