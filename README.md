@@ -53,36 +53,23 @@ public class MyModule : AModule<MyConfiguration>
 Configuration for each registered service can be passed via the Module's specific configuration
 
 ---
+### ⚙️ Loading a module
+Baubit supports various ways to load modules.
 
-### 📁 Configuration Management
-Baubit supports various ways to manage module configurations.
+1) via appsettings.json (*Recommended*)
 
-```csharp
-var configSource = new ConfigurationSource { JsonUriStrings = ["myConfig.json"] };
-var myModule = new MyModule(configSource);
-```
-- **File-based**: Load configurations from JSON, XML, or environment variables.
-- **Code-based**: Manually define configurations in C#.
-
----
-
-### 🏗 Dependency Injection & Services
-Modules can register services with `IServiceCollection`:
-```csharp
-public override void Load(IServiceCollection services)
+```json
 {
-    services.AddTransient<IMyService, MyService>();
+  "rootModule": {
+    "type": "Baubit.DI.RootModule, Baubit",
+    "configurationSource": {
+      "embeddedJsonResources": [ "MyApp;myConfig.json" ]
+    }
+  }
 }
 ```
-This enables modularized service registration, making dependency management cleaner.
 
----
-
-## 🔍 Example Usage
-
-### Bootstrapping the Application
-
-#### Using HostApplicationBuilder
+##### Using HostApplicationBuilder
 
 ```csharp
 await Host.CreateApplicationBuilder()
@@ -91,7 +78,7 @@ await Host.CreateApplicationBuilder()
           .RunAsync();
 ```
 
-#### Using WebApplicationBuilder
+##### Using WebApplicationBuilder
 
 ```csharp
 var webApp = WebApplication.CreateBuilder()
@@ -103,36 +90,113 @@ var webApp = WebApplication.CreateBuilder()
 
 await webApp.RunAsync();
 ```
-appsettings.json
-```json
+2) via ConfigurationSource
 
-{
-  "rootModule": {
-    "type": "Baubit.DI.RootModule, Baubit",
-    "configurationSource": {
-      "embeddedJsonResources": [ "MyApp;myConfig.json" ]
-    }
-  }
-}
+##### Using HostApplicationBuilder
 
+```csharp
+var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
+await Host.CreateApplicationBuilder()
+          .UseConfiguredServiceProviderFactory(configSource.Build())
+          .Build()
+          .RunAsync();
 ```
-myConfig.json
 
-```json
-{
-  "modules": [
-    {
-      "type": "MyProject.MyModule, MyProject",
-      "configuration": {
-          "myStringProperty" : "some string value"
-          }
-     }
-  ]
-}
+##### Using WebApplicationBuilder
+
+```csharp
+var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
+var webApp = WebApplication.CreateBuilder()
+                           .UseConfiguredServiceProviderFactory(configSource.Build())
+                           .Build();
+
+// use HTTPS, HSTS, CORS, Auth and other middleware
+// map endpoints
+
+await webApp.RunAsync();
+```
+3) Direct loading (not using IHostApplicationBuilder)
+
+```csharp
+var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
+var services = new ServiceCollection();
+services.AddFrom(configSource);//Loads all modules (recursively) defined in myConfig.json
+var serviceProvider = services.BuildServiceProvider();
 ```
 
 ---
+### 🗂️ Configuration Sources
 
+Configurations can currently loaded from the following sources:
+
+1) JsonUriStrings - Json files on paths accessible to the application.
+Example:
+```json
+{
+  "modules": {
+    "type": "...",
+    "configurationSource": {
+      "jsonUriStrings": [ "<fully_qualified_path>/myConfig.json" ] // os (win/lin) independent path format
+    }
+  }
+}
+```
+2) EmbeddedJsonResources - Json files packaged into a dll as Embedded Resources
+Example:
+```json
+{
+  "modules": {
+    "type": "...",
+    "configurationSource": {
+      "embeddedJsonResources": [ "<assembly_name>;<directory>/<another_directory>.myConfig.json" ] //ex: "MyApp;MyComponent.SubComponent.myConfig.json"
+    }
+  }
+}
+```
+3) LocalSecrets - Ids to secrets.json files on the local file system
+Example:
+```json
+{
+  "modules": {
+    "type": "...",
+    "configurationSource": {
+      "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ] //loads secrets.json at <user_secrets_path>/UserSecrets/0657aef1-6dc5-48f1-8ae4-172674291be0/secrets.json - win/lin compatible
+    }
+  }
+}
+```
+Multiple sources can be defined to load a single configuration. The below is a valid definition for configurationSource:
+```json
+{
+  "modules": {
+    "type": "...",
+    "configurationSource": {
+      "jsonUriStrings": [ "<fully_qualified_path>/myConfig.json" ]
+      "embeddedJsonResources": [ "<assembly_name>;<directory>/<another_directory>.myConfig.json" ]
+      "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ] 
+    }
+  }
+}
+```
+The above will result in a configuration built by combining all 3 sources.
+
+Configuration keys can also be defined (in addition to a defining a configurationSource) explicitly. The below json will load a single configuration by combining the 3 configuration sources with the explicitly defined configuration
+```json
+{
+  "modules": {
+    "type": "...",
+    "configuration": {
+      "myConfigurationProperty": "some value"
+    },
+    "configurationSource": {
+      "jsonUriStrings": [ "<fully_qualified_path>/myConfig.json" ]
+      "embeddedJsonResources": [ "<assembly_name>;<directory>/<another_directory>.myConfig.json" ]
+      "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ] 
+    }
+  }
+}
+```
+---
 ## 📜 Roadmap
 Future enhancements for Baubit:
 - ✅ **Configuration Extensions**: Support for more configuration sources.
