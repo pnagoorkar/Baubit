@@ -53,24 +53,25 @@ public class MyModule : AModule<MyConfiguration>
 Configuration for each registered service can be passed via the Module's specific configuration
 
 ---
-### ⚙️ Loading a module
-Baubit supports various ways to load modules.
 
-1) via appsettings.json (*Recommended*)
+## ⚙️ Loading a Module
+Baubit supports multiple ways to load modules into your application. Below are the recommended and alternate approaches.
 
+### 1. Via `appsettings.json` (**Recommended**)
+
+**`appsettings.json` Example:**
 ```json
 {
-  "rootModule": {
+  "rootModule": [
     "type": "Baubit.DI.RootModule, Baubit",
     "configurationSource": {
       "embeddedJsonResources": [ "MyApp;myConfig.json" ]
     }
-  }
+  ]
 }
 ```
 
-##### Using HostApplicationBuilder
-
+#### Using `HostApplicationBuilder`
 ```csharp
 await Host.CreateApplicationBuilder()
           .UseConfiguredServiceProviderFactory()
@@ -78,22 +79,23 @@ await Host.CreateApplicationBuilder()
           .RunAsync();
 ```
 
-##### Using WebApplicationBuilder
-
+#### Using `WebApplicationBuilder`
 ```csharp
 var webApp = WebApplication.CreateBuilder()
                            .UseConfiguredServiceProviderFactory()
                            .Build();
 
-// use HTTPS, HSTS, CORS, Auth and other middleware
-// map endpoints
+// Use HTTPS, HSTS, CORS, Auth and other middleware
+// Map endpoints
 
 await webApp.RunAsync();
 ```
-2) via ConfigurationSource
 
-##### Using HostApplicationBuilder
+---
 
+### 2. Via `ConfigurationSource` (Programmatic Approach)
+
+#### Using `HostApplicationBuilder`
 ```csharp
 var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
 await Host.CreateApplicationBuilder()
@@ -102,100 +104,170 @@ await Host.CreateApplicationBuilder()
           .RunAsync();
 ```
 
-##### Using WebApplicationBuilder
-
+#### Using `WebApplicationBuilder`
 ```csharp
 var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
 var webApp = WebApplication.CreateBuilder()
                            .UseConfiguredServiceProviderFactory(configSource.Build())
                            .Build();
 
-// use HTTPS, HSTS, CORS, Auth and other middleware
-// map endpoints
+// Use HTTPS, HSTS, CORS, Auth and other middleware
+// Map endpoints
 
 await webApp.RunAsync();
 ```
-3) Direct loading (not using IHostApplicationBuilder)
 
+---
+
+### 3. Direct Loading (Without a Host Builder)
 ```csharp
 var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
 var services = new ServiceCollection();
-services.AddFrom(configSource);//Loads all modules (recursively) defined in myConfig.json
+services.AddFrom(configSource); // Loads all modules (recursively) defined in myConfig.json
 var serviceProvider = services.BuildServiceProvider();
 ```
 
 ---
-### 🗂️ Configuration Sources
 
-Configurations can currently loaded from the following sources:
+## 🗂️ Configuration Sources
+Baubit supports a variety of configuration input formats. You can also combine multiple sources.
 
-1) JsonUriStrings - Json files on paths accessible to the application.
-Example:
-```json
-{
-  "modules": {
-    "type": "...",
-    "configurationSource": {
-      "jsonUriStrings": [ "<fully_qualified_path>/myConfig.json" ] // os (win/lin) independent path format
-    }
-  }
-}
-```
-2) EmbeddedJsonResources - Json files packaged into a dll as Embedded Resources
-Example:
-```json
-{
-  "modules": {
-    "type": "...",
-    "configurationSource": {
-      "embeddedJsonResources": [ "<assembly_name>;<directory>/<another_directory>.myConfig.json" ] //ex: "MyApp;MyComponent.SubComponent.myConfig.json"
-    }
-  }
-}
-```
-3) LocalSecrets - Ids to secrets.json files on the local file system
-Example:
-```json
-{
-  "modules": {
-    "type": "...",
-    "configurationSource": {
-      "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ] //loads secrets.json at <user_secrets_path>/UserSecrets/0657aef1-6dc5-48f1-8ae4-172674291be0/secrets.json - win/lin compatible
-    }
-  }
-}
-```
-Multiple sources can be defined to load a single configuration. The below is a valid definition for configurationSource:
-```json
-{
-  "modules": {
-    "type": "...",
-    "configurationSource": {
-      "jsonUriStrings": [ "<fully_qualified_path>/myConfig.json" ]
-      "embeddedJsonResources": [ "<assembly_name>;<directory>/<another_directory>.myConfig.json" ]
-      "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ] 
-    }
-  }
-}
-```
-The above will result in a configuration built by combining all 3 sources.
+### 1. `jsonUriStrings`
+Loads JSON files from paths accessible to the application.
 
-Configuration keys can also be defined (in addition to a defining a configurationSource) explicitly. The below json will load a single configuration by combining the 3 configuration sources with the explicitly defined configuration
 ```json
 {
-  "modules": {
-    "type": "...",
-    "configuration": {
-      "myConfigurationProperty": "some value"
-    },
-    "configurationSource": {
-      "jsonUriStrings": [ "<fully_qualified_path>/myConfig.json" ]
-      "embeddedJsonResources": [ "<assembly_name>;<directory>/<another_directory>.myConfig.json" ]
-      "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ] 
+  "modules": [
+    {
+        "type": "...",
+        "configurationSource": {
+          "jsonUriStrings": [ "/path/to/myConfig.json" ]
+        }
     }
-  }
+  ]
 }
 ```
+
+### 2. `embeddedJsonResources`
+Loads JSON configuration embedded as a resource in a .NET assembly.
+
+```json
+{
+  "modules": [
+    {
+        "type": "...",
+        "configurationSource": {
+          "embeddedJsonResources": [ "MyApp;MyComponent.SubComponent.myConfig.json" ]
+        }
+    }
+  ]
+}
+```
+
+### 3. `localSecrets`
+Loads configuration from `secrets.json` files using a GUID reference (User Secrets ID).
+
+```json
+{
+  "modules": [
+    {
+        "type": "...",
+        "configurationSource": {
+          "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ]
+        }
+    }
+  ]
+}
+```
+> This resolves to: `<user_secrets_path>/UserSecrets/{ID}/secrets.json`
+
+---
+
+### 🔗 Combining Multiple Sources
+You can merge different configuration sources. Example:
+
+```json
+{
+  "modules": [
+    {
+        "type": "...",
+        "configurationSource": {
+          "jsonUriStrings": [ "/path/to/myConfig.json" ],
+          "embeddedJsonResources": [ "MyApp;MyComponent.SubComponent.myConfig.json" ],
+          "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ]
+        }
+    }
+  ]
+}
+```
+
+---
+
+### ➕ Combining Sources with Explicit Configuration
+It’s also valid to define configuration values explicitly alongside configuration sources. The sources are merged with the explicit keys.
+
+```json
+{
+  "modules": [
+    {
+        "type": "...",
+        "configuration": {
+          "myConfigurationProperty": "some value"
+        },
+        "configurationSource": {
+          "jsonUriStrings": [ "/path/to/myConfig.json" ],
+          "embeddedJsonResources": [ "MyApp;MyComponent.SubComponent.myConfig.json" ],
+          "localSecrets": [ "0657aef1-6dc5-48f1-8ae4-172674291be0" ]
+        }
+    }
+  ]
+}
+```
+
+This will result in a configuration that combines values from all three sources plus the inline `configuration` block.
+
+---
+## 🪆 Nesting Modules
+One of Baubit's most powerful features is its ability to **recursively load modules**, especially from configuration files. This enables complex service registration trees to be configured externally, promoting reusability and modularity.
+
+### 🔁 Nested Configuration Example
+```json
+{
+  "modules": [
+    {
+        "type": "<module1>",
+        "configuration": {
+          "<module1ConfigProperty>": "some value",
+          "modules": [
+            {
+                "type": "<module2>",
+                "configuration": {
+                  "module2ConfigProperty": "some value"
+                }
+            },
+            {
+                "type": "<module3>",
+                "configuration": {
+                  "module3ConfigProperty": "some value",
+                  "modules": [
+                    {
+                        "type": "<module4>",
+                        "configuration": {
+                          "module4ConfigProperty": "some value"
+                        }
+                    }
+                  ]
+                }
+            }
+          ]
+        }
+    }
+  ]
+}
+```
+This configuration will load **Module 1**, along with its nested modules **2**, **3**, and **4**, in a hierarchical manner. Each module can define its own configuration and optionally nest further modules.
+
+> 🔧 This approach allows dynamic and flexible service registration — driven entirely by configuration without changing code.
 ---
 ## 📜 Roadmap
 Future enhancements for Baubit:
