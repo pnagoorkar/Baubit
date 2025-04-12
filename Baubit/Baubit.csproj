@@ -6,10 +6,7 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Version>$(PackageVersion)</Version>
-    <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
-    <FileVersion>$(PackageVersion)</FileVersion>
-    <InformationalVersion>$(PackageVersion)</InformationalVersion>
+    <AssemblyVersion>$(AssemblyVersion)</AssemblyVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>

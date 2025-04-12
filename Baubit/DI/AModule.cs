@@ -23,7 +23,7 @@ namespace Baubit.DI
         public AModule(AConfiguration configuration, List<AModule> nestedModules)
         {
             Configuration = configuration;
-            NestedModules = nestedModules.AsReadOnly();
+            NestedModules = nestedModules.Concat(GetKnownDependencies()).ToList().AsReadOnly();
             OnInitialized();
         }
         /// <summary>
@@ -34,6 +34,12 @@ namespace Baubit.DI
         {
 
         }
+
+        /// <summary>
+        /// Use this to add any know dependencies to <see cref="NestedModules"/>
+        /// </summary>
+        /// <returns></returns>
+        protected virtual IEnumerable<AModule> GetKnownDependencies() => Enumerable.Empty<AModule>();
 
         public abstract void Load(IServiceCollection services);
     }
