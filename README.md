@@ -4,15 +4,18 @@
 [![NuGet](https://img.shields.io/nuget/v/Baubit.svg)](https://www.nuget.org/packages/Baubit)
 
 ## Introduction
-**Baubit** is a modular framework for .NET applications that allows developers to build structured and scalable applications using independent modules. It simplifies dependency management and promotes reusability by enforcing a modular architecture.
+**Baubit** is a lightweight, modular framework for building scalable and maintainable .NET applications. It provides a clean abstraction for organizing functionality into independently configured modules, supporting recursive loading, dependency injection, and multiple configuration sources.
 
 ## Why Use Baubit?
-- 🚀 **Modular Architecture**: Define independent modules with their own configurations.
-- 🔧 **Configuration Management**: Each module can have its own configuration, making applications more flexible.
-- 🔗 **Seamless Integration**: Supports dependency injection using `IServiceCollection`.
-- 📏 **Scalability & Maintainability**: Encourages a clean and structured application design.
+- **🧩 Modular Architecture**: Encapsulate related functionality in self-contained units (modules).
+- **🗂️ Configuration Management**: Modules support their own typed configuration with support for JSON, embedded resources, and secrets.
+- **⚙️ Clean DI Integration**: Each module registers services into `IServiceCollection`, respecting lifecycle and separation of concerns.
+- **🔁 Recursive Nesting**: Modules can declare and load other modules as dependencies.
+- **📦 Configurable Bootstrapping**: Load and configure modules via JSON, appsettings, code, or embedded resources.
+- **🧪 Testability & Reusability**: Modules are isolated and easily testable.
 
----
+
+
 
 ## 🚀 Getting Started
 
@@ -20,13 +23,8 @@
 ```bash
 dotnet add package Baubit
 ```
----
 
-## 📌 How Baubit Works
-
-Baubit is based on **modules** and **configuration**.
-
-### 📦 Defining a Module
+## 📦 Defining a Module
 A Baubit **module** is a self-contained unit that adds one or more services to the application's IoC container.
 
 ```csharp
@@ -52,10 +50,9 @@ public class MyModule : AModule<MyConfiguration>
 ```
 Configuration for each registered service can be passed via the Module's specific configuration
 
----
 
 ## ⚙️ Loading a Module
-Baubit supports multiple ways to load modules into your application. Below are the recommended and alternate approaches.
+Baubit supports multiple ways to load modules:
 
 ### 1. Via `appsettings.json` (**Recommended**)
 
@@ -91,9 +88,9 @@ var webApp = WebApplication.CreateBuilder()
 await webApp.RunAsync();
 ```
 
----
 
-### 2. Via `ConfigurationSource` (Programmatic Approach)
+
+### 2. Via `ConfigurationSource` (Direct Code-Based)
 
 #### Using `HostApplicationBuilder`
 ```csharp
@@ -117,9 +114,9 @@ var webApp = WebApplication.CreateBuilder()
 await webApp.RunAsync();
 ```
 
----
 
-### 3. Direct Loading (Without a Host Builder)
+
+### 3. Manual DI (Without a Host Builder)
 ```csharp
 var configSource = new ConfigurationSource { EmbeddedJsonSources = ["MyApp;myConfig.json"] };
 var services = new ServiceCollection();
@@ -127,10 +124,16 @@ services.AddFrom(configSource); // Loads all modules (recursively) defined in my
 var serviceProvider = services.BuildServiceProvider();
 ```
 
----
+> This approach is particularly useful when used in unit tests. See [Baubit.xUnit](https://github.com/pnagoorkar/Baubit.xUnit) for developing modular unit tests using Baubit
+
 
 ## 🗂️ Configuration Sources
-Baubit supports a variety of configuration input formats. You can also combine multiple sources.
+Baubit supports a mix of external and embedded configuration options:
+
+#### ✅ Supported Sources
+- **`jsonUriStrings`**: Local or remote JSON paths
+- **`embeddedJsonResources`**: Embedded resources within assemblies
+- **`localSecrets`**: User secrets via GUID ID
 
 ### 1. `jsonUriStrings`
 Loads JSON files from paths accessible to the application.
@@ -181,7 +184,7 @@ Loads configuration from `secrets.json` files using a GUID reference (User Secre
 ```
 > This resolves to: `<user_secrets_path>/UserSecrets/{ID}/secrets.json`
 
----
+
 
 ### 🔗 Combining Multiple Sources
 You can merge different configuration sources. Example:
@@ -200,8 +203,9 @@ You can merge different configuration sources. Example:
   ]
 }
 ```
+> All sources are merged in order.
 
----
+
 
 ### ➕ Combining Sources with Explicit Configuration
 It’s also valid to define configuration values explicitly alongside configuration sources. The sources are merged with the explicit keys.
@@ -226,7 +230,7 @@ It’s also valid to define configuration values explicitly alongside configurat
 
 This will result in a configuration that combines values from all three sources plus the inline `configuration` block.
 
----
+
 ## 🪆 Nesting Modules
 One of Baubit's most powerful features is its ability to **recursively load modules**, especially from configuration files. This enables complex service registration trees to be configured externally, promoting reusability and modularity.
 
@@ -268,7 +272,8 @@ One of Baubit's most powerful features is its ability to **recursively load modu
 This configuration will load **Module 1**, along with its nested modules **2**, **3**, and **4**, in a hierarchical manner. Each module can define its own configuration and optionally nest further modules.
 
 > 🔧 This approach allows dynamic and flexible service registration — driven entirely by configuration without changing code.
----
+
+
 ## 📜 Roadmap
 Future enhancements for Baubit:
 - ✅ **Configuration Extensions**: Support for more configuration sources.
@@ -276,7 +281,8 @@ Future enhancements for Baubit:
 - 🚧 **Logging & Monitoring**: Improve logging support within modules.
 - 🚧 **Community Contributions**: Open-source enhancements and community-driven improvements.
 
----
+
+
 
 ## 🤝 Contributing
 Contributions are welcome! If you’d like to improve Baubit:
@@ -286,7 +292,8 @@ Contributions are welcome! If you’d like to improve Baubit:
 
 For major contributions, open an issue first to discuss the change.
 
----
+
+
 
 ## 🛠 Troubleshooting & FAQs
 
@@ -298,12 +305,14 @@ A: Yes! You can extend configurations by passing custom settings to `Configurati
 
 For more support, open an issue on GitHub.
 
----
+
+
 
 ## 📄 License
 Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) file for details.
 
----
+
+
 
 ## 🔗 Resources
 - Official Documentation (Coming Soon)
