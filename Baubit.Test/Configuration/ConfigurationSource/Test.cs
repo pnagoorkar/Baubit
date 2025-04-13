@@ -13,5 +13,16 @@ namespace Baubit.Test.Configuration.ConfigurationSource
             Assert.NotNull(configuration);
             Assert.Equal("value", configuration["key"]);
         }
+
+        [Theory]
+        [InlineData("config.json")]
+        public void CanExpandURIs(string fileName)
+        {
+            Environment.SetEnvironmentVariable("ENVIRONMENT", "Development");
+            Environment.SetEnvironmentVariable("BaubitTestAssembly", "Baubit.Test");
+            var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"${{BaubitTestAssembly}};Configuration.ConfigurationSource.{fileName}"] };
+            var buildResult = configurationSource.Build();
+            Assert.True(buildResult.IsSuccess);
+        }
     }
 }

@@ -15,6 +15,7 @@ namespace Baubit.Configuration
         public static Result<TConfiguration> Load<TConfiguration>(this IConfiguration iConfiguration) where TConfiguration : AConfiguration
         {
             return Result.Try(() => iConfiguration.Get<TConfiguration>() ?? Activator.CreateInstance<TConfiguration>()!)
+                         .Bind(config => config.ExpandURIs())
                          .Bind(config => config.Validate());
         }
         public static Result<TConfiguration> Validate<TConfiguration>(this TConfiguration configuration) where TConfiguration : AConfiguration

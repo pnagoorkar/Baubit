@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Configuration\AConfiguration\config.json" />
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithDefaultServiceProviderFactory.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyModuleWithReferenceOfAnotherModule.json" />

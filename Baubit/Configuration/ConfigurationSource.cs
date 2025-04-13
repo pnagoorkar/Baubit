@@ -1,6 +1,7 @@
 ﻿using Baubit.Reflection;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
+using System.Collections;
 using System.Reflection;
 using System.Text;
 
@@ -12,8 +13,11 @@ namespace Baubit.Configuration
     public class ConfigurationSource
     {
         public List<string> RawJsonStrings { get; set; } = new List<string>();
+        [URI]
         public List<string> JsonUriStrings { get; set; } = new List<string>();
+        [URI]
         public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
+        [URI]
         public List<string> LocalSecrets { get; init; } = new List<string>();
     }
 
@@ -25,12 +29,52 @@ namespace Baubit.Configuration
         {
             var configurationBuilder = new ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
-                         .Bind(() => configurationSource.AddJsonFiles(configurationBuilder))
+                         .Bind(() => configurationSource.ExpandURIs())
+                         .Bind(configSource => configurationSource.AddJsonFiles(configurationBuilder))
                          .Bind(configurationSource => configurationSource.LoadResourceFiles())
                          .Bind(configurationSource => configurationSource.AddRawJsonStrings(configurationBuilder))
                          .Bind(configurationSource => configurationSource.AddSecrets(configurationBuilder))
                          .Bind(configurationSource => configurationBuilder.AddConfigurationToBuilder(configuration))
                          .Bind(() => Result.Ok<IConfiguration>(configurationBuilder.Build()));
+        }
+
+        public static Result<T> ExpandURIs<T>(this T obj)
+        {
+            var uriDic = Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().ToDictionary(entry => (string)entry.Key, entry => (string)entry.Value);
+
+            var uriProperties = obj.GetType()
+                                   .GetProperties()
+                                   .Where(property => property.CustomAttributes.Any(att => att.AttributeType.Equals(typeof(URIAttribute))));
+
+            foreach (var uriProperty in uriProperties)
+            {
+
+                if (uriProperty.PropertyType.IsAssignableTo(typeof(string)))
+                {
+                    var currentValue = (string)uriProperty.GetValue(obj);
+
+                    uriProperty.SetValue(obj, currentValue.ExpandURIString(uriDic).Value);
+                }
+                else if (uriProperty.PropertyType.IsAssignableTo(typeof(List<string>)))
+                {
+                    var currentValues = (List<string>)uriProperty.GetValue(obj);
+                    var newValues = currentValues.Select(val => val.ExpandURIString(uriDic).Value).ToList();
+
+                    uriProperty.SetValue(obj, newValues);
+                }
+                else
+                {
+                    throw new Exception("Unsupported URI property type!");
+                }
+            }
+
+            return Result.Ok<T>(obj);
+
+        }
+
+        private static Result<string> ExpandURIString(this string @value, Dictionary<string, string> uriDic)
+        {
+            return Result.Try(() => uriDic.Aggregate(@value, (seed, next) => seed.Replace($"${{{next.Key}}}", next.Value)));
         }
 
         private static Result AddConfigurationToBuilder(this IConfigurationBuilder configurationBuilder, IConfiguration configuration)
