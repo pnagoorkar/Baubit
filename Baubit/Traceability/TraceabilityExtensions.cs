@@ -1,4 +1,5 @@
-﻿using FluentResults;
+﻿using Baubit.Traceability.Errors;
+using FluentResults;
 
 namespace Baubit.Traceability
 {
@@ -13,6 +14,11 @@ namespace Baubit.Traceability
                     disposables[i].Dispose();
                 }
             });
+        }
+
+        public static CompositeError<T> CaptureAsError<T>(this Result<T> result)
+        {
+            return new CompositeError<T>(result);
         }
     }
 }
