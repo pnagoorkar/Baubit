@@ -25,16 +25,29 @@ namespace Baubit.Traceability.Errors
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(Message);
-            stringBuilder.AppendLine("Reasons(non-error):");
-            for (int i = 0; i < NonErrorReasons?.Count; i++)
+            stringBuilder.AppendLine("".PadRight(10,'-'));
+            if (Reasons.Count > 0 || NonErrorReasons.Count > 0)
             {
-                stringBuilder.AppendLine($"{i + 1}. {NonErrorReasons[i].ToString()}");
+                if (Reasons.Count > 0)
+                {
+                    stringBuilder.AppendLine("Reasons(errors):");
+                    stringBuilder.AppendJoin(Environment.NewLine, Reasons.Select((error, i) => $"{i + 1}. {error.ToString()}"));
+                    stringBuilder.AppendLine();
+                }
+                var reportableNonErrors = NonErrorReasons.Where(reason => !Reasons.Contains(reason));
+                if (reportableNonErrors.Any())
+                {
+                    stringBuilder.AppendLine("".PadRight(10, '-'));
+                    stringBuilder.AppendLine("Reasons(non-error):");
+                    stringBuilder.AppendJoin(Environment.NewLine, reportableNonErrors.Select((nonError, i) => $"{i + 1}. {nonError.ToString()}"));
+                    stringBuilder.AppendLine();
+                }
             }
-            stringBuilder.AppendLine("Reasons(errors):");
-            for (int i = 0; i < Reasons?.Count; i++)
+            else
             {
-                stringBuilder.AppendLine($"{i + 1}. {Reasons[i].ToString()}");
+                stringBuilder.AppendLine("Details unavailable");
             }
+            stringBuilder.AppendLine("".PadRight(10, '-'));
             return stringBuilder.ToString();
         }
     }
