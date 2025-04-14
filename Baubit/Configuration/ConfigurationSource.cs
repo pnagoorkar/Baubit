@@ -3,6 +3,7 @@ using FluentResults;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Baubit.Configuration
 {
@@ -12,8 +13,11 @@ namespace Baubit.Configuration
     public class ConfigurationSource
     {
         public List<string> RawJsonStrings { get; set; } = new List<string>();
+        [URI]
         public List<string> JsonUriStrings { get; set; } = new List<string>();
+        [URI]
         public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
+        [URI]
         public List<string> LocalSecrets { get; init; } = new List<string>();
     }
 
@@ -25,12 +29,59 @@ namespace Baubit.Configuration
         {
             var configurationBuilder = new ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
-                         .Bind(() => configurationSource.AddJsonFiles(configurationBuilder))
+                         .Bind(() => configurationSource.ExpandURIs())
+                         .Bind(configSource => configurationSource.AddJsonFiles(configurationBuilder))
                          .Bind(configurationSource => configurationSource.LoadResourceFiles())
                          .Bind(configurationSource => configurationSource.AddRawJsonStrings(configurationBuilder))
                          .Bind(configurationSource => configurationSource.AddSecrets(configurationBuilder))
                          .Bind(configurationSource => configurationBuilder.AddConfigurationToBuilder(configuration))
                          .Bind(() => Result.Ok<IConfiguration>(configurationBuilder.Build()));
+        }
+
+        public static Result<T> ExpandURIs<T>(this T obj)
+        {
+            if (obj == null) return Result.Ok(obj);
+
+            var uriProperties = obj.GetType()
+                                   .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                   .Where(property => property.CustomAttributes.Any(att => att.AttributeType.Equals(typeof(URIAttribute))));
+
+            foreach (var uriProperty in uriProperties)
+            {
+                if (uriProperty.PropertyType == typeof(string))
+                {
+                    var currentValue = (string)uriProperty.GetValue(obj);
+                    uriProperty.SetValue(obj, currentValue.ExpandURIString().Value);
+                }
+                else if (uriProperty.PropertyType == typeof(List<string>))
+                {
+                    var currentValues = (List<string>)uriProperty.GetValue(obj);
+                    if (currentValues.Count > 0)
+                    {
+                        var newValues = currentValues.Select(val => val.ExpandURIString().Value).ToList();
+                        uriProperty.SetValue(obj, newValues);
+                    }
+                }
+                else
+                {
+                    throw new Exception("Unsupported URI property type!");
+                }
+            }
+
+            return Result.Ok(obj);
+
+        }
+
+        private static Result<string> ExpandURIString(this string @value)
+        {
+            if (string.IsNullOrEmpty(@value)) return Result.Ok(@value);
+
+            return Result.Try(() => Regex.Replace(@value, @"\$\{(.*?)\}", match =>
+            {
+                var key = match.Groups[1].Value;
+                var replacement = Environment.GetEnvironmentVariable(key);
+                return replacement ?? match.Value;
+            }));
         }
 
         private static Result AddConfigurationToBuilder(this IConfigurationBuilder configurationBuilder, IConfiguration configuration)
@@ -45,7 +96,6 @@ namespace Baubit.Configuration
         {
             return Result.Try(() =>
             {
-                configurationSource?.ReplacePathPlaceholders(Application.Paths);
                 var jsonUris = configurationSource.JsonUriStrings.Select(uriString => new Uri(uriString));
 
                 foreach (var uri in jsonUris.Where(uri => uri.IsFile))
@@ -110,21 +160,6 @@ namespace Baubit.Configuration
                     configurationBuilder.AddUserSecrets(localSecretsId);
                 }
 
-                return configurationSource;
-            });
-        }
-
-        private static Result<ConfigurationSource> ReplacePathPlaceholders(this ConfigurationSource configurationSource, Dictionary<string, string> pathMap)
-        {
-            return Result.Try(() =>
-            {
-                foreach (var kvp in pathMap)
-                {
-                    for (int i = 0; i < configurationSource.JsonUriStrings.Count; i++)
-                    {
-                        configurationSource.JsonUriStrings[i] = Path.GetFullPath(configurationSource.JsonUriStrings[i].Replace(kvp.Key, kvp.Value));
-                    }
-                }
                 return configurationSource;
             });
         }
