@@ -1,9 +1,9 @@
 ﻿using Baubit.Reflection;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
-using System.Collections;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Baubit.Configuration
 {
@@ -40,27 +40,27 @@ namespace Baubit.Configuration
 
         public static Result<T> ExpandURIs<T>(this T obj)
         {
-            var uriDic = Environment.GetEnvironmentVariables().Cast<DictionaryEntry>().ToDictionary(entry => (string)entry.Key, entry => (string)entry.Value);
+            if (obj == null) return Result.Ok(obj);
 
             var uriProperties = obj.GetType()
-                                   .GetProperties()
+                                   .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                                    .Where(property => property.CustomAttributes.Any(att => att.AttributeType.Equals(typeof(URIAttribute))));
 
             foreach (var uriProperty in uriProperties)
             {
-
-                if (uriProperty.PropertyType.IsAssignableTo(typeof(string)))
+                if (uriProperty.PropertyType == typeof(string))
                 {
                     var currentValue = (string)uriProperty.GetValue(obj);
-
-                    uriProperty.SetValue(obj, currentValue.ExpandURIString(uriDic).Value);
+                    uriProperty.SetValue(obj, currentValue.ExpandURIString().Value);
                 }
-                else if (uriProperty.PropertyType.IsAssignableTo(typeof(List<string>)))
+                else if (uriProperty.PropertyType == typeof(List<string>))
                 {
                     var currentValues = (List<string>)uriProperty.GetValue(obj);
-                    var newValues = currentValues.Select(val => val.ExpandURIString(uriDic).Value).ToList();
-
-                    uriProperty.SetValue(obj, newValues);
+                    if (currentValues.Count > 0)
+                    {
+                        var newValues = currentValues.Select(val => val.ExpandURIString().Value).ToList();
+                        uriProperty.SetValue(obj, newValues);
+                    }
                 }
                 else
                 {
@@ -68,13 +68,20 @@ namespace Baubit.Configuration
                 }
             }
 
-            return Result.Ok<T>(obj);
+            return Result.Ok(obj);
 
         }
 
-        private static Result<string> ExpandURIString(this string @value, Dictionary<string, string> uriDic)
+        private static Result<string> ExpandURIString(this string @value)
         {
-            return Result.Try(() => uriDic.Aggregate(@value, (seed, next) => seed.Replace($"${{{next.Key}}}", next.Value)));
+            if (string.IsNullOrEmpty(@value)) return Result.Ok(@value);
+
+            return Result.Try(() => Regex.Replace(@value, @"\$\{(.*?)\}", match =>
+            {
+                var key = match.Groups[1].Value;
+                var replacement = Environment.GetEnvironmentVariable(key);
+                return replacement ?? match.Value;
+            }));
         }
 
         private static Result AddConfigurationToBuilder(this IConfigurationBuilder configurationBuilder, IConfiguration configuration)
@@ -89,7 +96,6 @@ namespace Baubit.Configuration
         {
             return Result.Try(() =>
             {
-                configurationSource?.ReplacePathPlaceholders(Application.Paths);
                 var jsonUris = configurationSource.JsonUriStrings.Select(uriString => new Uri(uriString));
 
                 foreach (var uri in jsonUris.Where(uri => uri.IsFile))
@@ -154,21 +160,6 @@ namespace Baubit.Configuration
                     configurationBuilder.AddUserSecrets(localSecretsId);
                 }
 
-                return configurationSource;
-            });
-        }
-
-        private static Result<ConfigurationSource> ReplacePathPlaceholders(this ConfigurationSource configurationSource, Dictionary<string, string> pathMap)
-        {
-            return Result.Try(() =>
-            {
-                foreach (var kvp in pathMap)
-                {
-                    for (int i = 0; i < configurationSource.JsonUriStrings.Count; i++)
-                    {
-                        configurationSource.JsonUriStrings[i] = Path.GetFullPath(configurationSource.JsonUriStrings[i].Replace(kvp.Key, kvp.Value));
-                    }
-                }
                 return configurationSource;
             });
         }
