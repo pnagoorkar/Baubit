@@ -20,5 +20,10 @@ namespace Baubit.Traceability
         {
             return new CompositeError<T>(result);
         }
+
+        public static void ThrowIfFailed(this IResultBase result)
+        {
+            if (result.IsFailed) throw new Exception(result.ToString());
+        }
     }
 }
