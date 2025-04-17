@@ -1,4 +1,5 @@
 ﻿using Baubit.Traceability.Errors;
+using Baubit.Traceability.Exceptions;
 using FluentResults;
 
 namespace Baubit.Traceability
@@ -19,6 +20,12 @@ namespace Baubit.Traceability
         public static CompositeError<T> CaptureAsError<T>(this Result<T> result)
         {
             return new CompositeError<T>(result);
+        }
+
+        public static TResult ThrowIfFailed<TResult>(this TResult result) where TResult : IResultBase
+        {
+            if (result.IsFailed) throw new FailedOperationException<TResult>(result);
+            return result;
         }
     }
 }
