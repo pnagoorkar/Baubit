@@ -16,6 +16,9 @@ namespace Baubit.Test.Testing.Context
     [Source(EmbeddedJsonResources = ["Baubit.Test;Testing.Context.context.json"])]
     public class Context : IContext
     {
+        public void Dispose()
+        {
 
+        }
     }
 }

@@ -15,12 +15,20 @@ namespace Baubit.Test.Testing.Scenario
             Assert.NotNull(result.Value);
         }
     }
-    public class Context: IContext
+    public class Context : IContext
     {
+        public void Dispose()
+        {
 
+        }
     }
     public class Scenario : IScenario<Context>
     {
+        public void Dispose()
+        {
+
+        }
+
         public Result Run(Context context)
         {
             throw new NotImplementedException();
