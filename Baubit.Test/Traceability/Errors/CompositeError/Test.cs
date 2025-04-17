@@ -1,6 +1,5 @@
 ﻿using Baubit.Traceability;
 using Baubit.Traceability.Reasons;
-using FluentResults;
 
 namespace Baubit.Test.Traceability.Errors.CompositeError
 {
@@ -9,7 +8,7 @@ namespace Baubit.Test.Traceability.Errors.CompositeError
         [Fact]
         public void CompositeErrorCanBeStringified()
         {
-            var result = Result.Try(() => { throw new Exception(""); return 0; });
+            var result = FluentResults.Result.Try(() => { throw new Exception(""); return 0; });
             var errorString = result.WithReason(new MyReason()).CaptureAsError().ToString();
             Assert.False(string.IsNullOrEmpty(errorString));
         }
