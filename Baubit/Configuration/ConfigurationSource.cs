@@ -1,5 +1,5 @@
-﻿using Baubit.Configuration.Exceptions;
-using Baubit.Configuration.Reasons;
+﻿using Baubit.Configuration.Errors;
+using Baubit.Configuration.Exceptions;
 using Baubit.Reflection;
 using Baubit.Traceability;
 using Baubit.Traceability.Errors;
@@ -79,7 +79,7 @@ namespace Baubit.Configuration
             }
             catch (FailedOperationException failedOpEx)
             {
-                return Result.Fail("").WithReasons(failedOpEx.Result.Reasons);
+                return Result.Fail(Enumerable.Empty<IError>()).WithReasons(failedOpEx.Result.Reasons);
             }
 
         }
@@ -100,7 +100,7 @@ namespace Baubit.Configuration
         {
             if (exp is EnvironmentVariableNotFound envVarNotFoundExp)
             {
-                return new CompositeError<string>([new EnvVarNotFound(envVarNotFoundExp.EnvVariable)], null, "", default);
+                return new EnvVarNotFound(envVarNotFoundExp.EnvVariable);
             }
             else
             {

@@ -1,6 +1,4 @@
 ﻿using Baubit.Configuration;
-using Baubit.Reflection;
-using Baubit.Traceability.Errors;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,7 +79,7 @@ namespace Baubit.DI
     {
         public static THostApplicationBuilder UseConfiguredServiceProviderFactory<THostApplicationBuilder>(this THostApplicationBuilder hostApplicationBuilder,
                                                                                                            IConfiguration configuration = null,
-                                                                                                           Action<THostApplicationBuilder, IError> onFailure = null) where THostApplicationBuilder : IHostApplicationBuilder
+                                                                                                           Action<THostApplicationBuilder, IResultBase> onFailure = null) where THostApplicationBuilder : IHostApplicationBuilder
         {
             if (onFailure == null) onFailure = Exit;
             if (configuration != null) hostApplicationBuilder.Configuration.AddConfiguration(configuration);
@@ -91,19 +89,18 @@ namespace Baubit.DI
                                                            .Bind(section => section.TryAs<IRootModule>())
                                                            .Bind(registrar => registrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
 
-            if (!registrationResult.IsSuccess)
+            if (registrationResult.IsFailed)
             {
-                var error = new CompositeError<THostApplicationBuilder>(registrationResult);
-                onFailure(hostApplicationBuilder, error);
+                onFailure(hostApplicationBuilder, registrationResult);
             }
 
             return hostApplicationBuilder;
         }
 
         private static void Exit<THostApplicationBuilder>(THostApplicationBuilder hostApplicationBuilder,
-                                                          IError error) where THostApplicationBuilder : IHostApplicationBuilder
+                                                          IResultBase result) where THostApplicationBuilder : IHostApplicationBuilder
         {
-            Console.WriteLine(error);
+            Console.WriteLine(result.ToString());
             Environment.Exit(-1);
         }
         public static bool TryFlatten<TModule>(this TModule module, List<IModule> modules) where TModule : IModule

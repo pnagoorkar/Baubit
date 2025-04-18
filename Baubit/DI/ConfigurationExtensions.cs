@@ -1,7 +1,6 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
-using Baubit.Traceability.Errors;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -43,7 +42,7 @@ namespace Baubit.DI
 
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
                    Result.Ok<List<TModule>>([.. directlyDefinedModules, .. indirectlyDefinedModules]) :
-                   Result.Fail(new CompositeError<IEnumerable<TModule>>(directlyDefinedModulesExtractionResult, indirectlyDefinedModulesExtractionResult));
+                   Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
         }
 
         public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : IModule
@@ -70,7 +69,7 @@ namespace Baubit.DI
             var modulesSection = configurationSection.GetSection("modules");
             return modulesSection.Exists() ?
                    Result.Ok(modulesSection) :
-                   Result.Fail(new CompositeError<IConfigurationSection>([new ModulesNotDefined()], default, default, default));
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ModulesNotDefined());
         }
 
         public static Result<IConfigurationSection> GetModuleSourcesSection(this IConfiguration configurationSection)
@@ -78,7 +77,7 @@ namespace Baubit.DI
             var moduleSourcesSection = configurationSection.GetSection("moduleSources");
             return moduleSourcesSection.Exists() ?
                    Result.Ok(moduleSourcesSection) :
-                   Result.Fail(new CompositeError<IConfigurationSection>([new ModuleSourcesNotDefined()], default, default, default));
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ModuleSourcesNotDefined());
         }
 
         public static Result<IConfigurationSection> GetObjectConfigurationSection(this IConfiguration configurationSection)
@@ -86,7 +85,7 @@ namespace Baubit.DI
             var objectConfigurationSection = configurationSection.GetSection("configuration");
             return objectConfigurationSection.Exists() ?
                    Result.Ok(objectConfigurationSection) :
-                   Result.Fail(new CompositeError<IConfigurationSection>([new ConfigurationNotDefined()], default, default, default));
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ConfigurationNotDefined());
         }
 
         public static Result<IConfigurationSection> GetObjectConfigurationSourceSection(this IConfiguration configurationSection)
@@ -94,7 +93,7 @@ namespace Baubit.DI
             var objectConfigurationSourceSection = configurationSection.GetSection("configurationSource");
             return objectConfigurationSourceSection.Exists() ?
                    Result.Ok(objectConfigurationSourceSection) :
-                   Result.Fail(new CompositeError<IConfigurationSection>([new ConfigurationSourceNotDefined()], default, default, default));
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ConfigurationSourceNotDefined());
         }
 
         public static Result<IConfigurationSection> GetModulesSectionOrDefault(this IConfiguration configuration)
@@ -122,7 +121,7 @@ namespace Baubit.DI
             var rootModuleSection = configurationSection.GetSection("rootModule");
             return rootModuleSection.Exists() ?
                    Result.Ok(rootModuleSection) :
-                   Result.Fail(new CompositeError<IConfigurationSection>([new RootModuleNotDefined()], default, default, default));
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new RootModuleNotDefined());
         }
     }
 }

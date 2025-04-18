@@ -1,7 +1,5 @@
-﻿using Baubit.Traceability.Errors;
-using Baubit.Traceability.Exceptions;
+﻿using Baubit.Traceability.Exceptions;
 using FluentResults;
-using System.Collections.Generic;
 
 namespace Baubit.Traceability
 {
@@ -18,26 +16,25 @@ namespace Baubit.Traceability
             });
         }
 
-        public static CompositeError<T> CaptureAsError<T>(this Result<T> result)
-        {
-            return new CompositeError<T>(result);
-        }
-
         public static TResult ThrowIfFailed<TResult>(this TResult result) where TResult : IResultBase
         {
             if (result.IsFailed) throw new FailedOperationException(result);
             return result;
         }
 
-        public static TResult AddSuccessIfPassed<TResult, TSuccess>(this TResult result, params TSuccess[] successes) where TResult : IResultBase where TSuccess : ISuccess
+        public static TResult AddSuccessIfPassed<TResult>(this TResult result,
+                                                          Action<TResult, IEnumerable<ISuccess>> additionHandler,
+                                                          params ISuccess[] successes) where TResult : IResultBase
         {
-            if (result.IsSuccess) result.Successes.AddRange(successes.Cast<ISuccess>());
+            if (result.IsSuccess) additionHandler(result, successes);
             return result;
         }
 
-        public static TResult AddReasonIfFailed<TResult, TReason>(this TResult result, params TReason[] reasons) where TResult : IResultBase where TReason : IReason
+        public static TResult AddReasonIfFailed<TResult>(this TResult result,
+                                                          Action<TResult, IEnumerable<IReason>> additionHandler,
+                                                          params IReason[] successes) where TResult : IResultBase
         {
-            if (result.IsSuccess) result.Reasons.AddRange(reasons.Cast<IReason>());
+            if (result.IsFailed) additionHandler(result, successes);
             return result;
         }
 
@@ -46,5 +43,7 @@ namespace Baubit.Traceability
             if (result.IsSuccess) result.Errors.AddRange(errors.Cast<IError>());
             return result;
         }
+
+        public static List<IReason> GetNonErrors(this List<IReason> reasons) => reasons.Where(reason => reason is not IError).ToList();
     }
 }

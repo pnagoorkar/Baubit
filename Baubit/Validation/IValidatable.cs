@@ -1,5 +1,4 @@
 ﻿using Baubit.Traceability;
-using Baubit.Traceability.Errors;
 using Baubit.Validation.Reasons;
 using FluentResults;
 
@@ -19,7 +18,7 @@ namespace Baubit.Validation
                 //if (getResult.Reasons.Count == 1 && getResult.Reasons.First() is ValidatorNotFound && !enforce)
                 if (!enforce)
                 {
-                    return Result.Ok(validatable).WithReasons(getResult.Reasons);
+                    return Result.Ok(validatable).WithReasons(getResult.Reasons.GetNonErrors());
                 }
                 else
                 {
@@ -28,16 +27,17 @@ namespace Baubit.Validation
             }
             else
             {
-                return getResult.Value.Validate(validatable).AddSuccessIfPassed(new PassedValidation<TValidatable>(validatorKey));
+                return getResult.Value.Validate(validatable).AddSuccessIfPassed((r, s) => r.WithSuccesses(s), new PassedValidation<TValidatable>(validatorKey));
             }
         }
         public static Result<IValidator<TValidatable>> GetValidator<TValidatable>(this TValidatable validatable, string validatorKey) where TValidatable : IValidatable
         {
             AValidator<TValidatable> validator = null;
-            var validatorNotFound = new CompositeError<TValidatable>([new ValidatorNotFound(validatorKey)], null, "", null); ;
-            return Result.FailIf(validatorKey == null, validatorNotFound)
+            return Result.FailIf(validatorKey == null, new Error(string.Empty))
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ValidatorKeyNotSet())
                          .Bind(() => Result.Try(() => AValidator<TValidatable>.CurrentValidators.TryGetValue(validatorKey, out validator)))
-                         .Bind(getResult => getResult ? Result.Ok<IValidator<TValidatable>>(validator) : Result.Fail("").WithError(validatorNotFound));
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ValidatorNotFound(validatorKey))
+                         .Bind(getResult => getResult ? Result.Ok<IValidator<TValidatable>>(validator) : Result.Fail(Enumerable.Empty<IError>()));
         }
     }
 }
