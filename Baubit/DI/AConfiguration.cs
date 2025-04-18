@@ -2,6 +2,6 @@
 {
     public abstract class AConfiguration : Configuration.AConfiguration
     {
-        public string ModuleValidatorKey { get; init; }
+        public string ModuleValidatorKey { get; init; } = "default";
     }
 }

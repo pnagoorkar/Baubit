@@ -17,8 +17,8 @@ namespace Baubit.Traceability.Errors
                          string message, 
                          Dictionary<string, object> metadata)
         {
-            NonErrorReasons = nonErrorReasons ?? new List<IReason>();
-            Reasons = reasons ?? new List<IError>();
+            NonErrorReasons = nonErrorReasons;
+            Reasons = reasons;
             Message = message;
             Metadata = metadata;
         }

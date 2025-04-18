@@ -1,9 +1,4 @@
-﻿using Baubit.Configuration.Exceptions;
-using Baubit.Configuration.Reasons;
-using Baubit.Reflection;
-using Baubit.Traceability;
-using Baubit.Traceability.Errors;
-using Baubit.Traceability.Exceptions;
+﻿using Baubit.Reflection;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
@@ -45,42 +40,35 @@ namespace Baubit.Configuration
 
         public static Result<T> ExpandURIs<T>(this T obj)
         {
-            try
+            if (obj == null) return Result.Ok(obj);
+
+            var uriProperties = obj.GetType()
+                                   .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                   .Where(property => property.CustomAttributes.Any(att => att.AttributeType.Equals(typeof(URIAttribute))));
+
+            foreach (var uriProperty in uriProperties)
             {
-                if (obj == null) return Result.Ok(obj);
-
-                var uriProperties = obj.GetType()
-                                       .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                                       .Where(property => property.CustomAttributes.Any(att => att.AttributeType.Equals(typeof(URIAttribute))));
-
-                foreach (var uriProperty in uriProperties)
+                if (uriProperty.PropertyType == typeof(string))
                 {
-                    if (uriProperty.PropertyType == typeof(string))
+                    var currentValue = (string)uriProperty.GetValue(obj);
+                    uriProperty.SetValue(obj, currentValue.ExpandURIString().Value);
+                }
+                else if (uriProperty.PropertyType == typeof(List<string>))
+                {
+                    var currentValues = (List<string>)uriProperty.GetValue(obj);
+                    if (currentValues.Count > 0)
                     {
-                        var currentValue = (string)uriProperty.GetValue(obj);
-                        uriProperty.SetValue(obj, currentValue.ExpandURIString().Value);
-                    }
-                    else if (uriProperty.PropertyType == typeof(List<string>))
-                    {
-                        var currentValues = (List<string>)uriProperty.GetValue(obj);
-                        if (currentValues.Count > 0)
-                        {
-                            var newValues = currentValues.Select(val => val.ExpandURIString().ThrowIfFailed().Value).ToList();
-                            uriProperty.SetValue(obj, newValues);
-                        }
-                    }
-                    else
-                    {
-                        throw new Exception("Unsupported URI property type!");
+                        var newValues = currentValues.Select(val => val.ExpandURIString().Value).ToList();
+                        uriProperty.SetValue(obj, newValues);
                     }
                 }
+                else
+                {
+                    throw new Exception("Unsupported URI property type!");
+                }
+            }
 
-                return Result.Ok(obj);
-            }
-            catch (FailedOperationException failedOpEx)
-            {
-                return Result.Fail("").WithReasons(failedOpEx.Result.Reasons);
-            }
+            return Result.Ok(obj);
 
         }
 
@@ -92,20 +80,8 @@ namespace Baubit.Configuration
             {
                 var key = match.Groups[1].Value;
                 var replacement = Environment.GetEnvironmentVariable(key);
-                return replacement == null ? throw new EnvironmentVariableNotFound(match.Value) : replacement;
-            }), HandleMissingEnvVariables);
-        }
-
-        private static IError HandleMissingEnvVariables(Exception exp)
-        {
-            if (exp is EnvironmentVariableNotFound envVarNotFoundExp)
-            {
-                return new CompositeError<string>([new EnvVarNotFound(envVarNotFoundExp.EnvVariable)], null, "", default);
-            }
-            else
-            {
-                return new ExceptionalError(exp);
-            }
+                return replacement ?? match.Value;
+            }));
         }
 
         private static Result AddConfigurationToBuilder(this IConfigurationBuilder configurationBuilder, IConfiguration configuration)
