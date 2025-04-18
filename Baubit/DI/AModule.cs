@@ -1,8 +1,8 @@
 ﻿using Baubit.Configuration;
-using Baubit.Traceability.Errors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
+using Baubit.Traceability;
 
 namespace Baubit.DI
 {
@@ -71,32 +71,17 @@ namespace Baubit.DI
 
         private static IConfiguration TryBuildConfigurationSource(ConfigurationSource configurationSource)
         {
-            var buildResult = configurationSource.Build();
-            if (!buildResult.IsSuccess)
-            {
-                throw new AggregateException(new CompositeError<IConfiguration>(buildResult).ToString());
-            }
-            return buildResult.Value;
+            return configurationSource.Build().ThrowIfFailed().Value;
         }
 
         private static TConfiguration TryLoadConfiguration(IConfiguration configuration)
         {
-            var loadResult = configuration.Load<TConfiguration>();
-            if (!loadResult.IsSuccess)
-            {
-                throw new AggregateException(new CompositeError<TConfiguration>(loadResult).ToString());
-            }
-            return loadResult.Value;
+            return configuration.Load<TConfiguration>().ThrowIfFailed().Value;
         }
 
         private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
         {
-            var loadResult = configuration.GetNestedModules<AModule>();
-            if (!loadResult.IsSuccess)
-            {
-                throw new AggregateException(new CompositeError<List<AModule>>(loadResult).ToString());
-            }
-            return loadResult.Value;
+            return configuration.GetNestedModules<AModule>().ThrowIfFailed().Value;
         }
     }
 }

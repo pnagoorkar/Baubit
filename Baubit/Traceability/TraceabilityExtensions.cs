@@ -24,7 +24,7 @@ namespace Baubit.Traceability
 
         public static TResult ThrowIfFailed<TResult>(this TResult result) where TResult : IResultBase
         {
-            if (result.IsFailed) throw new FailedOperationException<TResult>(result);
+            if (result.IsFailed) throw new FailedOperationException(result);
             return result;
         }
     }

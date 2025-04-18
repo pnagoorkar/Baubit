@@ -2,10 +2,11 @@
 
 namespace Baubit.Traceability.Exceptions
 {
-    public class FailedOperationException<TResult> : Exception where TResult : IResultBase
+    public class FailedOperationException: Exception 
     {
-        public TResult Result { get; init; }
-        public FailedOperationException(TResult result) : base(result.ToString())
+        public IResultBase Result { get; init; }
+
+        public FailedOperationException(IResultBase result) : base(result.ToString())
         {
             this.Result = result;
         }

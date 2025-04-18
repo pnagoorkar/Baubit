@@ -13,7 +13,7 @@ namespace Baubit.Test.Traceability.Result
             Assert.True(result.IsFailed);
             Assert.Single(result.Reasons);
             Assert.IsType<ExceptionalError>(result.Reasons.First());
-            Assert.IsType<FailedOperationException<FluentResults.Result>>(result.Reasons.OfType<ExceptionalError>().First().Exception);
+            Assert.IsType<FailedOperationException>(result.Reasons.OfType<ExceptionalError>().First().Exception);
         }
     }
 }
