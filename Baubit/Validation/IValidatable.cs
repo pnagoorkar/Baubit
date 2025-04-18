@@ -15,8 +15,7 @@ namespace Baubit.Validation
             var getResult = validatable.GetValidator(validatorKey);
             if (getResult.IsFailed)
             {
-                //if (getResult.Reasons.Count == 1 && getResult.Reasons.First() is ValidatorNotFound && !enforce)
-                if (!enforce)
+                if (getResult.Reasons.Any(reason => reason is ValidatorKeyNotSet) && !enforce)
                 {
                     return Result.Ok(validatable).WithReasons(getResult.Reasons.GetNonErrors());
                 }
