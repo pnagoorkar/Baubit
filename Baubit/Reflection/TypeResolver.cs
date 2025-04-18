@@ -21,7 +21,7 @@ namespace Baubit.Reflection
         public static Result<Type> TryResolveTypeAsync(string assemblyQualifiedName)
         {
             return Result.Try(() => Type.GetType(assemblyQualifiedName))
-                         .Bind(type => type == null ? Result.Fail(new CompositeError<Type>([new TypeNotDefined(assemblyQualifiedName)], null, "", default)) : Result.Ok(type));
+                         .Bind(type => type == null ? Result.Fail(Enumerable.Empty<IError>()).WithReason(new TypeNotDefined(assemblyQualifiedName)) : Result.Ok(type));
         }
     }
 }
