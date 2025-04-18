@@ -1,4 +1,4 @@
-using Baubit.Traceability.Exceptions;
+﻿using Baubit.Traceability.Exceptions;
 using FluentResults;
 
 namespace Baubit.Traceability

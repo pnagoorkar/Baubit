@@ -1,4 +1,4 @@
-using Baubit.Configuration;
+﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
 using Baubit.Validation;
