@@ -1,11 +1,11 @@
-﻿using FluentResults;
-using FluentValidation;
+﻿using Baubit.Validation;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 
 namespace Baubit.Configuration
 {
-    public abstract class AConfiguration
+    public abstract class AConfiguration : IValidatable
     {
         public string ValidatorKey { get; init; } = "default";
     }
@@ -20,18 +20,9 @@ namespace Baubit.Configuration
         }
         public static Result<TConfiguration> Validate<TConfiguration>(this TConfiguration configuration) where TConfiguration : AConfiguration
         {
-            return Result.Try(() =>
-            {
-                if (AConfigurationValidator<TConfiguration>.CurrentValidators.TryGetValue(configuration.ValidatorKey, out var validator))
-                {
-                    var validationResult = validator.Validate(configuration);
-                    if (validationResult != null && !validationResult.IsValid)
-                    {
-                        throw new ValidationException($"Invalid configuration !{string.Join(Environment.NewLine, validationResult.Errors)}");
-                    }
-                }
-                return configuration;
-            });
+            AValidator<TConfiguration> validator = null;
+            return Result.Try(() => AConfigurationValidator<TConfiguration>.CurrentValidators.TryGetValue(configuration.ValidatorKey, out validator))
+                         .Bind(_ => validator == null ? Result.Ok(configuration) : validator.Validate(configuration));
         }
 
         // convert AConfiguration to its most specific type and then serialize

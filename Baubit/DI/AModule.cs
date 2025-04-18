@@ -3,10 +3,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
 using Baubit.Traceability;
+using Baubit.Validation;
 
 namespace Baubit.DI
 {
-    public interface IModule
+    public interface IModule : IValidatable
     {
         public AConfiguration Configuration { get; }
         public IReadOnlyList<IModule> NestedModules { get; }
