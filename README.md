@@ -308,12 +308,6 @@ For more support, open an issue on GitHub.
 
 
 
-## 📄 License
-Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) file for details.
-
-
-
-
 ## 🔗 Resources
 - [Samples](https://github.com/pnagoorkar/Baubit/tree/master/Samples)
 - Official Documentation (Coming Soon)
@@ -323,4 +317,9 @@ Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) 
 ---
 ## Acknowledgments & Inspiration
 
-See [INSPIRATION.md](./INSPIRATION.md) for details on libraries and ideas that influenced this project.
+See [ACKNOWLEDGEMENT.md](./ACKNOWLEDGEMENT.md) and [INSPIRATION.md](./INSPIRATION.md) for details on libraries and ideas that influenced this project.
+
+
+---
+## Copyright
+Copyright (c) Prashant Nagoorkar. See [LICENSE](LICENSE) for details.
