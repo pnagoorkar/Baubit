@@ -32,9 +32,9 @@ namespace Baubit.Traceability
 
         public static TResult AddReasonIfFailed<TResult>(this TResult result,
                                                           Action<TResult, IEnumerable<IReason>> additionHandler,
-                                                          params IReason[] successes) where TResult : IResultBase
+                                                          params IReason[] reasons) where TResult : IResultBase
         {
-            if (result.IsFailed) additionHandler(result, successes);
+            if (result.IsFailed) additionHandler(result, reasons);
             return result;
         }
 
@@ -45,5 +45,21 @@ namespace Baubit.Traceability
         }
 
         public static List<IReason> GetNonErrors(this List<IReason> reasons) => reasons.Where(reason => reason is not IError).ToList();
+
+        public static TResult UnwrapReasons<TResult>(this TResult result, List<IReason> reasons) where TResult : IResultBase
+        {
+            if (reasons == null) reasons = new List<IReason>();
+
+            foreach (var error in result.Errors)
+            {
+                if (error is ExceptionalError expErr && expErr.Exception is FailedOperationException failedOpExp)
+                {
+                    reasons.AddRange(failedOpExp.Result.Reasons);
+                    failedOpExp.Result.UnwrapReasons(reasons);
+                }
+            }
+
+            return result;
+        }
     }
 }

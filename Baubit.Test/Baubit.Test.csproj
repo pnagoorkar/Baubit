@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <None Remove="Configuration\ConfigurationSource\config.json" />
+    <None Remove="DI\AModule\config.json" />
     <None Remove="DI\ServiceProviderFactoryRegistrar\config.json" />
     <None Remove="DI\Setup\Config\module.json" />
     <None Remove="DI\Setup\Config\moduleConfig.json" />
@@ -24,6 +25,7 @@
     <EmbeddedResource Include="Configuration\AConfiguration\configWithOutValidator.json" />
     <EmbeddedResource Include="Configuration\AConfiguration\config.json" />
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
+    <EmbeddedResource Include="DI\AModule\config.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithDefaultServiceProviderFactory.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyModuleWithReferenceOfAnotherModule.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfiguration.json" />
