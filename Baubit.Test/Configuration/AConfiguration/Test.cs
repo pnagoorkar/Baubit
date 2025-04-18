@@ -1,4 +1,4 @@
-﻿using Baubit.Configuration;
+using Baubit.Configuration;
 using Baubit.Configuration.Errors;
 using Baubit.Validation.Reasons;
 

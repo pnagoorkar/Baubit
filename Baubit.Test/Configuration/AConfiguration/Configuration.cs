@@ -1,6 +1,7 @@
-﻿using Baubit.Configuration;
+﻿
+using Baubit.Configuration;
 
-namespace Baubit.Test.Configuration.AConfiguration.Setup
+namespace Baubit.Test.Configuration.AConfiguration
 {
     public class Configuration : Baubit.Configuration.AConfiguration
     {

@@ -1,4 +1,4 @@
-﻿using Baubit.Traceability;
+using Baubit.Traceability;
 using Baubit.Validation.Reasons;
 using FluentResults;
 

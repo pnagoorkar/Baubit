@@ -7,7 +7,7 @@ namespace Baubit.Configuration
 {
     public abstract class AConfiguration : IValidatable
     {
-        public string ValidatorKey { get; init; }
+        public string ValidatorKey { get; init; } = "default";
     }
 
     public static class ConfigurationExtensions
@@ -16,7 +16,13 @@ namespace Baubit.Configuration
         {
             return Result.Try(() => iConfiguration.Get<TConfiguration>() ?? Activator.CreateInstance<TConfiguration>()!)
                          .Bind(config => config.ExpandURIs())
-                         .Bind(config => config.TryValidate(config.ValidatorKey, !string.IsNullOrEmpty(config.ValidatorKey?.Trim())));
+                         .Bind(config => config.Validate());
+        }
+        public static Result<TConfiguration> Validate<TConfiguration>(this TConfiguration configuration) where TConfiguration : AConfiguration
+        {
+            AValidator<TConfiguration> validator = null;
+            return Result.Try(() => AConfigurationValidator<TConfiguration>.CurrentValidators.TryGetValue(configuration.ValidatorKey, out validator))
+                         .Bind(_ => validator == null ? Result.Ok(configuration) : validator.Validate(configuration));
         }
 
         // convert AConfiguration to its most specific type and then serialize

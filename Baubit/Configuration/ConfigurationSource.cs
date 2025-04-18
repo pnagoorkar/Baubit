@@ -1,4 +1,4 @@
-﻿using Baubit.Configuration.Errors;
+using Baubit.Configuration.Errors;
 using Baubit.Configuration.Exceptions;
 using Baubit.Reflection;
 using Baubit.Traceability;
