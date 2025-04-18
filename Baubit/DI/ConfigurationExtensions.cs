@@ -2,6 +2,7 @@
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
 using Baubit.Traceability.Errors;
+using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +32,7 @@ namespace Baubit.DI
 
             var directlyDefinedModulesExtractionResult = configuration.GetModulesSectionOrDefault()
                                                                       .Bind(modulesSection => Result.Try(() => modulesSection?.GetChildren() ?? new List<IConfigurationSection>()))
-                                                                      .Bind(sections => Result.Merge(sections.Select(section => section.TryAs<TModule>()).ToArray()))
+                                                                      .Bind(sections => Result.Merge(sections.Select(section => section.TryAsModule<TModule>()).ToArray()))
                                                                       .Bind(modules => { directlyDefinedModules = modules.ToList(); return Result.Ok(); });
 
             var indirectlyDefinedModulesExtractionResult = configuration.GetModuleSourcesSectionOrDefault()
@@ -43,6 +44,11 @@ namespace Baubit.DI
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
                    Result.Ok<List<TModule>>([.. directlyDefinedModules, .. indirectlyDefinedModules]) :
                    Result.Fail(new CompositeError<IEnumerable<TModule>>(directlyDefinedModulesExtractionResult, indirectlyDefinedModulesExtractionResult));
+        }
+
+        public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : IModule
+        {
+            return configuration.TryAs<TModule>().Bind(module => module.TryValidate(module.Configuration.ModuleValidatorKey, !string.IsNullOrEmpty(module.Configuration.ModuleValidatorKey?.Trim())));
         }
 
         public static Result<T> TryAs<T>(this IConfiguration configuration)

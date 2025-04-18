@@ -20,6 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Configuration\AConfiguration\configWithValidator.json" />
+    <EmbeddedResource Include="Configuration\AConfiguration\configWithOutValidator.json" />
     <EmbeddedResource Include="Configuration\AConfiguration\config.json" />
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithDefaultServiceProviderFactory.json" />
