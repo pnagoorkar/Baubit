@@ -269,6 +269,8 @@ One of Baubit's most powerful features is its ability to **recursively load modu
   ]
 }
 ```
+This configuration will load **Module 1**, along with its nested modules **2**, **3**, and **4**, in a hierarchical manner. Each module can define its own configuration and optionally nest further modules.
+
 
 > 🔧 This approach allows dynamic and flexible service registration — driven entirely by configuration without changing code.
 > 
@@ -307,7 +309,6 @@ A validator **MUST** be decorated with the ValidatorAttribute this is used to co
   ]
 }
 ```
-This configuration will load **Module 1**, along with its nested modules **2**, **3**, and **4**, in a hierarchical manner. Each module can define its own configuration and optionally nest further modules.
 
 ### Module Validation
 
