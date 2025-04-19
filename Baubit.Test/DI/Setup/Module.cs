@@ -15,7 +15,7 @@ namespace Baubit.Test.DI.Setup
         {
         }
 
-        public Module(ModuleConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
+        public Module(ModuleConfiguration configuration, List<Baubit.DI.AModule> nestedModules) : base(configuration, nestedModules)
         {
         }
 

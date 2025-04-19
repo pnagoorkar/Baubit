@@ -1,4 +1,5 @@
 ﻿using Baubit.Configuration;
+using Baubit.Traceability;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,6 +61,14 @@ namespace Baubit.DI
 
         public RootModule(RootModuleConfiguration moduleConfiguration, List<AModule> nestedModules) : base(moduleConfiguration, nestedModules)
         {
+        }
+
+        protected override void OnInitialized()
+        {
+            var modules = new List<IModule>();
+            this.TryFlatten(modules);
+            modules.Remove(this);
+            Result.Merge(modules.SelectMany(m => m.GetConstraints().Select(constraint => constraint.Compile()(modules).ThrowIfFailed())).ToArray());
         }
 
         public override void Load(IServiceCollection services)
