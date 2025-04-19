@@ -1,4 +1,5 @@
-﻿using Baubit.Traceability;
+﻿using Baubit.Testing;
+using Baubit.Traceability;
 using Baubit.Validation.Reasons;
 using FluentResults;
 
@@ -34,9 +35,8 @@ namespace Baubit.Validation
             AValidator<TValidatable> validator = null;
             return Result.FailIf(validatorKey == null, new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ValidatorKeyNotSet())
-                         .Bind(() => Result.Try(() => AValidator<TValidatable>.CurrentValidators.TryGetValue(validatorKey, out validator)))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ValidatorNotFound(validatorKey))
-                         .Bind(getResult => getResult ? Result.Ok<IValidator<TValidatable>>(validator) : Result.Fail(Enumerable.Empty<IError>()));
+                         .Bind(() => new ConfigurationSource<IValidator<TValidatable>>().Load(validatorKey))
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ValidatorNotFound(validatorKey));
         }
     }
 }

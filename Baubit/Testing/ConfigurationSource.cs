@@ -14,5 +14,9 @@ namespace Baubit.Testing
         {
             return ObjectLoader.Load<TSelfContained>(configurationSource);
         }
+        public static Result<TSelfContained> Load<TSelfContained>(this ConfigurationSource<TSelfContained> configurationSource, string assemblyQualifiedName) where TSelfContained : class, ISelfContained
+        {
+            return ObjectLoader.Load<TSelfContained>(configurationSource, assemblyQualifiedName);
+        }
     }
 }

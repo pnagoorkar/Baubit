@@ -9,8 +9,8 @@ namespace Baubit.Test.Validation
         public void CanValidateObjects()
         {
             var validatable = new Validatable();
-            var result = validatable.GetValidator("default")
-                       .Bind(validator => validator.Validate(validatable));
+            var result = validatable.GetValidator(typeof(Validator).AssemblyQualifiedName)
+                                    .Bind(validator => validator.Validate(validatable));
             Assert.True(result.IsSuccess);
         }
     }

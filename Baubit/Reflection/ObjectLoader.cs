@@ -26,5 +26,11 @@ namespace Baubit.Reflection
                          .Bind(services => services.AddSingleton<TSelfContained>().AddFrom(configSource))
                          .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<TSelfContained>()));
         }
+        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, string assemblyQualifiedName)
+        {
+            return TypeResolver.TryResolveTypeAsync(assemblyQualifiedName)
+                               .Bind(type => Result.Try(() => new ServiceCollection().AddSingleton(serviceType: typeof(TSelfContained), implementationType: type)))
+                               .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<TSelfContained>()));
+        }
     }
 }
