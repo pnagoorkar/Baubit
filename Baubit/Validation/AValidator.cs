@@ -6,10 +6,12 @@ namespace Baubit.Validation
 {
     public abstract class AValidator<T> : IValidator<T>
     {
+        public string ReadableName { get; init; }
         private List<Expression<Func<T, Result>>> _rules;
-        protected AValidator()
+        protected AValidator(string readableName)
         {
             _rules = GetRules().ToList();
+            ReadableName = readableName;
         }
 
         protected abstract IEnumerable<Expression<Func<T, Result>>> GetRules();

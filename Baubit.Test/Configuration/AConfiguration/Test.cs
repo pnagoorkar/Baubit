@@ -1,5 +1,6 @@
 ﻿using Baubit.Configuration;
 using Baubit.Configuration.Errors;
+using Baubit.Traceability;
 using Baubit.Validation.Reasons;
 
 namespace Baubit.Test.Configuration.AConfiguration
@@ -37,7 +38,7 @@ namespace Baubit.Test.Configuration.AConfiguration
             var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"${{BaubitTestAssembly}};Configuration.AConfiguration.{fileName}"] };
             var buildResult = configurationSource.Build().Bind(config => config.Load<Setup.Configuration>());
             Assert.True(buildResult.IsSuccess);
-            Assert.Contains(buildResult.Reasons, reason => reason is ValidatorNotFound);
+            Assert.Contains(buildResult.UnwrapReasons().ThrowIfFailed().Value, reason => reason is NoValidatorsDefined);
         }
 
         [Theory]
@@ -49,7 +50,7 @@ namespace Baubit.Test.Configuration.AConfiguration
             var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"${{BaubitTestAssembly}};Configuration.AConfiguration.{fileName}"] };
             var buildResult = configurationSource.Build().Bind(config => config.Load<Setup.Configuration>());
             Assert.True(buildResult.IsSuccess);
-            Assert.Contains(buildResult.Successes, success => success is PassedValidation<Setup.Configuration> pass && pass.ValidationKey.Equals(buildResult.Value.ValidatorKey));
+            Assert.Equal(buildResult.Value.ValidatorTypes.Count, buildResult.UnwrapReasons().ThrowIfFailed().Value.OfType<PassedValidation<Setup.Configuration>>().Count());
         }
     }
 }

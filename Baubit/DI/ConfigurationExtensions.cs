@@ -1,6 +1,7 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
+using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -47,7 +48,8 @@ namespace Baubit.DI
 
         public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : IModule
         {
-            return configuration.TryAs<TModule>().Bind(module => module.TryValidate(module.Configuration.ModuleValidatorKey, !string.IsNullOrEmpty(module.Configuration.ModuleValidatorKey?.Trim())));
+            return configuration.TryAs<TModule>()
+                                .Bind(module => Result.Try(() => module.Configuration.ValidatorTypes.Aggregate(module, (seed, next) => seed.TryValidate(next).ThrowIfFailed().Value)));
         }
 
         public static Result<T> TryAs<T>(this IConfiguration configuration)
