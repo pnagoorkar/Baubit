@@ -1,8 +1,7 @@
 ﻿using Baubit.Configuration;
 using Microsoft.Extensions.Logging;
 using Baubit.DI;
-using Microsoft.Extensions.DependencyInjection;
-using FluentResults;
+using Baubit.Traceability;
 
 namespace Baubit.Test.Logging.Console
 {
@@ -12,11 +11,11 @@ namespace Baubit.Test.Logging.Console
         [InlineData("config.json")]
         public void CanAddConsoleLogger(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};Logging.Console.{fileName}"] };
-
-            var logger = configurationSource.Build()
-                                            .Bind(config => config.Load())
-                                            .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<ILogger<Test>>())).ValueOrDefault;
+            var logger = ConfigurationBuilder.CreateNew()
+                                                .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};Logging.Console.{fileName}"))
+                                                .Bind(configBuilder => configBuilder.Build())
+                                                .Bind(config => ComponentBuilder<ILogger<Test>>.Create(config))
+                                                .Bind(compBuilder => compBuilder.Build()).ThrowIfFailed().Value;
 
             Assert.NotNull(logger);
         }

@@ -2,7 +2,6 @@
 using Baubit.Configuration.Exceptions;
 using Baubit.Reflection;
 using Baubit.Traceability;
-using Baubit.Traceability.Errors;
 using Baubit.Traceability.Exceptions;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +31,7 @@ namespace Baubit.Configuration
 
         public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, IConfiguration configuration)
         {
-            var configurationBuilder = new ConfigurationBuilder();
+            var configurationBuilder = new Microsoft.Extensions.Configuration.ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
                          .Bind(() => configurationSource.ExpandURIs())
                          .Bind(configSource => configurationSource.AddJsonFiles(configurationBuilder))
@@ -116,7 +115,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddJsonFiles(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddJsonFiles(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
@@ -160,7 +159,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddRawJsonStrings(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddRawJsonStrings(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
@@ -175,7 +174,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddSecrets(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddSecrets(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {

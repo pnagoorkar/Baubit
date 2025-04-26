@@ -31,18 +31,22 @@ namespace Baubit.Reflection
         }
         public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, Type concreteType) where TSelfContained : class, ISelfContained
         {
-            return new ServiceCollection().AddFrom(configSource).Bind(services => Load<TSelfContained>(concreteType, services));
+            return Result.FailIf(concreteType.IsGenericType, new Error(string.Empty))
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new GenericTypesNotSupported())
+                         .Bind(configSource.Build)
+                         .Bind(config => ComponentBuilder<TSelfContained>.Create(config))
+                         .Bind(compBuilder => compBuilder.WithRegistrationHandler(services => services.AddSingleton(concreteType)))
+                         .Bind(compBuilder => compBuilder.Build());
+
+            //return Result.FailIf(concreteType.IsGenericType, new Error(string.Empty))
+            //             .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new GenericTypesNotSupported())
+            //             .Bind(configSource.Build)
+            //             .Bind(config => config.LoadServices(services => services.AddSingleton(concreteType)))
+            //             .Bind(serviceProvider => Result.Try(() => (TSelfContained)serviceProvider.GetRequiredService(concreteType)));
         }
         public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, string assemblyQualifiedName) where TSelfContained : class, ISelfContained
         {
             return TypeResolver.TryResolveTypeAsync(assemblyQualifiedName).Bind(Load<TSelfContained>);
-        }
-        public static Result<TSelfContained> Load<TSelfContained>(Type concreteType, IServiceCollection services) where TSelfContained : class, ISelfContained
-        {
-            return Result.FailIf(concreteType.IsGenericType, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new GenericTypesNotSupported())
-                         .Bind(() => Result.Try(() => services.AddSingleton(concreteType)))
-                         .Bind(services => Result.Try(() => (TSelfContained)services.BuildServiceProvider().GetRequiredService(concreteType)));
         }
     }
 }

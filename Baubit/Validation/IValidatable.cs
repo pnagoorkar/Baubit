@@ -1,4 +1,6 @@
-﻿using Baubit.Traceability;
+﻿using Baubit.Configuration;
+using Baubit.DI;
+using Baubit.Traceability;
 using Baubit.Validation.Reasons;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +36,16 @@ namespace Baubit.Validation
 
         public static Result<IValidationContext> LoadContext<TValidatable>(this TValidatable validatable, Type validatorConcreteType) where TValidatable : class, IValidatable
         {
+            //Func<IServiceCollection, IServiceCollection> registrationHandler =
+            //    services => services.AddSingleton(validatable.GetType(), validatable)
+            //                        .AddSingleton(serviceType: typeof(IValidator<>).MakeGenericType(validatable.GetType()), implementationType: validatorConcreteType)
+            //                        .AddSingleton(serviceType: typeof(IValidationContext), implementationType: typeof(ValidationContext<>).MakeGenericType(validatable.GetType()));
+            //return ConfigurationBuilder.CreateNew()
+            //                           .Bind(cB => cB.Build())
+            //                           .Bind(config => config.TryGetRequiredService<IValidationContext>(services => services.AddSingleton(validatable.GetType(), validatable)
+            //                        .AddSingleton(serviceType: typeof(IValidator<>).MakeGenericType(validatable.GetType()), implementationType: validatorConcreteType)
+            //                        .AddSingleton(serviceType: typeof(IValidationContext), implementationType: typeof(ValidationContext<>).MakeGenericType(validatable.GetType()))));
+
             return Result.Try(() => new ServiceCollection())
                          .Bind(services => Result.Try(() => services.AddSingleton(validatable.GetType(), validatable)))
                          .Bind(services => Result.Try(() => services.AddSingleton(serviceType: typeof(IValidator<>).MakeGenericType(validatable.GetType()), implementationType: validatorConcreteType)))

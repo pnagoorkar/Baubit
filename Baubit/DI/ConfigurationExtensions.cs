@@ -4,27 +4,11 @@ using Baubit.Reflection;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
-        public static Result<IServiceProvider> Load(this IConfiguration configuration)
-        {
-            return Result.Try(() => new ServiceCollection())
-                         .Bind(services => services.AddFrom(configuration))
-                         .Bind(services => Result.Try<IServiceProvider>(() => services.BuildServiceProvider()));
-        }
-        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, IConfiguration configuration)
-        {
-            return Result.Try(() => new RootModule(configuration))
-                         .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes))
-                         .Bind(rootModule => Result.Try(() => rootModule.Load(services)))
-                         .Bind(() => Result.Ok(services));
-        }
-        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) =>  configurationSource.Build().Bind(services.AddFrom);
-
         public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration) where TModule : class, IModule
         {
             List<TModule> directlyDefinedModules = new List<TModule>();
