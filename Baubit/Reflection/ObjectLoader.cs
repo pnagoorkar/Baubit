@@ -25,7 +25,7 @@ namespace Baubit.Reflection
             return Result.OkIf(typeof(TSelfContained).IsAssignableFrom(concreteType), new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new IncompatibleTypes(typeof(TSelfContained), concreteType))
                          .Bind(() => Result.Try(() => typeof(TSelfContained).GetCustomAttribute<SourceAttribute>()))
-                         .Bind(sourceAttribute => sourceAttribute == null ? Result.Fail($"{typeof(TSelfContained).Name}{Environment.NewLine}The generic type parameter TSelfContained requires a {nameof(SourceAttribute)} to be instantiated") : Result.Ok(sourceAttribute))
+                         .Bind(sourceAttribute => sourceAttribute == null ? Result.Fail(new Error(string.Empty)).WithReason(new SourceMissing<TSelfContained>()) : Result.Ok(sourceAttribute))
                          .Bind(sourceAttribute => sourceAttribute.GetConfigSourceFromSourceAttribute())
                          .Bind(configSource => Load<TSelfContained>(configSource, concreteType));
         }
