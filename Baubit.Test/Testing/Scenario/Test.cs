@@ -10,8 +10,11 @@ namespace Baubit.Test.Testing.Scenario
         [Fact]
         public void CanLoadScenarioFromEmbeddedJsonResource()
         {
-            var result = Result.Try(() => new ConfigurationSource{ EmbeddedJsonResources = ["Baubit.Test;Testing.Scenario.scenario.json"] })
-                               .Bind(ObjectLoader.Load<Scenario>);
+            var result = ConfigurationSourceBuilder.CreateNew()
+                                                   .Bind(configSourceBuilder => configSourceBuilder.WithEmbeddedJsonResources("Baubit.Test;Testing.Scenario.scenario.json"))
+                                                   .Bind(configSourceBuilder => configSourceBuilder.Build())
+                                                   .Bind(ObjectLoader.Load<Scenario>);
+
             Assert.True(result.IsSuccess);
             Assert.NotNull(result.Value);
         }

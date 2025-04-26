@@ -8,11 +8,11 @@ namespace Baubit.Configuration
 
     public sealed class ConfigurationBuilder : IDisposable
     {
-        private ConfigurationSource Value { get; set; }
+        private ConfigurationSourceBuilder _configurationSourceBuilder;
         private bool _isDisposed;
         private ConfigurationBuilder()
         {
-            Value = new ConfigurationSource();
+            _configurationSourceBuilder = ConfigurationSourceBuilder.CreateNew().Value;
         }
 
         public static Result<ConfigurationBuilder> CreateNew() => Result.Ok(new ConfigurationBuilder());
@@ -21,28 +21,36 @@ namespace Baubit.Configuration
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
-                         .Bind(() => Result.Try(() => Value.JsonUriStrings.AddRange(jsonUriStrings)))
-                         .Bind(() => Result.Ok(this));
+                         .Bind(() => _configurationSourceBuilder.WithJsonUriStrings(jsonUriStrings))
+                         .Bind(_ => Result.Ok(this));
         }
         public Result<ConfigurationBuilder> WithEmbeddedJsonResources(params string[] embeddedJsonResources)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
-                         .Bind(() => Result.Try(() => Value.EmbeddedJsonResources.AddRange(embeddedJsonResources)))
-                         .Bind(() => Result.Ok(this));
+                         .Bind(() => _configurationSourceBuilder.WithEmbeddedJsonResources(embeddedJsonResources))
+                         .Bind(_ => Result.Ok(this));
         }
         public Result<ConfigurationBuilder> WithLocalSecrets(params string[] localSecrets)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
-                         .Bind(() => Result.Try(() => Value.LocalSecrets.AddRange(localSecrets)))
-                         .Bind(() => Result.Ok(this));
+                         .Bind(() => _configurationSourceBuilder.WithLocalSecrets(localSecrets))
+                         .Bind(_ => Result.Ok(this));
+        }
+        public Result<ConfigurationBuilder> WithRawJsonStrings(params string[] rawJsonStrings)
+        {
+            return Result.FailIf(_isDisposed, new Error(string.Empty))
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
+                         .Bind(() => _configurationSourceBuilder.WithRawJsonStrings(rawJsonStrings))
+                         .Bind(_ => Result.Ok(this));
         }
         public Result<IConfiguration> Build()
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
-                         .Bind(Value.Build)
+                         .Bind(_configurationSourceBuilder.Build)
+                         .Bind(configSource => configSource.Build())
                          .Bind(configuration => Result.Try(() => { Dispose(); return configuration; }));
         }
 
@@ -58,7 +66,8 @@ namespace Baubit.Configuration
             {
                 if (disposing)
                 {
-                    Value = null;
+                    _configurationSourceBuilder.Dispose();
+                    _configurationSourceBuilder = null;
                 }
                 _isDisposed = true;
             }

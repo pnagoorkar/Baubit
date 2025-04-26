@@ -94,7 +94,7 @@ namespace Baubit.DI
 
         public static Result<ConfigurationSource> GetObjectConfigurationSourceOrDefault(this IConfiguration configuration)
         {
-            return Result.Ok(configuration.GetObjectConfigurationSourceSection().ValueOrDefault?.Get<ConfigurationSource>() ?? new ConfigurationSource());
+            return Result.Ok(configuration.GetObjectConfigurationSourceSection().ValueOrDefault?.Get<ConfigurationSource>() ?? ConfigurationSourceBuilder.BuildEmpty().Value);
         }
 
         public static Result<IConfigurationSection> GetObjectConfigurationOrDefault(this IConfiguration configuration)

@@ -29,11 +29,11 @@ namespace Baubit.DI
                          .Bind(() => Result.Try(() => { if (!_handlers.Contains(handler)) _handlers.Add(handler); }))
                          .Bind(() => Result.Ok(this));
         }
-        public Result<T> Build(bool checkConstraints = false)
+        public Result<T> Build(bool validateRoot = false)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
                          .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ComponentBuilderDisposed<T>())
-                         .Bind(() => checkConstraints ? _rootModule.TryValidate(_rootModule.Configuration.ModuleValidatorTypes).Bind(_ => Result.Ok()) : Result.Ok())
+                         .Bind(() => validateRoot ? _rootModule.TryValidate(_rootModule.Configuration.ModuleValidatorTypes).Bind(_ => Result.Ok()) : Result.Ok())
                          .Bind(() => Result.Try(() => new ServiceCollection()))
                          .Bind(services => Result.Try(() => { _rootModule.Load(services); return services; }))
                          .Bind(services => _handlers.Aggregate(Result.Ok<IServiceCollection>(services), (seed, next) => seed.Bind(s => Result.Try(() => next(s)))))
