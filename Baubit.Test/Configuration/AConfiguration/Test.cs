@@ -2,10 +2,11 @@
 using Baubit.Configuration.Errors;
 using Baubit.Traceability;
 using Baubit.Validation.Reasons;
+using Xunit.Abstractions;
 
 namespace Baubit.Test.Configuration.AConfiguration
 {
-    public class Test
+    public class Test(ITestOutputHelper testOutputHelper)
     {
         [Theory]
         [InlineData("config.json")]

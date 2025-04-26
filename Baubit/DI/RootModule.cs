@@ -1,5 +1,5 @@
 ﻿using Baubit.Configuration;
-using Baubit.Traceability;
+using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +14,7 @@ namespace Baubit.DI
 
     public abstract class ARootModuleConfiguration : AConfiguration
     {
-
+        public bool DisableConstraints { get; init; }
     }
     public sealed class RootModuleConfiguration : ARootModuleConfiguration
     {
@@ -22,8 +22,8 @@ namespace Baubit.DI
     }
 
     public abstract class ARootModule<TConfiguration, 
-                                        TServiceProviderFactory, 
-                                        TContainerBuilder> : AModule<TConfiguration>, IRootModule where TConfiguration : ARootModuleConfiguration 
+                                      TServiceProviderFactory, 
+                                      TContainerBuilder> : AModule<TConfiguration>, IRootModule where TConfiguration : ARootModuleConfiguration 
                                                                                                   where TServiceProviderFactory : IServiceProviderFactory<TContainerBuilder>
                                                                                                   where TContainerBuilder : notnull
     {
@@ -65,10 +65,10 @@ namespace Baubit.DI
 
         protected override void OnInitialized()
         {
-            var modules = new List<IModule>();
-            this.TryFlatten(modules);
-            modules.Remove(this);
-            Result.Merge(modules.SelectMany(m => m.GetConstraints().Select(constraint => constraint.Compile()(modules).ThrowIfFailed())).ToArray());
+            if (!Configuration.DisableConstraints)
+            {
+                Configuration.ModuleValidatorKeys.Add(typeof(RootValidator<RootModule>).AssemblyQualifiedName);
+            }
         }
 
         public override void Load(IServiceCollection services)
@@ -95,7 +95,7 @@ namespace Baubit.DI
 
             var registrationResult = hostApplicationBuilder.Configuration
                                                            .GetRootModuleSection()
-                                                           .Bind(section => section.TryAs<IRootModule>())
+                                                           .Bind(section => section.TryAsModule<IRootModule>())
                                                            .Bind(registrar => registrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
 
             if (registrationResult.IsFailed)
@@ -112,6 +112,11 @@ namespace Baubit.DI
             Console.WriteLine(result.ToString());
             Environment.Exit(-1);
         }
+        public static Result<List<IModule>> TryFlatten<TModule>(this TModule module) where TModule : IModule
+        {
+            return Result.Try(() => new List<IModule>())
+                         .Bind(modules => module.TryFlatten(modules) ? Result.Ok(modules) : Result.Fail(""));
+        }
         public static bool TryFlatten<TModule>(this TModule module, List<IModule> modules) where TModule : IModule
         {
             if (modules == null) modules = new List<IModule>();
@@ -124,6 +129,18 @@ namespace Baubit.DI
             }
 
             return true;
+        }
+
+        public static Result CheckConstraints<TRootModule>(this TRootModule rootModule) where TRootModule : IRootModule
+        {
+            return rootModule.TryFlatten()
+                             .Bind(modules => modules.Remove(rootModule) ? Result.Ok(modules) : Result.Fail(string.Empty))
+                             .Bind(modules => modules.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => next.CheckConstraints(modules))));
+        }
+
+        public static Result CheckConstraints<TModule>(this TModule module, List<IModule> modules) where TModule : class, IModule
+        {
+            return module.TryValidate(module.Configuration.ModuleValidatorTypes, modules.Cast<IConstrainable>().ToList()).Bind(m => Result.Ok());
         }
     }
 }

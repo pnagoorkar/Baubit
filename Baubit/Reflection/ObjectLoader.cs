@@ -1,5 +1,7 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI;
+using Baubit.Reflection.Reasons;
+using Baubit.Traceability;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
@@ -13,29 +15,34 @@ namespace Baubit.Reflection
         /// </summary>
         /// <typeparam name="TSelfContained">Type of the object to be loaded</typeparam>
         /// <returns>A result that will hold the object in its value if successful </returns>
-        public static Result<TSelfContained> Load<TSelfContained>() where TSelfContained : class, ISelfContained
+        public static Result<TSelfContained> Load<TSelfContained>() where TSelfContained : class, ISelfContained => Load<TSelfContained>(typeof(TSelfContained));
+
+        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource) where TSelfContained : class, ISelfContained => Load<TSelfContained>(configSource, typeof(TSelfContained));
+
+
+        public static Result<TSelfContained> Load<TSelfContained>(Type concreteType) where TSelfContained : class, ISelfContained
         {
-            return Result.Try(() => typeof(TSelfContained).GetCustomAttribute<SourceAttribute>())
+            return Result.OkIf(typeof(TSelfContained).IsAssignableFrom(concreteType), new Error(string.Empty))
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new IncompatibleTypes(typeof(TSelfContained), concreteType))
+                         .Bind(() => Result.Try(() => typeof(TSelfContained).GetCustomAttribute<SourceAttribute>()))
                          .Bind(sourceAttribute => sourceAttribute == null ? Result.Fail($"{typeof(TSelfContained).Name}{Environment.NewLine}The generic type parameter TSelfContained requires a {nameof(SourceAttribute)} to be instantiated") : Result.Ok(sourceAttribute))
                          .Bind(sourceAttribute => Result.Try(() => sourceAttribute.ConfigurationSource))
-                         .Bind(Load<TSelfContained>);
+                         .Bind(configSource => Load<TSelfContained>(configSource, concreteType));
         }
-        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource) where TSelfContained : class, ISelfContained
+        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, Type concreteType) where TSelfContained : class, ISelfContained
         {
-            return Result.Try(() => new ServiceCollection())
-                         .Bind(services => services.AddSingleton<TSelfContained>().AddFrom(configSource))
-                         .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<TSelfContained>()));
+            return new ServiceCollection().AddFrom(configSource).Bind(services => Load<TSelfContained>(concreteType, services));
         }
-        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, string assemblyQualifiedName)
+        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, string assemblyQualifiedName) where TSelfContained : class, ISelfContained
         {
-            return TypeResolver.TryResolveTypeAsync(assemblyQualifiedName)
-                               .Bind(type => Result.Try(() => new ServiceCollection().AddSingleton(serviceType: typeof(TSelfContained), implementationType: type)))
-                               .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<TSelfContained>()));
+            return TypeResolver.TryResolveTypeAsync(assemblyQualifiedName).Bind(Load<TSelfContained>);
         }
-        public static Result<TSelfContained> Load<TSelfContained>(ConfigurationSource configSource, Type concreteType)
+        public static Result<TSelfContained> Load<TSelfContained>(Type concreteType, IServiceCollection services) where TSelfContained : class, ISelfContained
         {
-            return Result.Try(() => new ServiceCollection().AddSingleton(serviceType: typeof(TSelfContained), implementationType: concreteType))
-                         .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<TSelfContained>()));
+            return Result.FailIf(concreteType.IsGenericType, new Error(string.Empty))
+                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new GenericTypesNotSupported())
+                         .Bind(() => Result.Try(() => services.AddSingleton(concreteType)))
+                         .Bind(services => Result.Try(() => (TSelfContained)services.BuildServiceProvider().GetRequiredService(concreteType)));
         }
     }
 }

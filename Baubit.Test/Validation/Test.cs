@@ -9,8 +9,7 @@ namespace Baubit.Test.Validation
         public void CanValidateObjects()
         {
             var validatable = new Validatable();
-            var result = validatable.GetValidator(typeof(Validator))
-                                    .Bind(validator => validator.Validate(validatable));
+            var result = validatable.TryValidate(typeof(Validator));
             Assert.True(result.IsSuccess);
         }
     }

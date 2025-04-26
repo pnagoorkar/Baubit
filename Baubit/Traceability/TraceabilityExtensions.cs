@@ -22,6 +22,11 @@ namespace Baubit.Traceability
             return result;
         }
 
+        public static TResult AddSuccessIfPassed<TResult, T>(this TResult result, params ISuccess[] successes) where TResult : Result<T>
+        {
+            return result.AddSuccessIfPassed((r, s) => r.WithSuccesses(s));
+        }
+
         public static TResult AddSuccessIfPassed<TResult>(this TResult result,
                                                           Action<TResult, IEnumerable<ISuccess>> additionHandler,
                                                           params ISuccess[] successes) where TResult : IResultBase

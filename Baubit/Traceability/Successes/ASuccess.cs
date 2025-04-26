@@ -8,5 +8,9 @@ namespace Baubit.Traceability.Successes
         protected ASuccess(string message, Dictionary<string, object> metadata) : base(message, metadata)
         {
         }
+        protected ASuccess() : this(string.Empty, default)
+        {
+            
+        }
     }
 }

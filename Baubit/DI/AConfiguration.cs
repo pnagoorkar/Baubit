@@ -11,7 +11,7 @@ namespace Baubit.DI
         private List<Type> moduleValidatorTypes;
 
         [JsonIgnore]
-        public List<Type> ValidatorTypes
+        public List<Type> ModuleValidatorTypes
         {
             get
             {

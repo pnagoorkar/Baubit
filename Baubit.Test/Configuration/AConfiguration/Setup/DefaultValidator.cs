@@ -10,6 +10,7 @@ namespace Baubit.Test.Configuration.AConfiguration.Setup
         {
             
         }
+
         protected override IEnumerable<Expression<Func<Configuration, Result>>> GetRules()
         {
             return [v => Result.Ok()];

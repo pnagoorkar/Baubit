@@ -4,8 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
 using Baubit.Traceability;
 using Baubit.Validation;
-using System.Linq.Expressions;
-using FluentResults;
 
 namespace Baubit.DI
 {
@@ -14,7 +12,6 @@ namespace Baubit.DI
         public AConfiguration Configuration { get; }
         public IReadOnlyList<IModule> NestedModules { get; }
         public void Load(IServiceCollection services);
-        public IEnumerable<Expression<Func<List<IModule>, Result>>> GetConstraints();
     }
 
     public abstract class AModule : IModule
@@ -47,7 +44,6 @@ namespace Baubit.DI
 
         public abstract void Load(IServiceCollection services);
 
-        public virtual IEnumerable<Expression<Func<List<IModule>, Result>>> GetConstraints() => Enumerable.Empty<Expression<Func<List<IModule>, Result>>>();
     }
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AConfiguration

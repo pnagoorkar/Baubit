@@ -1,7 +1,10 @@
 {
   "modules": [
     {
-      "type": "Baubit.Test.DI.AModule.Setup.Module, Baubit.Test"
+      "type": "Baubit.Test.DI.AModule.Setup.Module, Baubit.Test",
+      "configuration": {
+        "moduleValidatorKeys": [ "Baubit.Test.DI.AModule.Setup.MyModuleValidator, Baubit.Test" ]
+      }
     },
     {
       "type": "Baubit.Test.DI.AModule.Setup.Module, Baubit.Test"

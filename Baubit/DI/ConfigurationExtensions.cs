@@ -1,7 +1,6 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
-using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -20,12 +19,13 @@ namespace Baubit.DI
         public static Result<IServiceCollection> AddFrom(this IServiceCollection services, IConfiguration configuration)
         {
             return Result.Try(() => new RootModule(configuration))
+                         .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes))
                          .Bind(rootModule => Result.Try(() => rootModule.Load(services)))
                          .Bind(() => Result.Ok(services));
         }
         public static Result<IServiceCollection> AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) =>  configurationSource.Build().Bind(services.AddFrom);
 
-        public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration) where TModule : IModule
+        public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration) where TModule : class, IModule
         {
             List<TModule> directlyDefinedModules = new List<TModule>();
             List<TModule> indirectlyDefinedModules = new List<TModule>();
@@ -46,10 +46,10 @@ namespace Baubit.DI
                    Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
         }
 
-        public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : IModule
+        public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : class, IModule
         {
             return configuration.TryAs<TModule>()
-                                .Bind(module => Result.Try(() => module.Configuration.ValidatorTypes.Aggregate(module, (seed, next) => seed.TryValidate(next).ThrowIfFailed().Value)));
+                                .Bind(module => module.TryValidate(module.Configuration.ModuleValidatorTypes));
         }
 
         public static Result<T> TryAs<T>(this IConfiguration configuration)

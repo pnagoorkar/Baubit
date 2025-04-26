@@ -36,8 +36,7 @@ namespace Baubit.Configuration
             return Result.Try(() => iConfiguration.Get<TConfiguration>() ?? Activator.CreateInstance<TConfiguration>()!)
                          .Bind(config => config.ExpandURIs())
                          .Bind(config => config.CheckIfValidatorsExist())
-                         .Bind(config => Result.Try(() => config.ValidatorTypes.Aggregate(Result.Ok(config), (seed, next) => seed.Bind(cfg => cfg.TryValidate(next)).WithReasons(seed.Reasons).ThrowIfFailed()).ThrowIfFailed()))
-                         .Bind(res => res);
+                         .Bind(config => config.TryValidate(config.ValidatorTypes));
         }
 
         public static Result<TConfiguration> CheckIfValidatorsExist<TConfiguration>(this TConfiguration config) where TConfiguration : AConfiguration
