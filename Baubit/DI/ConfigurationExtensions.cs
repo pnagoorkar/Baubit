@@ -9,7 +9,7 @@ namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
-        public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration) where TModule : class, IModule
+        public static Result<List<TModule>> LoadModules<TModule>(this IConfiguration configuration) where TModule : class, IModule
         {
             List<TModule> directlyDefinedModules = new List<TModule>();
             List<TModule> indirectlyDefinedModules = new List<TModule>();
@@ -22,7 +22,7 @@ namespace Baubit.DI
             var indirectlyDefinedModulesExtractionResult = configuration.GetModuleSourcesSectionOrDefault()
                                                                         .Bind(moduleSourceSection => Result.Try(() => moduleSourceSection?.GetChildren() ?? new List<IConfigurationSection>()))
                                                                         .Bind(configSections => Result.Merge(configSections.Select(section => section.Get<ConfigurationSource>().Build()).ToArray()))
-                                                                        .Bind(configs => Result.Merge(configs.Select(config => config.GetNestedModules<TModule>()).ToArray()))
+                                                                        .Bind(configs => Result.Merge(configs.Select(config => config.LoadModules<TModule>()).ToArray()))
                                                                         .Bind(modules => { indirectlyDefinedModules = modules.SelectMany(x => x).ToList(); return Result.Ok(); });
 
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?

@@ -83,7 +83,7 @@ namespace Baubit.DI
 
         private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
         {
-            return configuration.GetNestedModules<AModule>().ThrowIfFailed().Value;
+            return configuration.LoadModules<AModule>().ThrowIfFailed().Value;
         }
     }
 }
