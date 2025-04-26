@@ -1,8 +1,6 @@
-﻿using Baubit.Reflection;
-
-namespace Baubit.Testing
+﻿namespace Baubit.Testing
 {
-    public interface IContext : ISelfContained
+    public interface IContext
     {
     }
 }

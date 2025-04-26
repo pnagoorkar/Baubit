@@ -35,6 +35,16 @@ namespace Baubit.Traceability
             return result;
         }
 
+        public static Result AddReasonIfFailed(this Result result, params IReason[] reasons)
+        {
+            return result.AddReasonIfFailed((res, reas) => res.WithReasons(reasons), reasons);
+        }
+
+        public static TResult AddReasonIfFailed<TResult, T>(this TResult result, params IReason[] reasons) where TResult : Result<T>
+        {
+            return result.AddReasonIfFailed((res, reas) => res.WithReasons(reasons), reasons);
+        }
+
         public static TResult AddReasonIfFailed<TResult>(this TResult result,
                                                           Action<TResult, IEnumerable<IReason>> additionHandler,
                                                           params IReason[] reasons) where TResult : IResultBase

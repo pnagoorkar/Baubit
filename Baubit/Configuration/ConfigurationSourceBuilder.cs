@@ -23,35 +23,35 @@ namespace Baubit.Configuration
         public Result<ConfigurationSourceBuilder> WithJsonUriStrings(params string[] jsonUriStrings)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
+                         .AddReasonIfFailed(new ConfigurationBuilderDisposed())
                          .Bind(() => Result.Try(() => JsonUriStrings.AddRange(jsonUriStrings)))
                          .Bind(() => Result.Ok(this));
         }
         public Result<ConfigurationSourceBuilder> WithEmbeddedJsonResources(params string[] embeddedJsonResources)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
+                         .AddReasonIfFailed(new ConfigurationBuilderDisposed())
                          .Bind(() => Result.Try(() => EmbeddedJsonResources.AddRange(embeddedJsonResources)))
                          .Bind(() => Result.Ok(this));
         }
         public Result<ConfigurationSourceBuilder> WithLocalSecrets(params string[] localSecrets)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
+                         .AddReasonIfFailed(new ConfigurationBuilderDisposed())
                          .Bind(() => Result.Try(() => LocalSecrets.AddRange(localSecrets)))
                          .Bind(() => Result.Ok(this));
         }
         public Result<ConfigurationSourceBuilder> WithRawJsonStrings(params string[] rawJsonStrings)
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
+                         .AddReasonIfFailed(new ConfigurationBuilderDisposed())
                          .Bind(() => Result.Try(() => RawJsonStrings.AddRange(rawJsonStrings)))
                          .Bind(() => Result.Ok(this));
         }
         public Result<ConfigurationSource> Build()
         {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ConfigurationBuilderDisposed())
+                         .AddReasonIfFailed(new ConfigurationBuilderDisposed())
                          .Bind(() => Result.Try(() => new ConfigurationSource(RawJsonStrings.ToList(), JsonUriStrings.ToList(), EmbeddedJsonResources.ToList(), LocalSecrets.ToList())))
                          .Bind(configSource => Result.Try(() => { Dispose(); return configSource; }));
         }

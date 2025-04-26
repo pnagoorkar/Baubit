@@ -1,7 +1,8 @@
 ﻿using Baubit.Configuration;
-using Baubit.Reflection;
+using Baubit.DI;
 using Baubit.Testing;
 using FluentResults;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Test.Testing.Scenario
 {
@@ -13,8 +14,9 @@ namespace Baubit.Test.Testing.Scenario
             var result = ConfigurationSourceBuilder.CreateNew()
                                                    .Bind(configSourceBuilder => configSourceBuilder.WithEmbeddedJsonResources("Baubit.Test;Testing.Scenario.scenario.json"))
                                                    .Bind(configSourceBuilder => configSourceBuilder.Build())
-                                                   .Bind(ObjectLoader.Load<Scenario>);
-
+                                                   .Bind(configSource => ComponentBuilder<Scenario>.Create(configSource))
+                                                   .Bind(compBuilder => compBuilder.WithRegistrationHandler(services => services.AddSingleton<Scenario>()))
+                                                   .Bind(compBuilder => compBuilder.Build());
             Assert.True(result.IsSuccess);
             Assert.NotNull(result.Value);
         }

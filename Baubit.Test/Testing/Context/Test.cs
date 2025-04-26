@@ -1,5 +1,7 @@
-﻿using Baubit.Reflection;
+﻿using Baubit.DI;
+using Baubit.Reflection;
 using Baubit.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Test.Testing.Context
 {
@@ -8,7 +10,9 @@ namespace Baubit.Test.Testing.Context
         [Fact]
         public void CanLoadContextFromEmbeddedJsonResource()
         {
-            var result = ObjectLoader.Load<Context>();
+            var result = ComponentBuilder<Context>.CreateFromSourceAttribute()
+                                                  .Bind(compBuilder => compBuilder.WithRegistrationHandler(services => services.AddSingleton<Context>()))
+                                                  .Bind(compBuilder => compBuilder.Build());
             Assert.True(result.IsSuccess);
             Assert.NotNull(result.Value);
         }

@@ -1,10 +1,12 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
+using Baubit.Reflection;
 using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace Baubit.DI
 {
@@ -22,23 +24,35 @@ namespace Baubit.DI
         public static Result<ComponentBuilder<T>> Create(ConfigurationSource configSource) => configSource.Build().Bind(Create);
         public static Result<ComponentBuilder<T>> Create(IConfiguration configuration) => Result.Ok(new ComponentBuilder<T>(configuration));
 
+        public static Result<ComponentBuilder<T>> CreateFromSourceAttribute()
+        {
+            return Result.Try(() => typeof(T).GetCustomAttribute<SourceAttribute>())
+                         .Bind(sourceAttribute => Result.FailIf(sourceAttribute == null, new Error(string.Empty))
+                                                        .AddReasonIfFailed(new SourceMissing<T>())
+                                                        .Bind(() => Result.Ok(sourceAttribute)))
+                         .Bind(sourceAttribute => sourceAttribute!.GetConfigSourceFromSourceAttribute())
+                         .Bind(Create);
+        }
+
         public Result<ComponentBuilder<T>> WithRegistrationHandler(Func<IServiceCollection, IServiceCollection> handler)
         {
-            return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ComponentBuilderDisposed<T>())
-                         .Bind(() => Result.Try(() => { if (!_handlers.Contains(handler)) _handlers.Add(handler); }))
-                         .Bind(() => Result.Ok(this));
+            return FailIfDisposed().Bind(() => Result.Try(() => { if (!_handlers.Contains(handler)) _handlers.Add(handler); }))
+                                   .Bind(() => Result.Ok(this));
         }
         public Result<T> Build(bool validateRoot = false)
         {
+            return FailIfDisposed().Bind(() => validateRoot ? _rootModule.TryValidate(_rootModule.Configuration.ModuleValidatorTypes).Bind(_ => Result.Ok()) : Result.Ok())
+                                   .Bind(() => Result.Try(() => new ServiceCollection()))
+                                   .Bind(services => Result.Try(() => { _rootModule.Load(services); return services; }))
+                                   .Bind(services => _handlers.Aggregate(Result.Ok<IServiceCollection>(services), (seed, next) => seed.Bind(s => Result.Try(() => next(s)))))
+                                   .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<T>()))
+                                   .Bind(component => Result.Try(() => { Dispose(); return component; }));
+        }
+
+        private Result FailIfDisposed()
+        {
             return Result.FailIf(_isDisposed, new Error(string.Empty))
-                         .AddReasonIfFailed((res, reas) => res.WithReasons(reas), new ComponentBuilderDisposed<T>())
-                         .Bind(() => validateRoot ? _rootModule.TryValidate(_rootModule.Configuration.ModuleValidatorTypes).Bind(_ => Result.Ok()) : Result.Ok())
-                         .Bind(() => Result.Try(() => new ServiceCollection()))
-                         .Bind(services => Result.Try(() => { _rootModule.Load(services); return services; }))
-                         .Bind(services => _handlers.Aggregate(Result.Ok<IServiceCollection>(services), (seed, next) => seed.Bind(s => Result.Try(() => next(s)))))
-                         .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<T>()))
-                         .Bind(component => Result.Try(() => { Dispose(); return component; }));
+                         .AddReasonIfFailed(new ComponentBuilderDisposed<T>());
         }
 
         public void Dispose()

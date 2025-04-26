@@ -1,9 +1,8 @@
-﻿using Baubit.Reflection;
-using FluentResults;
+﻿using FluentResults;
 
 namespace Baubit.Testing
 {
-    public interface IScenario : ISelfContained
+    public interface IScenario
     {
         Result Run();
         Task<Result> RunAsync();
