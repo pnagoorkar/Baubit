@@ -7,17 +7,20 @@ using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
+using System.Text.Json;
 
 namespace Baubit.DI
 {
     public sealed class ComponentBuilder<T> : IDisposable where T : class
     {
-        private RootModule _rootModule;
+        private IConfiguration _configuration;
+        private bool enableRootValidation = false;
         private List<Func<IServiceCollection, IServiceCollection>> _handlers = new List<Func<IServiceCollection, IServiceCollection>>();
         private bool _isDisposed;
+
         private ComponentBuilder(IConfiguration configuration)
         {
-            _rootModule = new RootModule(configuration);
+            _configuration = configuration;
         }
 
         public static Result<ComponentBuilder<T>> Create() => Configuration.ConfigurationBuilder.CreateNew().Bind(cB => cB.Build()).Bind(Create);
@@ -39,14 +42,34 @@ namespace Baubit.DI
             return FailIfDisposed().Bind(() => Result.Try(() => { if (!_handlers.Contains(handler)) _handlers.Add(handler); }))
                                    .Bind(() => Result.Ok(this));
         }
-        public Result<T> Build(bool validateRoot = false)
+
+        public Result<ComponentBuilder<T>> WithRootValidation()
         {
-            return FailIfDisposed().Bind(() => validateRoot ? _rootModule.TryValidate(_rootModule.Configuration.ModuleValidatorTypes).Bind(_ => Result.Ok()) : Result.Ok())
-                                   .Bind(() => Result.Try(() => new ServiceCollection()))
-                                   .Bind(services => Result.Try(() => { _rootModule.Load(services); return services; }))
+            return Result.Try(() => this.enableRootValidation = true).Bind(_ => Result.Ok(this));
+        }
+
+        public Result<T> Build()
+        {
+            return FailIfDisposed().Bind(() => Result.Try(() => new ServiceCollection()))
                                    .Bind(services => _handlers.Aggregate(Result.Ok<IServiceCollection>(services), (seed, next) => seed.Bind(s => Result.Try(() => next(s)))))
+                                   .Bind(services => CreateRootModule().Bind(rootModule => Result.Try(() => { rootModule.Load(services); return services; })))
                                    .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<T>()))
                                    .Bind(component => Result.Try(() => { Dispose(); return component; }));
+        }
+
+        private Result<RootModule> CreateRootModule()
+        {
+            return BuildRootModuleConfiguration().Bind(config => Result.Try(() => new RootModule(config)))
+                                                 .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
+        }
+
+        private Result<IConfiguration> BuildRootModuleConfiguration()
+        {
+            return Result.Try(() => new RootModuleConfiguration { DisableConstraints = !enableRootValidation })
+                         .Bind(rootModuleConfig => Result.Try(() => rootModuleConfig.SerializeJson(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })))
+                         .Bind(jsonString => Configuration.ConfigurationBuilder.CreateNew().Bind(configSourceBuilder => configSourceBuilder.WithRawJsonStrings(jsonString)))
+                         .Bind(configBuilder => configBuilder.WithAdditionalConfigurations(_configuration))
+                         .Bind(configBuilder => configBuilder.Build());
         }
 
         private Result FailIfDisposed()
@@ -67,7 +90,7 @@ namespace Baubit.DI
             {
                 if (disposing)
                 {
-                    _rootModule = null;
+                    _configuration = null;
                 }
                 _isDisposed = true;
             }

@@ -44,7 +44,7 @@ namespace Baubit.Configuration
     {
         public static Result<IConfiguration> Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
 
-        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, IConfiguration configuration)
+        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, params IConfiguration[] additionalConfigs)
         {
             var configurationBuilder = new Microsoft.Extensions.Configuration.ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
@@ -53,7 +53,7 @@ namespace Baubit.Configuration
                          .Bind(configurationSource => configurationSource.LoadResourceFiles())
                          .Bind(configurationSource => configurationSource.AddRawJsonStrings(configurationBuilder))
                          .Bind(configurationSource => configurationSource.AddSecrets(configurationBuilder))
-                         .Bind(configurationSource => configurationBuilder.AddConfigurationToBuilder(configuration))
+                         .Bind(configurationSource => additionalConfigs?.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => configurationBuilder.AddConfigurationToBuilder(next))) ?? Result.Ok())
                          .Bind(() => Result.Ok<IConfiguration>(configurationBuilder.Build()));
         }
 

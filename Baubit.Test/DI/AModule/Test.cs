@@ -17,7 +17,8 @@ namespace Baubit.Test.DI.AModule
                                              .Bind(configBuilder => configBuilder.Build())
                                              .Bind(config => ComponentBuilder<object>.Create(config))
                                              .Bind(compBuilder => compBuilder.WithRegistrationHandler(services => services.AddSingleton<object>()))
-                                             .Bind(compBuilder => compBuilder.Build(true));
+                                             .Bind(compBuilder => compBuilder.WithRootValidation())
+                                             .Bind(compBuilder => compBuilder.Build());
 
             var reasons = result.UnwrapReasons().ThrowIfFailed().Value;
             Assert.Contains(reasons, reason => reason is SingularityCheckFailed);

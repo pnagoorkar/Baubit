@@ -9,6 +9,7 @@ namespace Baubit.Configuration
     public sealed class ConfigurationBuilder : IDisposable
     {
         private ConfigurationSourceBuilder _configurationSourceBuilder;
+        private List<IConfiguration> additionalConfigs = new List<IConfiguration>();
         private bool _isDisposed;
         private ConfigurationBuilder()
         {
@@ -37,10 +38,15 @@ namespace Baubit.Configuration
             return FailIfDisposed().Bind(() => _configurationSourceBuilder.WithRawJsonStrings(rawJsonStrings))
                                    .Bind(_ => Result.Ok(this));
         }
+        public Result<ConfigurationBuilder> WithAdditionalConfigurations(params IConfiguration[] configurations)
+        {
+            return Result.Try(() => additionalConfigs.AddRange(configurations))
+                         .Bind(() => Result.Ok(this));
+        }
         public Result<IConfiguration> Build()
         {
             return FailIfDisposed().Bind(_configurationSourceBuilder.Build)
-                                   .Bind(configSource => configSource.Build())
+                                   .Bind(configSource => configSource.Build(additionalConfigs.ToArray()))
                                    .Bind(configuration => Result.Try(() => { Dispose(); return configuration; }));
         }
 
