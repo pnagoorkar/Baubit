@@ -2,7 +2,6 @@
 using Baubit.Configuration.Exceptions;
 using Baubit.Reflection;
 using Baubit.Traceability;
-using Baubit.Traceability.Errors;
 using Baubit.Traceability.Exceptions;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -17,29 +16,44 @@ namespace Baubit.Configuration
     /// </summary>
     public class ConfigurationSource
     {
-        public List<string> RawJsonStrings { get; set; } = new List<string>();
+        public List<string> RawJsonStrings { get; init; }
         [URI]
-        public List<string> JsonUriStrings { get; set; } = new List<string>();
+        public List<string> JsonUriStrings { get; init; }
         [URI]
-        public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
+        public List<string> EmbeddedJsonResources { get; init; }
         [URI]
-        public List<string> LocalSecrets { get; init; } = new List<string>();
+        public List<string> LocalSecrets { get; init; }
+
+        public ConfigurationSource(List<string> rawJsonStrings, 
+                                   List<string> jsonUriStrings, 
+                                   List<string> embeddedJsonResources, 
+                                   List<string> localSecrets)
+        {
+            RawJsonStrings = rawJsonStrings ?? new List<string>();
+            JsonUriStrings = jsonUriStrings ?? new List<string>();
+            EmbeddedJsonResources = embeddedJsonResources ?? new List<string>();
+            LocalSecrets = localSecrets ?? new List<string>();
+        }
+        public ConfigurationSource() : this(null, null, null, null)
+        {
+
+        }
     }
 
     public static class ConfigurationSourceExtensions
     {
         public static Result<IConfiguration> Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
 
-        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, IConfiguration configuration)
+        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, params IConfiguration[] additionalConfigs)
         {
-            var configurationBuilder = new ConfigurationBuilder();
+            var configurationBuilder = new Microsoft.Extensions.Configuration.ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
                          .Bind(() => configurationSource.ExpandURIs())
                          .Bind(configSource => configurationSource.AddJsonFiles(configurationBuilder))
                          .Bind(configurationSource => configurationSource.LoadResourceFiles())
                          .Bind(configurationSource => configurationSource.AddRawJsonStrings(configurationBuilder))
                          .Bind(configurationSource => configurationSource.AddSecrets(configurationBuilder))
-                         .Bind(configurationSource => configurationBuilder.AddConfigurationToBuilder(configuration))
+                         .Bind(configurationSource => additionalConfigs?.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => configurationBuilder.AddConfigurationToBuilder(next))) ?? Result.Ok())
                          .Bind(() => Result.Ok<IConfiguration>(configurationBuilder.Build()));
         }
 
@@ -116,7 +130,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddJsonFiles(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddJsonFiles(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
@@ -160,7 +174,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddRawJsonStrings(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddRawJsonStrings(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
@@ -175,7 +189,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddSecrets(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddSecrets(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {

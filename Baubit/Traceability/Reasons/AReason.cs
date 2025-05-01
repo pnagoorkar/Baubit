@@ -5,6 +5,7 @@ namespace Baubit.Traceability.Reasons
     public abstract class AReason : IReason
     {
         public virtual string Message { get; init; }
+        public DateTime CreationTime { get; init; } = DateTime.Now;
 
         public Dictionary<string, object> Metadata { get; init; }
         protected AReason(string message, Dictionary<string, object> metadata)

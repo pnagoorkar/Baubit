@@ -22,12 +22,27 @@ namespace Baubit.Traceability
             return result;
         }
 
+        public static TResult AddSuccessIfPassed<TResult, T>(this TResult result, params ISuccess[] successes) where TResult : Result<T>
+        {
+            return result.AddSuccessIfPassed((r, s) => r.WithSuccesses(s));
+        }
+
         public static TResult AddSuccessIfPassed<TResult>(this TResult result,
                                                           Action<TResult, IEnumerable<ISuccess>> additionHandler,
                                                           params ISuccess[] successes) where TResult : IResultBase
         {
             if (result.IsSuccess) additionHandler(result, successes);
             return result;
+        }
+
+        public static Result AddReasonIfFailed(this Result result, params IReason[] reasons)
+        {
+            return result.AddReasonIfFailed((res, reas) => res.WithReasons(reasons), reasons);
+        }
+
+        public static TResult AddReasonIfFailed<TResult, T>(this TResult result, params IReason[] reasons) where TResult : Result<T>
+        {
+            return result.AddReasonIfFailed((res, reas) => res.WithReasons(reasons), reasons);
         }
 
         public static TResult AddReasonIfFailed<TResult>(this TResult result,
@@ -44,18 +59,38 @@ namespace Baubit.Traceability
             return result;
         }
 
-        public static List<IReason> GetNonErrors(this List<IReason> reasons) => reasons.Where(reason => reason is not IError).ToList();
+        public static Result<List<IReason>> GetNonErrors<TResult>(this TResult result) where TResult : IResultBase
+        {
+            var reasons = new List<IReason>();
+            result.GetNonErrors(reasons);
+            return reasons;
+        }
+        public static TResult GetNonErrors<TResult>(this TResult result, List<IReason> reasons) where TResult : IResultBase
+        {
+            result.UnwrapReasons().Bind(reasons => Result.Try(() => reasons.AddRange(reasons.Where(reas => reas is not IError).ToList())));
+            return result;
+        }
 
+        public static Result<List<IReason>> UnwrapReasons<TResult>(this TResult result) where TResult : IResultBase
+        {
+            var reasons = new List<IReason>();
+            result.UnwrapReasons(reasons);
+            return reasons;
+        }
         public static TResult UnwrapReasons<TResult>(this TResult result, List<IReason> reasons) where TResult : IResultBase
         {
             if (reasons == null) reasons = new List<IReason>();
 
-            foreach (var error in result.Errors)
+            foreach (var reason in result.Reasons)
             {
-                if (error is ExceptionalError expErr && expErr.Exception is FailedOperationException failedOpExp)
+                if (reason is ExceptionalError expErr && expErr.Exception is FailedOperationException failedOpExp)
                 {
                     reasons.AddRange(failedOpExp.Result.Reasons);
                     failedOpExp.Result.UnwrapReasons(reasons);
+                }
+                else
+                {
+                    reasons.Add(reason);
                 }
             }
 

@@ -1,4 +1,5 @@
 ﻿using Baubit.Configuration;
+using Baubit.Traceability;
 
 namespace Baubit.Test.Configuration.ConfigurationSource
 {
@@ -8,8 +9,9 @@ namespace Baubit.Test.Configuration.ConfigurationSource
         [InlineData("config.json")]
         public void CanReadConfigurationFromEmbeddedJsonResource(string fileName)
         {
-            var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};Configuration.ConfigurationSource.{fileName}"] };
-            var configuration = configurationSource.Build().ValueOrDefault;
+            var configuration =  ConfigurationBuilder.CreateNew()
+                                                     .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};Configuration.ConfigurationSource.{fileName}"))
+                                                     .Bind(configBuilder => configBuilder.Build()).ThrowIfFailed().Value;
             Assert.NotNull(configuration);
             Assert.Equal("value", configuration["key"]);
         }
@@ -20,8 +22,10 @@ namespace Baubit.Test.Configuration.ConfigurationSource
         {
             Environment.SetEnvironmentVariable("ENVIRONMENT", "Development");
             Environment.SetEnvironmentVariable("BaubitTestAssembly", "Baubit.Test");
-            var configurationSource = new Baubit.Configuration.ConfigurationSource { EmbeddedJsonResources = [$"${{BaubitTestAssembly}};Configuration.ConfigurationSource.{fileName}"] };
-            var buildResult = configurationSource.Build();
+
+            var buildResult = ConfigurationBuilder.CreateNew()
+                                                     .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};Configuration.ConfigurationSource.{fileName}"))
+                                                     .Bind(configBuilder => configBuilder.Build());
             Assert.True(buildResult.IsSuccess);
         }
     }

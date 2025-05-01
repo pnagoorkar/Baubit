@@ -1,8 +1,7 @@
-﻿
-using Baubit.Configuration;
+﻿using Baubit.Configuration;
 using Baubit.DI;
 using Baubit.Traceability;
-using FluentResults;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Test.DI.AModule
 {
@@ -12,10 +11,14 @@ namespace Baubit.Test.DI.AModule
         [InlineData("config.json")]
         public void ModulesCanBeConstrained(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] };
-            var result = configurationSource.Build().Bind(config => config.Load());
-            var reasons = new List<IReason>();
-            result.UnwrapReasons(reasons);
+            var result = ConfigurationBuilder.CreateNew()
+                                             .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"))
+                                             .Bind(configBuilder => configBuilder.Build())
+                                             .Bind(config => ComponentBuilder<object>.Create(config))
+                                             .Bind(compBuilder => compBuilder.WithRegistrationHandler(services => services.AddSingleton<object>()))
+                                             .Bind(compBuilder => compBuilder.Build());
+
+            var reasons = result.UnwrapReasons().ThrowIfFailed().Value;
             Assert.Contains(reasons, reason => reason is SingularityCheckFailed);
         }
     }

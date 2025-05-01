@@ -4,6 +4,7 @@ namespace Baubit.Traceability.Errors
 {
     public abstract class AError : IError
     {
+        public DateTime CreationTime { get; init; } = DateTime.Now;
         public List<IError> Reasons { get; init; } = new List<IError>();
 
         public virtual string Message { get; init; }

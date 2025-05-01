@@ -1,30 +1,16 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
+using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
-        public static Result<IServiceProvider> Load(this IConfiguration configuration)
-        {
-            return Result.Try(() => new ServiceCollection())
-                         .Bind(services => services.AddFrom(configuration))
-                         .Bind(services => Result.Try<IServiceProvider>(() => services.BuildServiceProvider()));
-        }
-        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, IConfiguration configuration)
-        {
-            return Result.Try(() => new RootModule(configuration))
-                         .Bind(rootModule => Result.Try(() => rootModule.Load(services)))
-                         .Bind(() => Result.Ok(services));
-        }
-        public static Result<IServiceCollection> AddFrom(this IServiceCollection services, ConfigurationSource configurationSource) =>  configurationSource.Build().Bind(services.AddFrom);
-
-        public static Result<List<TModule>> GetNestedModules<TModule>(this IConfiguration configuration) where TModule : IModule
+        public static Result<List<TModule>> LoadModules<TModule>(this IConfiguration configuration) where TModule : class, IModule
         {
             List<TModule> directlyDefinedModules = new List<TModule>();
             List<TModule> indirectlyDefinedModules = new List<TModule>();
@@ -37,7 +23,7 @@ namespace Baubit.DI
             var indirectlyDefinedModulesExtractionResult = configuration.GetModuleSourcesSectionOrDefault()
                                                                         .Bind(moduleSourceSection => Result.Try(() => moduleSourceSection?.GetChildren() ?? new List<IConfigurationSection>()))
                                                                         .Bind(configSections => Result.Merge(configSections.Select(section => section.Get<ConfigurationSource>().Build()).ToArray()))
-                                                                        .Bind(configs => Result.Merge(configs.Select(config => config.GetNestedModules<TModule>()).ToArray()))
+                                                                        .Bind(configs => Result.Merge(configs.Select(config => config.LoadModules<TModule>()).ToArray()))
                                                                         .Bind(modules => { indirectlyDefinedModules = modules.SelectMany(x => x).ToList(); return Result.Ok(); });
 
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
@@ -45,9 +31,19 @@ namespace Baubit.DI
                    Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
         }
 
-        public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : IModule
+        public static Result<List<IConstraint>> LoadConstraints(this IConfiguration configuration)
         {
-            return configuration.TryAs<TModule>().Bind(module => module.TryValidate(module.Configuration.ModuleValidatorKey, !string.IsNullOrEmpty(module.Configuration.ModuleValidatorKey?.Trim())));
+            return configuration.GetConstraintsSectionOrDefault()
+                                .Bind(configSection => Result.Try(() => configSection?.GetChildren()
+                                                                                     .Select(constraintSection => constraintSection.TryAs<IConstraint>()
+                                                                                                                                   .ThrowIfFailed()
+                                                                                                                                   .Value).ToList() ?? new List<IConstraint>()));
+        }
+
+        public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : class, IModule
+        {
+            return configuration.TryAs<TModule>()
+                                .Bind(module => module.TryValidate(module.Configuration.ModuleValidatorTypes));
         }
 
         public static Result<T> TryAs<T>(this IConfiguration configuration)
@@ -70,6 +66,19 @@ namespace Baubit.DI
             return modulesSection.Exists() ?
                    Result.Ok(modulesSection) :
                    Result.Fail(Enumerable.Empty<IError>()).WithReason(new ModulesNotDefined());
+        }
+
+        public static Result<IConfigurationSection> GetConstraintsSectionOrDefault(this IConfiguration configurationSection)
+        {
+            return Result.Ok(configurationSection.GetConstraintsSection().ValueOrDefault);
+        }
+
+        public static Result<IConfigurationSection> GetConstraintsSection(this IConfiguration configurationSection)
+        {
+            var moduleSourcesSection = configurationSection.GetSection("constraints");
+            return moduleSourcesSection.Exists() ?
+                   Result.Ok(moduleSourcesSection) :
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ConstraintsNotDefined());
         }
 
         public static Result<IConfigurationSection> GetModuleSourcesSection(this IConfiguration configurationSection)
@@ -108,7 +117,7 @@ namespace Baubit.DI
 
         public static Result<ConfigurationSource> GetObjectConfigurationSourceOrDefault(this IConfiguration configuration)
         {
-            return Result.Ok(configuration.GetObjectConfigurationSourceSection().ValueOrDefault?.Get<ConfigurationSource>() ?? new ConfigurationSource());
+            return Result.Ok(configuration.GetObjectConfigurationSourceSection().ValueOrDefault?.Get<ConfigurationSource>() ?? ConfigurationSourceBuilder.BuildEmpty().Value);
         }
 
         public static Result<IConfigurationSection> GetObjectConfigurationOrDefault(this IConfiguration configuration)

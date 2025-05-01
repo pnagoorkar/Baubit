@@ -7,6 +7,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry;
+using Baubit.DI;
 
 namespace Baubit.Logging.Telemetry.DI
 {
@@ -20,7 +21,7 @@ namespace Baubit.Logging.Telemetry.DI
         {
         }
 
-        protected AModule(TConfiguration configuration, List<Baubit.DI.AModule> nestedModules) : base(configuration, nestedModules)
+        protected AModule(TConfiguration configuration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 

@@ -14,7 +14,7 @@ namespace Baubit.Logging.DI.Default
         {
         }
 
-        public Module(Configuration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
+        public Module(Configuration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
     }

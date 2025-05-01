@@ -37,7 +37,9 @@ public class MyModule : AModule<MyConfiguration>
 {
     public MyModule(ConfigurationSource configurationSource) : base(configurationSource) { }
     public MyModule(IConfiguration configuration) : base(configuration) { }
-    public MyModule(MyConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules) { }
+    public MyModule(MyConfiguration configuration, 
+                    List<AModule> nestedModules, 
+                    List<IConstraint> constraints) : base(configuration, nestedModules, constraints) { }
 
     public override void Load(IServiceCollection services)
     {
@@ -286,7 +288,6 @@ public class Configuration : AConfiguration
 ```
 Implement the AValidator class to define validation logic for configuration.
 ```cs
-[Validator(Key = "myConfigurationValidator")]
 public class MyConfigurationValidator : AValidator<Configuration>
 {
     protected override IEnumerable<Expression<Func<Configuration, Result>>> GetRules()
@@ -295,14 +296,15 @@ public class MyConfigurationValidator : AValidator<Configuration>
     }
 }
 ```
-A validator **MUST** be decorated with the ValidatorAttribute this is used to correlate the validator defined for the configuration 
+Multiple validators can be defined via the validatorKeys configuration property. Validators for modules can also be defined in the similar fashion
 ```json
 {
   "modules": [
     {
         "type": "...",
         "configuration": {
-          "validatorKey": "myConfigurationValidator"
+          "validatorKeys": [ "MyLib.MyConfigurationValidator, MyLib" ],
+          "moduleValidatorKeys": [ "MyLib.MyModuleValidator, MyLib" ]
           //"myStringProperty" : "" //<not_defined_on_purpose>
         }
     }
@@ -315,16 +317,15 @@ A validator **MUST** be decorated with the ValidatorAttribute this is used to co
 While modules can also be validated in isolation (similar to shown above), Baubit allows defining constraints under which modules can/cannot be included in a module tree
 
 ```cs
-public class SingularityConstraint<TModule> : AModuleValidator<TModule> where TModule : IModule
+public class SingularityConstraint<TModule> : IConstraint
 {
-    public override IEnumerable<Expression<Func<List<IModule>, Result>>> GetConstraints()
+    public string ReadableName => string.Empty;
+
+    public Result Check(List<IModule> modules)
     {
-        return [modules => Result.OkIf(modules.Count(m => m is TModule) == 1, new Error(string.Empty)).AddReasonIfFailed((res, reas) => res.WithReasons(reas), new SingularityCheckFailed())];
+        return modules.Count(mod => mod is TModule) == 1 ? Result.Ok() : Result.Fail(string.Empty).AddReasonIfFailed(new SingularityCheckFailed());
     }
-
-    protected override IEnumerable<Expression<Func<TModule, Result>>> GetRules() => Enumerable.Empty<Expression<Func<TModule, Result>>>();
 }
-
 public class SingularityCheckFailed : AReason
 {
 
@@ -343,13 +344,15 @@ public class Module : AModule<Configuration>
     {
     }
 
-    public Module(Configuration configuration, List<Baubit.DI.AModule> nestedModules) : base(configuration, nestedModules)
+    public Module(Configuration configuration, 
+                  List<Baubit.DI.AModule> nestedModules, 
+                  List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
     {
     }
 
-    public override IEnumerable<Expression<Func<List<IModule>, Result>>> GetConstraints()
+    protected override IEnumerable<IConstraint> GetKnownConstraints()
     {
-        return new SingularityConstraint<Module>().GetConstraints();
+        return [new SingularityConstraint<Module>()];
     }
 }
 ```
