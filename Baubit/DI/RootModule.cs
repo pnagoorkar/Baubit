@@ -1,4 +1,6 @@
 ﻿using Baubit.Configuration;
+using Baubit.Traceability;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,16 +16,15 @@ namespace Baubit.DI
         {
         }
 
-        public RootModule(RootModuleConfiguration moduleConfiguration, List<AModule> nestedModules) : base(moduleConfiguration, nestedModules)
+        public RootModule(RootModuleConfiguration moduleConfiguration, List<AModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
         {
         }
 
         protected override void OnInitialized()
         {
-            if (!Configuration.DisableConstraints)
-            {
-                Configuration.ModuleValidatorKeys.Add(typeof(RootValidator<RootModule>).AssemblyQualifiedName);
-            }
+            this.TryFlatten().Bind(modules => modules.Remove(this) ? Result.Ok(modules) : Result.Fail(string.Empty))
+                             .Bind(modules => modules.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => next.Constraints.CheckAll(modules))))
+                             .ThrowIfFailed();
         }
 
         public override void Load(IServiceCollection services)

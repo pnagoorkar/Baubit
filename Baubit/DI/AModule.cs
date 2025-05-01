@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
 using Baubit.Traceability;
 using Baubit.Validation;
+using FluentResults;
+using Baubit.Traceability.Reasons;
 
 namespace Baubit.DI
 {
@@ -11,6 +13,7 @@ namespace Baubit.DI
     {
         public AConfiguration Configuration { get; }
         public IReadOnlyList<IModule> NestedModules { get; }
+        public IReadOnlyList<IConstraint> Constraints { get; }
         public void Load(IServiceCollection services);
     }
 
@@ -21,10 +24,13 @@ namespace Baubit.DI
         [JsonIgnore]
         public IReadOnlyList<IModule> NestedModules { get; init; }
 
-        public AModule(AConfiguration configuration, List<AModule> nestedModules)
+        public IReadOnlyList<IConstraint> Constraints { get; init; }
+
+        public AModule(AConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints)
         {
             Configuration = configuration;
             NestedModules = nestedModules.Concat(GetKnownDependencies()).ToList().AsReadOnly();
+            Constraints = (constraints ?? new List<IConstraint>()).Concat(GetKnownConstraints()).ToList().AsReadOnly();
             OnInitialized();
         }
         /// <summary>
@@ -35,6 +41,8 @@ namespace Baubit.DI
         {
 
         }
+
+        protected virtual IEnumerable<IConstraint> GetKnownConstraints() => Enumerable.Empty<IConstraint>();
 
         /// <summary>
         /// Use this to add any know dependencies to <see cref="NestedModules"/>
@@ -58,11 +66,13 @@ namespace Baubit.DI
 
         }
 
-        protected AModule(IConfiguration configuration) : this(TryLoadConfiguration(configuration), TryLoadNestedModules(configuration))
+        protected AModule(IConfiguration configuration) : this(TryLoadConfiguration(configuration), 
+                                                               TryLoadNestedModules(configuration),
+                                                               TryLoadConstraints(configuration))
         {
 
         }
-        protected AModule(TConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
+        protected AModule(TConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 
@@ -84,6 +94,11 @@ namespace Baubit.DI
         private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
         {
             return configuration.LoadModules<AModule>().ThrowIfFailed().Value;
+        }
+
+        private static List<IConstraint> TryLoadConstraints(IConfiguration configuration)
+        {
+            return configuration.LoadConstraints().ThrowIfFailed().Value;
         }
     }
 }

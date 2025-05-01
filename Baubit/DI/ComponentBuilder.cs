@@ -7,14 +7,12 @@ using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
-using System.Text.Json;
 
 namespace Baubit.DI
 {
     public sealed class ComponentBuilder<T> : IDisposable where T : class
     {
         private IConfiguration _configuration;
-        private bool enableRootValidation = false;
         private List<Func<IServiceCollection, IServiceCollection>> _handlers = new List<Func<IServiceCollection, IServiceCollection>>();
         private bool _isDisposed;
 
@@ -43,11 +41,6 @@ namespace Baubit.DI
                                    .Bind(() => Result.Ok(this));
         }
 
-        public Result<ComponentBuilder<T>> WithRootValidation()
-        {
-            return Result.Try(() => this.enableRootValidation = true).Bind(_ => Result.Ok(this));
-        }
-
         public Result<T> Build()
         {
             return FailIfDisposed().Bind(() => Result.Try(() => new ServiceCollection()))
@@ -59,18 +52,18 @@ namespace Baubit.DI
 
         private Result<RootModule> CreateRootModule()
         {
-            return BuildRootModuleConfiguration().Bind(config => Result.Try(() => new RootModule(config)))
-                                                 .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
+            return Result.Try(() => new RootModule(_configuration))
+                         .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
         }
 
-        private Result<IConfiguration> BuildRootModuleConfiguration()
-        {
-            return Result.Try(() => new RootModuleConfiguration { DisableConstraints = !enableRootValidation })
-                         .Bind(rootModuleConfig => Result.Try(() => rootModuleConfig.SerializeJson(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })))
-                         .Bind(jsonString => Configuration.ConfigurationBuilder.CreateNew().Bind(configSourceBuilder => configSourceBuilder.WithRawJsonStrings(jsonString)))
-                         .Bind(configBuilder => configBuilder.WithAdditionalConfigurations(_configuration))
-                         .Bind(configBuilder => configBuilder.Build());
-        }
+        //private Result<IConfiguration> BuildRootModuleConfiguration()
+        //{
+        //    return Result.Try(() => new RootModuleConfiguration())
+        //                 .Bind(rootModuleConfig => Result.Try(() => rootModuleConfig.SerializeJson(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })))
+        //                 .Bind(jsonString => Configuration.ConfigurationBuilder.CreateNew().Bind(configSourceBuilder => configSourceBuilder.WithRawJsonStrings(jsonString)))
+        //                 .Bind(configBuilder => configBuilder.WithAdditionalConfigurations(_configuration))
+        //                 .Bind(configBuilder => configBuilder.Build());
+        //}
 
         private Result FailIfDisposed()
         {

@@ -7,23 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Validation
 {
-    public interface IValidatable : IConstrainable
+    public interface IValidatable
     {
     }
 
     public static class ValidatableExtensions
     {
-
-        public static Result<TValidatable> TryValidate<TValidatable>(this TValidatable validatable, List<Type> concreteType, List<IConstrainable> constrainables) where TValidatable : class, IValidatable
-        {
-            return concreteType.Aggregate(Result.Ok(validatable), (seed, next) => seed.Bind(validatable => validatable.TryValidate(next, constrainables)));
-        }
-
-        public static Result<TValidatable> TryValidate<TValidatable>(this TValidatable validatable, Type concreteType, List<IConstrainable> constrainables) where TValidatable : class, IValidatable
-        {
-            return validatable.LoadContext(concreteType).Bind(context => context.Execute(constrainables)).Bind(() => Result.Ok(validatable));
-        }
-
         public static Result<TValidatable> TryValidate<TValidatable>(this TValidatable validatable, List<Type> concreteType) where TValidatable : class, IValidatable
         {
             return concreteType.Aggregate(Result.Ok(validatable), (seed, next) => seed.Bind(validatable => validatable.TryValidate(next)));
@@ -50,7 +39,6 @@ namespace Baubit.Validation
     public interface IValidationContext
     {
         Result Execute();
-        Result Execute(List<IConstrainable> constrainables);
     }
 
     public class ValidationContext<TValidatable> : IValidationContext where TValidatable: class, IValidatable
@@ -65,9 +53,5 @@ namespace Baubit.Validation
 
         public Result Execute() => Validator.Validate(Validatable).AddSuccessIfPassed((res, successes) => res.WithSuccesses(successes), new PassedValidation<TValidatable>(string.Empty)).Bind(v => Result.Ok());
 
-        public Result Execute(List<IConstrainable> constrainables)
-        {
-            return Validator.Constraints.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => next.Check(Validatable, constrainables)).Bind(v => Result.Ok()));
-        }
     }
 }

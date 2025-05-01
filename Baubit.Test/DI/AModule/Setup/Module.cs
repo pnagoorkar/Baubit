@@ -17,8 +17,13 @@ namespace Baubit.Test.DI.AModule.Setup
         {
         }
 
-        public Module(Configuration configuration, List<Baubit.DI.AModule> nestedModules) : base(configuration, nestedModules)
+        public Module(Configuration configuration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
+        }
+
+        protected override IEnumerable<IConstraint> GetKnownConstraints()
+        {
+            return [new SingularityConstraint<Module>()];
         }
     }
 
@@ -26,11 +31,6 @@ namespace Baubit.Test.DI.AModule.Setup
     {
         public MyModuleValidator() : base("My module validator")
         {
-        }
-
-        protected override IEnumerable<IConstraint<Module>> GetConstraints()
-        {
-            return [new SingularityConstraint<Module>()];
         }
 
         protected override IEnumerable<Expression<Func<Module, Result>>> GetRules() => Enumerable.Empty<Expression<Func<Module, Result>>>();

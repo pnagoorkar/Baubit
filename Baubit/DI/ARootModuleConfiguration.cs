@@ -2,6 +2,6 @@
 {
     public abstract class ARootModuleConfiguration : AConfiguration
     {
-        public bool DisableConstraints { get; init; }
+
     }
 }

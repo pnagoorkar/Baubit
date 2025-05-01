@@ -1,6 +1,7 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
+using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -30,6 +31,15 @@ namespace Baubit.DI
                    Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
         }
 
+        public static Result<List<IConstraint>> LoadConstraints(this IConfiguration configuration)
+        {
+            return configuration.GetConstraintsSectionOrDefault()
+                                .Bind(configSection => Result.Try(() => configSection?.GetChildren()
+                                                                                     .Select(constraintSection => constraintSection.TryAs<IConstraint>()
+                                                                                                                                   .ThrowIfFailed()
+                                                                                                                                   .Value).ToList() ?? new List<IConstraint>()));
+        }
+
         public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : class, IModule
         {
             return configuration.TryAs<TModule>()
@@ -56,6 +66,19 @@ namespace Baubit.DI
             return modulesSection.Exists() ?
                    Result.Ok(modulesSection) :
                    Result.Fail(Enumerable.Empty<IError>()).WithReason(new ModulesNotDefined());
+        }
+
+        public static Result<IConfigurationSection> GetConstraintsSectionOrDefault(this IConfiguration configurationSection)
+        {
+            return Result.Ok(configurationSection.GetConstraintsSection().ValueOrDefault);
+        }
+
+        public static Result<IConfigurationSection> GetConstraintsSection(this IConfiguration configurationSection)
+        {
+            var moduleSourcesSection = configurationSection.GetSection("constraints");
+            return moduleSourcesSection.Exists() ?
+                   Result.Ok(moduleSourcesSection) :
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ConstraintsNotDefined());
         }
 
         public static Result<IConfigurationSection> GetModuleSourcesSection(this IConfiguration configurationSection)
