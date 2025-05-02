@@ -40,7 +40,7 @@ namespace Baubit.DI
         /// <param name="services">Your custom service collection</param>
         /// <param name="embeddedJsonResources">An array of json resources</param>
         /// <returns><see cref="Result"/></returns>
-        public static Result LoadFrom(this IServiceCollection services, params string[] embeddedJsonResources)
+        public static Result AddFrom(this IServiceCollection services, params string[] embeddedJsonResources)
         {
             return ConfigurationSourceBuilder.CreateNew()
                                       .Bind(configSourceBuilder => configSourceBuilder.WithEmbeddedJsonResources(embeddedJsonResources))
