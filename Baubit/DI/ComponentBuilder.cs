@@ -15,6 +15,7 @@ namespace Baubit.DI
         private IConfiguration _configuration;
         private List<Func<IServiceCollection, IServiceCollection>> _handlers = new List<Func<IServiceCollection, IServiceCollection>>();
         private bool _isDisposed;
+        private IServiceCollection _services = new ServiceCollection();
 
         private ComponentBuilder(IConfiguration configuration)
         {
@@ -41,12 +42,17 @@ namespace Baubit.DI
                                    .Bind(() => Result.Ok(this));
         }
 
-        public Result<T> Build()
+        public Result<ComponentBuilder<T>> WithServiceCollection(IServiceCollection services)
         {
-            return FailIfDisposed().Bind(() => Result.Try(() => new ServiceCollection()))
+            return Result.Try(() => _services = services).Bind(_ => Result.Ok(this));
+        }
+
+        public Result<T> Build(bool requireComponent = true)
+        {
+            return FailIfDisposed().Bind(() => Result.Try(() => _services ?? new ServiceCollection()))
                                    .Bind(services => _handlers.Aggregate(Result.Ok<IServiceCollection>(services), (seed, next) => seed.Bind(s => Result.Try(() => next(s)))))
                                    .Bind(services => CreateRootModule().Bind(rootModule => Result.Try(() => { rootModule.Load(services); return services; })))
-                                   .Bind(services => Result.Try(() => services.BuildServiceProvider().GetRequiredService<T>()))
+                                   .Bind(services => Result.Try(() => requireComponent ? services.BuildServiceProvider().GetRequiredService<T>() : services.BuildServiceProvider().GetService<T>()!))
                                    .Bind(component => Result.Try(() => { Dispose(); return component; }));
         }
 
@@ -55,15 +61,6 @@ namespace Baubit.DI
             return Result.Try(() => new RootModule(_configuration))
                          .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
         }
-
-        //private Result<IConfiguration> BuildRootModuleConfiguration()
-        //{
-        //    return Result.Try(() => new RootModuleConfiguration())
-        //                 .Bind(rootModuleConfig => Result.Try(() => rootModuleConfig.SerializeJson(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })))
-        //                 .Bind(jsonString => Configuration.ConfigurationBuilder.CreateNew().Bind(configSourceBuilder => configSourceBuilder.WithRawJsonStrings(jsonString)))
-        //                 .Bind(configBuilder => configBuilder.WithAdditionalConfigurations(_configuration))
-        //                 .Bind(configBuilder => configBuilder.Build());
-        //}
 
         private Result FailIfDisposed()
         {
