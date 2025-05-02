@@ -1,6 +1,4 @@
-﻿using Baubit.Traceability.Reasons;
-using Baubit.Traceability;
-using FluentResults;
+﻿using FluentResults;
 
 namespace Baubit.DI
 {
@@ -10,25 +8,21 @@ namespace Baubit.DI
         Result Check(List<IModule> modules);
     }
 
+    public abstract class AConstraint : IConstraint
+    {
+        public string ReadableName { get; init; }
+        protected AConstraint(string readableName)
+        {
+            ReadableName = readableName;
+        }
+        public abstract Result Check(List<IModule> modules);
+    }
+
     public static class ConstraintExtensions
     {
         public static Result CheckAll(this IEnumerable<IConstraint> constraints, List<IModule> modules)
         {
             return constraints.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => next.Check(modules)));
         }
-    }
-
-    public class SingularityConstraint<TModule> : IConstraint
-    {
-        public string ReadableName => string.Empty;
-
-        public Result Check(List<IModule> modules)
-        {
-            return modules.Count(mod => mod is TModule) == 1 ? Result.Ok() : Result.Fail(string.Empty).AddReasonIfFailed(new SingularityCheckFailed());
-        }
-    }
-    public class SingularityCheckFailed : AReason
-    {
-
     }
 }

@@ -35,7 +35,7 @@ namespace Baubit.DI
         {
             return configuration.GetConstraintsSectionOrDefault()
                                 .Bind(configSection => Result.Try(() => configSection?.GetChildren()
-                                                                                     .Select(constraintSection => constraintSection.TryAs<IConstraint>()
+                                                                                      .Select(constraintSection => constraintSection.TryAs<IConstraint>()
                                                                                                                                    .ThrowIfFailed()
                                                                                                                                    .Value).ToList() ?? new List<IConstraint>()));
         }
@@ -75,7 +75,7 @@ namespace Baubit.DI
 
         public static Result<IConfigurationSection> GetConstraintsSection(this IConfiguration configurationSection)
         {
-            var moduleSourcesSection = configurationSection.GetSection("constraints");
+            var moduleSourcesSection = configurationSection.GetSection("moduleConstraints");
             return moduleSourcesSection.Exists() ?
                    Result.Ok(moduleSourcesSection) :
                    Result.Fail(Enumerable.Empty<IError>()).WithReason(new ConstraintsNotDefined());
