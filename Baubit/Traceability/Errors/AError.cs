@@ -4,23 +4,24 @@ namespace Baubit.Traceability.Errors
 {
     public abstract class AError : IError
     {
-        public List<IReason> NonErrorReasons { get; init; } = new List<IReason>();
-
+        public DateTime CreationTime { get; init; } = DateTime.Now;
         public List<IError> Reasons { get; init; } = new List<IError>();
 
-        public string Message { get; init; }
+        public virtual string Message { get; init; }
 
         public Dictionary<string, object> Metadata { get; init; }
 
-        protected AError(List<IReason> nonErrorReasons, 
-                         List<IError> reasons, 
+        protected AError(List<IError> reasons, 
                          string message, 
                          Dictionary<string, object> metadata)
         {
-            NonErrorReasons = nonErrorReasons;
-            Reasons = reasons;
+            Reasons = reasons ?? new List<IError>();
             Message = message;
             Metadata = metadata;
+        }
+        protected AError() : this([], string.Empty, default)
+        {
+
         }
     }
 }

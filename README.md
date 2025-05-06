@@ -13,7 +13,7 @@
 - **🔁 Recursive Nesting**: Modules can declare and load other modules as dependencies.
 - **📦 Configurable Bootstrapping**: Load and configure modules via JSON, appsettings, code, or embedded resources.
 - **🧪 Testability & Reusability**: Modules are isolated and easily testable.
-
+- **🛡️ Validatable**: Not only are modules and configurations validated (in isolation) before loding, modules are checked against the module tree to avoid redundant / missing modules. 
 
 
 
@@ -37,7 +37,9 @@ public class MyModule : AModule<MyConfiguration>
 {
     public MyModule(ConfigurationSource configurationSource) : base(configurationSource) { }
     public MyModule(IConfiguration configuration) : base(configuration) { }
-    public MyModule(MyConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules) { }
+    public MyModule(MyConfiguration configuration, 
+                    List<AModule> nestedModules, 
+                    List<IConstraint> constraints) : base(configuration, nestedModules, constraints) { }
 
     public override void Load(IServiceCollection services)
     {
@@ -271,8 +273,90 @@ One of Baubit's most powerful features is its ability to **recursively load modu
 ```
 This configuration will load **Module 1**, along with its nested modules **2**, **3**, and **4**, in a hierarchical manner. Each module can define its own configuration and optionally nest further modules.
 
-> 🔧 This approach allows dynamic and flexible service registration — driven entirely by configuration without changing code.
 
+> 🔧 This approach allows dynamic and flexible service registration — driven entirely by configuration without changing code.
+> 
+## ✅ Validation
+Baubit introduces a powerful validation mechanism to ensure the integrity of your module configurations and their interdependencies.
+### Configuration Validation
+Create your configuration
+```cs
+public class Configuration : AConfiguration
+{
+    public string MyStringProperty { get; init;}
+}
+```
+Implement the AValidator class to define validation logic for configuration.
+```cs
+public class MyConfigurationValidator : AValidator<Configuration>
+{
+    protected override IEnumerable<Expression<Func<Configuration, Result>>> GetRules()
+    {
+        return [config => Result.OkIf(!string.IsNullOrEmpty(config.MyStringProperty), new Error($"{nameof(config.MyStringProperty)} cannot be null or empty")];
+    }
+}
+```
+Multiple validators can be defined via the validatorKeys configuration property. Validators for modules can also be defined in the similar fashion
+```json
+{
+  "modules": [
+    {
+        "type": "...",
+        "configuration": {
+          "validatorKeys": [ "MyLib.MyConfigurationValidator, MyLib" ],
+          "moduleValidatorKeys": [ "MyLib.MyModuleValidator, MyLib" ]
+          //"myStringProperty" : "" //<not_defined_on_purpose>
+        }
+    }
+  ]
+}
+```
+
+### Module Validation
+
+While modules can also be validated in isolation (similar to shown above), Baubit allows defining constraints under which modules can/cannot be included in a module tree
+
+```cs
+public class SingularityConstraint<TModule> : IConstraint
+{
+    public string ReadableName => string.Empty;
+
+    public Result Check(List<IModule> modules)
+    {
+        return modules.Count(mod => mod is TModule) == 1 ? Result.Ok() : Result.Fail(string.Empty).AddReasonIfFailed(new SingularityCheckFailed());
+    }
+}
+public class SingularityCheckFailed : AReason
+{
+
+}
+```
+A module can then simply use these constraints to valide the module tree
+
+```cs
+public class Module : AModule<Configuration>
+{
+    public Module(ConfigurationSource configurationSource) : base(configurationSource)
+    {
+    }
+
+    public Module(IConfiguration configuration) : base(configuration)
+    {
+    }
+
+    public Module(Configuration configuration, 
+                  List<Baubit.DI.AModule> nestedModules, 
+                  List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+    {
+    }
+
+    protected override IEnumerable<IConstraint> GetKnownConstraints()
+    {
+        return [new SingularityConstraint<Module>()];
+    }
+}
+```
+This allows preventing redundant service registrations and checking module dependencies at bootstrapping 
 
 ## 📜 Roadmap
 Future enhancements for Baubit:
@@ -308,12 +392,6 @@ For more support, open an issue on GitHub.
 
 
 
-## 📄 License
-Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) file for details.
-
-
-
-
 ## 🔗 Resources
 - [Samples](https://github.com/pnagoorkar/Baubit/tree/master/Samples)
 - Official Documentation (Coming Soon)
@@ -323,4 +401,9 @@ Baubit is licensed under the **Apache-2.0 License**. See the [LICENSE](LICENSE) 
 ---
 ## Acknowledgments & Inspiration
 
-See [INSPIRATION.md](./INSPIRATION.md) for details on libraries and ideas that influenced this project.
+See [ACKNOWLEDGEMENT.md](./ACKNOWLEDGEMENT.md) and [INSPIRATION.md](./INSPIRATION.md) for details on libraries and ideas that influenced this project.
+
+
+---
+## Copyright
+Copyright (c) Prashant Nagoorkar. See [LICENSE](LICENSE) for details.

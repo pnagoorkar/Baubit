@@ -1,15 +1,17 @@
 ﻿using Baubit.Configuration;
-using Baubit.Traceability.Errors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json.Serialization;
+using Baubit.Traceability;
+using Baubit.Validation;
 
 namespace Baubit.DI
 {
-    public interface IModule
+    public interface IModule : IValidatable
     {
         public AConfiguration Configuration { get; }
         public IReadOnlyList<IModule> NestedModules { get; }
+        public IReadOnlyList<IConstraint> Constraints { get; }
         public void Load(IServiceCollection services);
     }
 
@@ -20,10 +22,13 @@ namespace Baubit.DI
         [JsonIgnore]
         public IReadOnlyList<IModule> NestedModules { get; init; }
 
-        public AModule(AConfiguration configuration, List<AModule> nestedModules)
+        public IReadOnlyList<IConstraint> Constraints { get; init; }
+
+        public AModule(AConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints)
         {
             Configuration = configuration;
             NestedModules = nestedModules.Concat(GetKnownDependencies()).ToList().AsReadOnly();
+            Constraints = (constraints ?? new List<IConstraint>()).Concat(GetKnownConstraints()).ToList().AsReadOnly();
             OnInitialized();
         }
         /// <summary>
@@ -35,6 +40,8 @@ namespace Baubit.DI
 
         }
 
+        protected virtual IEnumerable<IConstraint> GetKnownConstraints() => Enumerable.Empty<IConstraint>();
+
         /// <summary>
         /// Use this to add any know dependencies to <see cref="NestedModules"/>
         /// </summary>
@@ -42,6 +49,7 @@ namespace Baubit.DI
         protected virtual IEnumerable<AModule> GetKnownDependencies() => Enumerable.Empty<AModule>();
 
         public abstract void Load(IServiceCollection services);
+
     }
 
     public abstract class AModule<TConfiguration> : AModule where TConfiguration : AConfiguration
@@ -56,11 +64,13 @@ namespace Baubit.DI
 
         }
 
-        protected AModule(IConfiguration configuration) : this(TryLoadConfiguration(configuration), TryLoadNestedModules(configuration))
+        protected AModule(IConfiguration configuration) : this(TryLoadConfiguration(configuration), 
+                                                               TryLoadNestedModules(configuration),
+                                                               TryLoadConstraints(configuration))
         {
 
         }
-        protected AModule(TConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
+        protected AModule(TConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 
@@ -71,32 +81,22 @@ namespace Baubit.DI
 
         private static IConfiguration TryBuildConfigurationSource(ConfigurationSource configurationSource)
         {
-            var buildResult = configurationSource.Build();
-            if (!buildResult.IsSuccess)
-            {
-                throw new AggregateException(new CompositeError<IConfiguration>(buildResult).ToString());
-            }
-            return buildResult.Value;
+            return configurationSource.Build().ThrowIfFailed().Value;
         }
 
         private static TConfiguration TryLoadConfiguration(IConfiguration configuration)
         {
-            var loadResult = configuration.Load<TConfiguration>();
-            if (!loadResult.IsSuccess)
-            {
-                throw new AggregateException(new CompositeError<TConfiguration>(loadResult).ToString());
-            }
-            return loadResult.Value;
+            return configuration.Load<TConfiguration>().ThrowIfFailed().Value;
         }
 
         private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
         {
-            var loadResult = configuration.GetNestedModules<AModule>();
-            if (!loadResult.IsSuccess)
-            {
-                throw new AggregateException(new CompositeError<List<AModule>>(loadResult).ToString());
-            }
-            return loadResult.Value;
+            return configuration.LoadModules<AModule>().ThrowIfFailed().Value;
+        }
+
+        private static List<IConstraint> TryLoadConstraints(IConfiguration configuration)
+        {
+            return configuration.LoadConstraints().ThrowIfFailed().Value;
         }
     }
 }

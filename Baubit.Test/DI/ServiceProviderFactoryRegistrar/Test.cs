@@ -2,6 +2,7 @@
 using Baubit.DI;
 using Baubit.Reflection;
 using Baubit.Test.DI.Setup;
+using Baubit.Traceability;
 using FluentResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -39,11 +40,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         [InlineData("config.json")]
         public void CanLoadModulesFromJson(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-            var component = configurationSource.Build()
-                                               .Bind(config => config.Load())
-                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
+            var component = ConfigurationBuilder.CreateNew()
+                                             .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"))
+                                             .Bind(configBuilder => configBuilder.Build())
+                                             .Bind(config => ComponentBuilder<Component>.Create(config))
+                                             .Bind(compBuilder => compBuilder.Build()).ThrowIfFailed().Value;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
@@ -60,11 +61,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
 
             File.WriteAllText(SecretsPath, readResult.Value);
 
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-            var component = configurationSource.Build()
-                                               .Bind(config => config.Load())
-                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
+            var component = ConfigurationBuilder.CreateNew()
+                                                .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"))
+                                                .Bind(configBuilder => configBuilder.Build())
+                                                .Bind(config => ComponentBuilder<Component>.Create(config))
+                                                .Bind(compBuilder => compBuilder.Build()).ThrowIfFailed().Value;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
@@ -75,11 +76,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         [InlineData("configWithEmptyConfiguration.json")]
         public void CanLoadModulesFromJsonWhenConfigurationIsEmpty(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-            var component = configurationSource.Build()
-                                               .Bind(config => config.Load())
-                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
+            var component = ConfigurationBuilder.CreateNew()
+                                                .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"))
+                                                .Bind(configBuilder => configBuilder.Build())
+                                                .Bind(config => ComponentBuilder<Component>.Create(config))
+                                                .Bind(compBuilder => compBuilder.Build()).ThrowIfFailed().Value;
 
             Assert.NotNull(component);
         }
@@ -88,11 +89,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         [InlineData("configWithEmptyConfigurationSource.json")]
         public void CanLoadModulesFromJsonWhenConfigurationSourceIsEmpty(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-            var component = configurationSource.Build()
-                                               .Bind(config => config.Load())
-                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
+            var component = ConfigurationBuilder.CreateNew()
+                                                .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"))
+                                                .Bind(configBuilder => configBuilder.Build())
+                                                .Bind(config => ComponentBuilder<Component>.Create(config))
+                                                .Bind(compBuilder => compBuilder.Build()).ThrowIfFailed().Value;
 
             Assert.NotNull(component);
         }
@@ -102,11 +103,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         [InlineData("configWithEmptyModuleWithReferenceOfAnotherModule.json")]
         public void CanLoadPartialConfigurations_ModuleAndConfigSeparate(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-            var component = configurationSource.Build()
-                                               .Bind(config => config.Load())
-                                               .Bind(serviceProvider => Result.Try(() => serviceProvider.GetRequiredService<Component>())).ValueOrDefault;
+            var component = ConfigurationBuilder.CreateNew()
+                                                .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"))
+                                                .Bind(configBuilder => configBuilder.Build())
+                                                .Bind(config => ComponentBuilder<Component>.Create(config))
+                                                .Bind(compBuilder => compBuilder.Build()).ThrowIfFailed().Value;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));
@@ -116,13 +117,11 @@ namespace Baubit.Test.DI.ServiceProviderFactoryRegistrar
         [InlineData("configWithDefaultServiceProviderFactory.json")]
         public void CanLoadIServiceProviderFactoryFromAdditionallyPassedConfiguration(string fileName)
         {
-            var configurationSource = new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"] };
-
-            var host = Host.CreateApplicationBuilder()
-                           .UseConfiguredServiceProviderFactory(configurationSource.Build().ValueOrDefault)
-                           .Build();
-
-            var component = host.Services.GetRequiredService<Component>();
+            var component = ConfigurationBuilder.CreateNew()
+                                                .Bind(configBuilder => configBuilder.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};DI.ServiceProviderFactoryRegistrar.{fileName}"))
+                                                .Bind(configBuilder => configBuilder.Build())
+                                                .Bind(config => Result.Try(() => Host.CreateApplicationBuilder().UseConfiguredServiceProviderFactory(config).Build()))
+                                                .Bind(host => Result.Try(() => host.Services.GetRequiredService<Component>())).ThrowIfFailed().Value;
 
             Assert.NotNull(component);
             Assert.False(string.IsNullOrEmpty(component.SomeString));

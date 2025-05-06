@@ -1,13 +1,32 @@
-﻿using FluentResults;
-using FluentValidation;
+﻿using Baubit.Reflection;
+using Baubit.Traceability;
+using Baubit.Validation;
+using Baubit.Validation.Reasons;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Baubit.Configuration
 {
-    public abstract class AConfiguration
+    public abstract class AConfiguration : IValidatable
     {
-        public string ValidatorKey { get; init; } = "default";
+        public List<string> ValidatorKeys { get; init; } = new List<string>();
+
+        private List<Type> validatorTypes;
+
+        [JsonIgnore]
+        public List<Type> ValidatorTypes 
+        {
+            get
+            {
+                if (validatorTypes == null)
+                {
+                    validatorTypes = ValidatorKeys.Select(key => TypeResolver.TryResolveTypeAsync(key).ThrowIfFailed().Value).ToList();
+                }
+                return validatorTypes;
+            }
+        }
     }
 
     public static class ConfigurationExtensions
@@ -15,22 +34,19 @@ namespace Baubit.Configuration
         public static Result<TConfiguration> Load<TConfiguration>(this IConfiguration iConfiguration) where TConfiguration : AConfiguration
         {
             return Result.Try(() => iConfiguration.Get<TConfiguration>() ?? Activator.CreateInstance<TConfiguration>()!)
-                         .Bind(config => config.Validate());
+                         .Bind(config => config.ExpandURIs())
+                         .Bind(config => config.CheckIfValidatorsExist())
+                         .Bind(config => config.TryValidate(config.ValidatorTypes));
         }
-        public static Result<TConfiguration> Validate<TConfiguration>(this TConfiguration configuration) where TConfiguration : AConfiguration
+
+        public static Result<TConfiguration> CheckIfValidatorsExist<TConfiguration>(this TConfiguration config) where TConfiguration : AConfiguration
         {
-            return Result.Try(() =>
+            var retVal = Result.Ok(config);
+            if(config.ValidatorTypes.Count == 0)
             {
-                if (AConfigurationValidator<TConfiguration>.CurrentValidators.TryGetValue(configuration.ValidatorKey, out var validator))
-                {
-                    var validationResult = validator.Validate(configuration);
-                    if (validationResult != null && !validationResult.IsValid)
-                    {
-                        throw new ValidationException($"Invalid configuration !{string.Join(Environment.NewLine, validationResult.Errors)}");
-                    }
-                }
-                return configuration;
-            });
+                retVal.WithReason(new NoValidatorsDefined());
+            }
+            return retVal;
         }
 
         // convert AConfiguration to its most specific type and then serialize

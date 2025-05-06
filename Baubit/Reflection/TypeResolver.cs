@@ -1,5 +1,5 @@
 ﻿using Baubit.Reflection.Reasons;
-using Baubit.Traceability.Errors;
+using Baubit.Traceability;
 using FluentResults;
 using System.Reflection;
 using System.Runtime.Loader;
@@ -21,7 +21,9 @@ namespace Baubit.Reflection
         public static Result<Type> TryResolveTypeAsync(string assemblyQualifiedName)
         {
             return Result.Try(() => Type.GetType(assemblyQualifiedName))
-                         .Bind(type => type == null ? Result.Fail(new CompositeError<Type>([new TypeNotDefined(assemblyQualifiedName)], null, "", default)) : Result.Ok(type));
+                         .Bind(type => Result.FailIf(type == null, new Error(string.Empty))
+                                             .AddReasonIfFailed(new TypeNotDefined(assemblyQualifiedName))
+                                             .Bind(() => Result.Ok(type!)));
         }
     }
 }

@@ -1,8 +1,13 @@
-﻿using Baubit.Reflection;
+﻿using Baubit.Configuration.Errors;
+using Baubit.Configuration.Exceptions;
+using Baubit.Reflection;
+using Baubit.Traceability;
+using Baubit.Traceability.Exceptions;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Baubit.Configuration
 {
@@ -11,26 +16,110 @@ namespace Baubit.Configuration
     /// </summary>
     public class ConfigurationSource
     {
-        public List<string> RawJsonStrings { get; set; } = new List<string>();
-        public List<string> JsonUriStrings { get; set; } = new List<string>();
-        public List<string> EmbeddedJsonResources { get; set; } = new List<string>();
-        public List<string> LocalSecrets { get; init; } = new List<string>();
+        public List<string> RawJsonStrings { get; init; }
+        [URI]
+        public List<string> JsonUriStrings { get; init; }
+        [URI]
+        public List<string> EmbeddedJsonResources { get; init; }
+        [URI]
+        public List<string> LocalSecrets { get; init; }
+
+        public ConfigurationSource(List<string> rawJsonStrings, 
+                                   List<string> jsonUriStrings, 
+                                   List<string> embeddedJsonResources, 
+                                   List<string> localSecrets)
+        {
+            RawJsonStrings = rawJsonStrings ?? new List<string>();
+            JsonUriStrings = jsonUriStrings ?? new List<string>();
+            EmbeddedJsonResources = embeddedJsonResources ?? new List<string>();
+            LocalSecrets = localSecrets ?? new List<string>();
+        }
+        public ConfigurationSource() : this(null, null, null, null)
+        {
+
+        }
     }
 
     public static class ConfigurationSourceExtensions
     {
         public static Result<IConfiguration> Build(this ConfigurationSource configurationSource) => configurationSource.Build(null);
 
-        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, IConfiguration configuration)
+        public static Result<IConfiguration> Build(this ConfigurationSource configurationSource, params IConfiguration[] additionalConfigs)
         {
-            var configurationBuilder = new ConfigurationBuilder();
+            var configurationBuilder = new Microsoft.Extensions.Configuration.ConfigurationBuilder();
             return Result.OkIf(configurationSource != null, "")
-                         .Bind(() => configurationSource.AddJsonFiles(configurationBuilder))
+                         .Bind(() => configurationSource.ExpandURIs())
+                         .Bind(configSource => configurationSource.AddJsonFiles(configurationBuilder))
                          .Bind(configurationSource => configurationSource.LoadResourceFiles())
                          .Bind(configurationSource => configurationSource.AddRawJsonStrings(configurationBuilder))
                          .Bind(configurationSource => configurationSource.AddSecrets(configurationBuilder))
-                         .Bind(configurationSource => configurationBuilder.AddConfigurationToBuilder(configuration))
+                         .Bind(configurationSource => additionalConfigs?.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => configurationBuilder.AddConfigurationToBuilder(next))) ?? Result.Ok())
                          .Bind(() => Result.Ok<IConfiguration>(configurationBuilder.Build()));
+        }
+
+        public static Result<T> ExpandURIs<T>(this T obj)
+        {
+            try
+            {
+                if (obj == null) return Result.Ok(obj);
+
+                var uriProperties = obj.GetType()
+                                       .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                                       .Where(property => property.CustomAttributes.Any(att => att.AttributeType.Equals(typeof(URIAttribute))));
+
+                foreach (var uriProperty in uriProperties)
+                {
+                    if (uriProperty.PropertyType == typeof(string))
+                    {
+                        var currentValue = (string)uriProperty.GetValue(obj);
+                        uriProperty.SetValue(obj, currentValue.ExpandURIString().Value);
+                    }
+                    else if (uriProperty.PropertyType == typeof(List<string>))
+                    {
+                        var currentValues = (List<string>)uriProperty.GetValue(obj);
+                        if (currentValues.Count > 0)
+                        {
+                            var newValues = currentValues.Select(val => val.ExpandURIString().ThrowIfFailed().Value).ToList();
+                            uriProperty.SetValue(obj, newValues);
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("Unsupported URI property type!");
+                    }
+                }
+
+                return Result.Ok(obj);
+            }
+            catch (FailedOperationException failedOpEx)
+            {
+                return Result.Fail(Enumerable.Empty<IError>()).WithReasons(failedOpEx.Result.Reasons);
+            }
+
+        }
+
+        private static Result<string> ExpandURIString(this string @value)
+        {
+            if (string.IsNullOrEmpty(@value)) return Result.Ok(@value);
+
+            return Result.Try(() => Regex.Replace(@value, @"\$\{(.*?)\}", match =>
+            {
+                var key = match.Groups[1].Value;
+                var replacement = Environment.GetEnvironmentVariable(key);
+                return replacement == null ? throw new EnvironmentVariableNotFound(match.Value) : replacement;
+            }), HandleMissingEnvVariables);
+        }
+
+        private static IError HandleMissingEnvVariables(Exception exp)
+        {
+            if (exp is EnvironmentVariableNotFound envVarNotFoundExp)
+            {
+                return new EnvVarNotFound(envVarNotFoundExp.EnvVariable);
+            }
+            else
+            {
+                return new ExceptionalError(exp);
+            }
         }
 
         private static Result AddConfigurationToBuilder(this IConfigurationBuilder configurationBuilder, IConfiguration configuration)
@@ -41,11 +130,10 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddJsonFiles(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddJsonFiles(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
-                configurationSource?.ReplacePathPlaceholders(Application.Paths);
                 var jsonUris = configurationSource.JsonUriStrings.Select(uriString => new Uri(uriString));
 
                 foreach (var uri in jsonUris.Where(uri => uri.IsFile))
@@ -86,7 +174,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddRawJsonStrings(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddRawJsonStrings(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
@@ -101,7 +189,7 @@ namespace Baubit.Configuration
             });
         }
 
-        private static Result<ConfigurationSource> AddSecrets(this ConfigurationSource configurationSource, ConfigurationBuilder configurationBuilder)
+        private static Result<ConfigurationSource> AddSecrets(this ConfigurationSource configurationSource, Microsoft.Extensions.Configuration.ConfigurationBuilder configurationBuilder)
         {
             return Result.Try(() =>
             {
@@ -110,21 +198,6 @@ namespace Baubit.Configuration
                     configurationBuilder.AddUserSecrets(localSecretsId);
                 }
 
-                return configurationSource;
-            });
-        }
-
-        private static Result<ConfigurationSource> ReplacePathPlaceholders(this ConfigurationSource configurationSource, Dictionary<string, string> pathMap)
-        {
-            return Result.Try(() =>
-            {
-                foreach (var kvp in pathMap)
-                {
-                    for (int i = 0; i < configurationSource.JsonUriStrings.Count; i++)
-                    {
-                        configurationSource.JsonUriStrings[i] = Path.GetFullPath(configurationSource.JsonUriStrings[i].Replace(kvp.Key, kvp.Value));
-                    }
-                }
                 return configurationSource;
             });
         }

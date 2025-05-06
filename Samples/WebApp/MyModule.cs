@@ -15,7 +15,7 @@ namespace WebApp
         {
         }
 
-        public MyModule(MyConfiguration configuration, List<AModule> nestedModules) : base(configuration, nestedModules)
+        public MyModule(MyConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
         public override void Load(IServiceCollection services)

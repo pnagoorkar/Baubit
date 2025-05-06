@@ -1,0 +1,7 @@
+{
+  "modules": [
+    {
+      "type": "Baubit.Test.DI.AModule.Setup.AnotherModule, Baubit.Test"
+    }
+  ]
+}
