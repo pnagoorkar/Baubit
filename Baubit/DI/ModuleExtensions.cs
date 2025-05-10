@@ -1,4 +1,6 @@
 ﻿using FluentResults;
+using System.Text;
+using System.Text.Json;
 
 namespace Baubit.DI
 {
@@ -21,6 +23,82 @@ namespace Baubit.DI
             }
 
             return true;
+        }
+
+        public static Result<string> Serialize<TModule>(this TModule module,
+                                                        JsonSerializerOptions jsonSerializerOptions) where TModule : IModule
+        {
+            using var stream = new MemoryStream();
+            using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = jsonSerializerOptions?.WriteIndented == true });
+
+            return module.Serialize(writer, jsonSerializerOptions)
+                         .Bind(writer => Result.Try(() =>
+                          {
+                              writer.Flush();
+                              return Encoding.UTF8.GetString(stream.ToArray());
+                          }));
+        }
+
+        private static Result<Utf8JsonWriter> Serialize<TModule>(this TModule module,
+                                                         Utf8JsonWriter writer,
+                                                         JsonSerializerOptions jsonSerializerOptions) where TModule : IModule
+        {
+            writer.WriteStartObject();
+            if (module is IRootModule rootModule)
+            {
+                writer.WritePropertyName("rootModule");
+                writer.WriteStartObject();
+                module.WriteModuleDescriptor(writer, jsonSerializerOptions);
+                writer.WriteEndObject();
+            }
+            else
+            {
+
+                module.WriteModuleDescriptor(writer, jsonSerializerOptions);
+            }
+
+            writer.WriteEndObject();
+            return Result.Ok(writer);
+        }
+
+        private static Result<Utf8JsonWriter> WriteModuleDescriptor<TModule>(this TModule module, 
+                                                                             Utf8JsonWriter writer,
+                                                                             JsonSerializerOptions jsonSerializerOptions) where TModule : IModule
+        {
+
+            writer.WriteString("type", module.GetType().AssemblyQualifiedName);
+            writer.WritePropertyName("configuration");
+            using var configJson = JsonDocument.Parse(JsonSerializer.Serialize(module.Configuration, jsonSerializerOptions));
+            writer.WriteStartObject();
+
+            foreach (var property in configJson.RootElement.EnumerateObject())
+            {
+                property.WriteTo(writer); // copy all properties as-is
+            }
+
+            writer.WritePropertyName("moduleConstraints");
+            writer.WriteStartArray();
+
+            foreach(var constraint in module.Constraints)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("type", constraint.GetType().AssemblyQualifiedName);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+
+            writer.WritePropertyName("modules");
+            writer.WriteStartArray();
+
+            module.NestedModules.Aggregate(Result.Ok(writer), (seed, next) => seed.Bind(w => next.Serialize(w, jsonSerializerOptions)));
+
+            writer.WriteEndArray();
+
+            writer.WriteEndObject();
+
+            return Result.Ok(writer);
+
         }
     }
 }
