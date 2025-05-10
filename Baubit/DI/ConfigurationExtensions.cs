@@ -51,7 +51,7 @@ namespace Baubit.DI
             Type type = null;
             ConfigurationSource objectConfigurationSource = null;
 
-            return TypeResolver.TryResolveTypeAsync(configuration["type"]!)
+            return TypeResolver.TryResolveType(configuration["type"]!)
                                .Bind(typ => { type = typ; return Result.Ok(); })
                                .Bind(configuration.GetObjectConfigurationSourceOrDefault)
                                .Bind(configSource => { objectConfigurationSource = configSource; return Result.Ok(); })

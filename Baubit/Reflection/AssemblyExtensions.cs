@@ -2,6 +2,7 @@
 using FluentResults;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Text.RegularExpressions;
 
 namespace Baubit.Reflection
 {
@@ -40,6 +41,13 @@ namespace Baubit.Reflection
         {
             return await Result.Try(() => assembly.GetManifestResourceStream(resourceName))
                                .Bind(stream => stream!.ReadStringAsync());
+        }
+
+        public static Result<string> GetBaubitFormattedAssemblyQualifiedName(this Type type)
+        {
+            return Result.Try(() => type.AssemblyQualifiedName)
+                         .Bind(assemblyQualifiedName => Result.Try(() => Regex.Replace(assemblyQualifiedName, @"(,\s*Version=[^,]+|,\s*Culture=[^,]+|,\s*PublicKeyToken=[^,\]]+(?=\]))", string.Empty)))
+                         .Bind(assemblyQualifiedName => Result.Try(() => assemblyQualifiedName.Substring(0, assemblyQualifiedName.LastIndexOf(','))));
         }
     }
 }

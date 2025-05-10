@@ -40,10 +40,26 @@ namespace Baubit.DI
         /// <param name="services">Your custom service collection</param>
         /// <param name="embeddedJsonResources">An array of json resources</param>
         /// <returns><see cref="Result"/></returns>
-        public static Result AddFrom(this IServiceCollection services, params string[] embeddedJsonResources)
+        public static Result AddFromEmbeddedJsonResources(this IServiceCollection services, params string[] embeddedJsonResources)
         {
             return ConfigurationSourceBuilder.CreateNew()
                                       .Bind(configSourceBuilder => configSourceBuilder.WithEmbeddedJsonResources(embeddedJsonResources))
+                                      .Bind(configSourceBuilder => configSourceBuilder.Build())
+                                      .Bind(configSource => ComponentBuilder<object>.Create(configSource))
+                                      .Bind(componentBuilder => componentBuilder.WithServiceCollection(services))
+                                      .Bind(componentBuilder => componentBuilder.Build(false))
+                                      .Bind(_ => Result.Ok());
+        }
+        /// <summary>
+        /// Loads all modules defined by <paramref name="rawJsonStrings"/>
+        /// </summary>
+        /// <param name="services">Your custom service collection</param>
+        /// <param name="rawJsonStrings">An array of json configurations</param>
+        /// <returns><see cref="Result"/></returns>
+        public static Result AddFromRawJsonStrings(this IServiceCollection services, params string[] rawJsonStrings)
+        {
+            return ConfigurationSourceBuilder.CreateNew()
+                                      .Bind(configSourceBuilder => configSourceBuilder.WithRawJsonStrings(rawJsonStrings))
                                       .Bind(configSourceBuilder => configSourceBuilder.Build())
                                       .Bind(configSource => ComponentBuilder<object>.Create(configSource))
                                       .Bind(componentBuilder => componentBuilder.WithServiceCollection(services))

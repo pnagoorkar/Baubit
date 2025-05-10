@@ -17,7 +17,7 @@ namespace Baubit.DI
             {
                 if (moduleValidatorTypes == null)
                 {
-                    moduleValidatorTypes = ModuleValidatorKeys.Select(key => TypeResolver.TryResolveTypeAsync(key).ThrowIfFailed().Value).ToList();
+                    moduleValidatorTypes = ModuleValidatorKeys.Select(key => TypeResolver.TryResolveType(key).ThrowIfFailed().Value).ToList();
                 }
                 return moduleValidatorTypes;
             }

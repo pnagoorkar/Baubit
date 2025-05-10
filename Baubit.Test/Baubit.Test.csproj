@@ -26,6 +26,7 @@
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleHavingDependency.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleConstraints.json" />
+    <EmbeddedResource Include="DI\AModule\configHavingManyModulesIndirectlyDefined.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithDefaultServiceProviderFactory.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyModuleWithReferenceOfAnotherModule.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfiguration.json" />

@@ -3,6 +3,7 @@ using Baubit.DI;
 using Baubit.DI.Constraints.Reasons;
 using Baubit.Traceability;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace Baubit.Test.DI.AModule
 {
@@ -37,6 +38,25 @@ namespace Baubit.Test.DI.AModule
             var reasons = result.UnwrapReasons().ThrowIfFailed().Value;
             Assert.Contains(reasons, reason => reason is DependencyCheckFailed);
 
+        }
+
+        [Theory]
+        [InlineData("configHavingManyModulesIndirectlyDefined.json")]
+        public void ModulesCanBeSerialized(string fileName)
+        {
+            var rootModule = new RootModule(new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] });
+            var jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+            var result = rootModule.Serialize(jsonSerializerOptions);
+
+            Assert.True(result.IsSuccess);
+
+            var reconstructedRoot = new RootModule(new ConfigurationSource { RawJsonStrings = [result.Value] });
+            var reserializationResult = rootModule.Serialize(jsonSerializerOptions);
+
+            Assert.True(reserializationResult.IsSuccess);
+
+            Assert.Equal(result.Value, reserializationResult.Value);
         }
     }
 }
