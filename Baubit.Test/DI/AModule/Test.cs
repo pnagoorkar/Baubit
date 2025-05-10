@@ -48,6 +48,15 @@ namespace Baubit.Test.DI.AModule
             var jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
             var result = rootModule.Serialize(jsonSerializerOptions);
+
+            Assert.True(result.IsSuccess);
+
+            var reconstructedRoot = new RootModule(new ConfigurationSource { RawJsonStrings = [result.Value] });
+            var reserializationResult = rootModule.Serialize(jsonSerializerOptions);
+
+            Assert.True(reserializationResult.IsSuccess);
+
+            Assert.Equal(result.Value, reserializationResult.Value);
         }
     }
 }
