@@ -78,7 +78,7 @@ namespace Baubit.DI
             {
                 writer.WriteString("type", module.GetType().GetBaubitFormattedAssemblyQualifiedName().ThrowIfFailed().Value);
                 writer.WritePropertyName("configuration");
-                using var configJson = JsonDocument.Parse(JsonSerializer.Serialize(module.Configuration, jsonSerializerOptions));
+                using var configJson = JsonDocument.Parse(JsonSerializer.Serialize(Convert.ChangeType(module.Configuration, module.Configuration.GetType()), jsonSerializerOptions));
                 writer.WriteStartObject();
 
                 foreach (var property in configJson.RootElement.EnumerateObject())
