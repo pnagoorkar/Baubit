@@ -15,10 +15,8 @@ namespace Baubit.DI
             if (onFailure == null) onFailure = Exit;
             if (configuration != null) hostApplicationBuilder.Configuration.AddConfiguration(configuration);
 
-            var registrationResult = hostApplicationBuilder.Configuration
-                                                           .GetRootModuleSection()
-                                                           .Bind(section => section.TryAsModule<IRootModule>())
-                                                           .Bind(registrar => registrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
+            var registrationResult = RootModuleFactory.Create(hostApplicationBuilder.Configuration)
+                                                      .Bind(registrar => registrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
 
             if (registrationResult.IsFailed)
             {

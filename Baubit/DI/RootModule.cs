@@ -39,4 +39,17 @@ namespace Baubit.DI
 
         protected override DefaultServiceProviderFactory GetServiceProviderFactory() => new DefaultServiceProviderFactory(Configuration.ServiceProviderOptions);
     }
+
+    public class RootModuleFactory
+    {
+        public static Result<IRootModule> Create(IConfiguration configuration)
+        {
+            return configuration.GetRootModuleSection()
+                                .Bind(section => section?.TryAsModule<IRootModule>() ?? new RootModule(configuration));
+        }
+        public static Result<IRootModule> Create(ConfigurationSource configSource)
+        {
+            return configSource.Build().Bind(Create);
+        }
+    }
 }

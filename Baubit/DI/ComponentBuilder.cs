@@ -2,6 +2,7 @@
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
 using Baubit.Traceability;
+using Baubit.Traceability.Exceptions;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -56,10 +57,17 @@ namespace Baubit.DI
                                    .Bind(component => Result.Try(() => { Dispose(); return component; }));
         }
 
-        private Result<RootModule> CreateRootModule()
+        private Result<IRootModule> CreateRootModule()
         {
-            return Result.Try(() => new RootModule(_configuration))
-                         .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
+            try
+            {
+                return RootModuleFactory.Create(_configuration)
+                                        .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
+            }
+            catch(FailedOperationException failedOpEx)
+            {
+                return Result.Fail(string.Empty).WithReasons(failedOpEx.Result.Reasons);
+            }
         }
 
         private Result FailIfDisposed()
