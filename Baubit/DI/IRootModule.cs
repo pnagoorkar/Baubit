@@ -10,7 +10,7 @@ namespace Baubit.DI
         public IServiceProvider BuildServiceProvider(IServiceCollection services);
     }
 
-    public interface IRootModule<TContainerBuilder> : IRootModule where TContainerBuilder : notnull
+    public interface IRootModule<TContainerBuilder> : IRootModule, IServiceProviderFactory<TContainerBuilder> where TContainerBuilder : notnull
     {
         public IServiceProviderFactory<TContainerBuilder> ServiceProviderFactory { get; }
     }

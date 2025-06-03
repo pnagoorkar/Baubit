@@ -52,7 +52,7 @@ namespace Baubit.DI
 
         public Result<THostApplicationBuilder> UseConfiguredServiceProviderFactory<THostApplicationBuilder>(THostApplicationBuilder hostApplicationBuilder) where THostApplicationBuilder : IHostApplicationBuilder
         {
-            hostApplicationBuilder.ConfigureContainer(ServiceProviderFactory, GetConfigureAction());
+            hostApplicationBuilder.ConfigureContainer(this);
             return hostApplicationBuilder;
         }
 
@@ -61,10 +61,18 @@ namespace Baubit.DI
         
         public IServiceProvider BuildServiceProvider(IServiceCollection services)
         {
-            var containerBuilder = ServiceProviderFactory.CreateBuilder(services);
+            return CreateServiceProvider(CreateBuilder(services));
+        }
+
+        public TContainerBuilder CreateBuilder(IServiceCollection services)
+        {
+            return ServiceProviderFactory.CreateBuilder(services);
+        }
+
+        public IServiceProvider CreateServiceProvider(TContainerBuilder containerBuilder)
+        {
             GetConfigureAction()(containerBuilder);
             return ServiceProviderFactory.CreateServiceProvider(containerBuilder);
         }
-
     }
 }
