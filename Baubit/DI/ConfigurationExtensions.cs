@@ -125,6 +125,11 @@ namespace Baubit.DI
             return Result.Ok(configuration.GetObjectConfigurationSection().ValueOrDefault);
         }
 
+        public static Result<IConfigurationSection> GetRootModuleSectionOrDefault(this IConfiguration configurationSection)
+        {
+            return Result.Ok(configurationSection.GetRootModuleSection().ValueOrDefault);
+        }
+
         public static Result<IConfigurationSection> GetRootModuleSection(this IConfiguration configurationSection)
         {
             var rootModuleSection = configurationSection.GetSection("rootModule");
