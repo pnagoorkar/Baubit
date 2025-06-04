@@ -18,7 +18,7 @@ namespace Baubit.Reflection
             return null;//TODO
         }
 
-        public static Result<Type> TryResolveTypeAsync(string assemblyQualifiedName)
+        public static Result<Type> TryResolveType(string assemblyQualifiedName)
         {
             return Result.Try(() => Type.GetType(assemblyQualifiedName))
                          .Bind(type => Result.FailIf(type == null, new Error(string.Empty))

@@ -1,5 +1,4 @@
 ﻿using Baubit.Configuration;
-using Baubit.Traceability;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,13 +19,6 @@ namespace Baubit.DI
         {
         }
 
-        protected override void OnInitialized()
-        {
-            this.TryFlatten().Bind(modules => modules.Remove(this) ? Result.Ok(modules) : Result.Fail(string.Empty))
-                             .Bind(modules => modules.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => next.Constraints.CheckAll(modules))))
-                             .ThrowIfFailed();
-        }
-
         public override void Load(IServiceCollection services)
         {
             var modules = new List<IModule>();
@@ -38,5 +30,18 @@ namespace Baubit.DI
         protected override Action<IServiceCollection> GetConfigureAction() => Load;
 
         protected override DefaultServiceProviderFactory GetServiceProviderFactory() => new DefaultServiceProviderFactory(Configuration.ServiceProviderOptions);
+    }
+
+    public class RootModuleFactory
+    {
+        public static Result<IRootModule> Create(IConfiguration configuration)
+        {
+            return configuration.GetRootModuleSectionOrDefault()
+                                .Bind(section => Result.Try(() => section?.TryAsModule<IRootModule>()?.ValueOrDefault ?? new RootModule(configuration)));
+        }
+        public static Result<IRootModule> Create(ConfigurationSource configSource)
+        {
+            return configSource.Build().Bind(Create);
+        }
     }
 }

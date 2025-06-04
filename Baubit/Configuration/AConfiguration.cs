@@ -22,7 +22,7 @@ namespace Baubit.Configuration
             {
                 if (validatorTypes == null)
                 {
-                    validatorTypes = ValidatorKeys.Select(key => TypeResolver.TryResolveTypeAsync(key).ThrowIfFailed().Value).ToList();
+                    validatorTypes = ValidatorKeys.Select(key => TypeResolver.TryResolveType(key).ThrowIfFailed().Value).ToList();
                 }
                 return validatorTypes;
             }

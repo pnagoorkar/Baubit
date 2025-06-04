@@ -2,7 +2,6 @@
 using Baubit.DI.Reasons;
 using Baubit.Reflection;
 using Baubit.Traceability;
-using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +14,7 @@ namespace Baubit.DI
         private IConfiguration _configuration;
         private List<Func<IServiceCollection, IServiceCollection>> _handlers = new List<Func<IServiceCollection, IServiceCollection>>();
         private bool _isDisposed;
-        private IServiceCollection _services = new ServiceCollection();
+        private IServiceCollection _services = null;
 
         private ComponentBuilder(IConfiguration configuration)
         {
@@ -50,16 +49,10 @@ namespace Baubit.DI
         public Result<T> Build(bool requireComponent = true)
         {
             return FailIfDisposed().Bind(() => Result.Try(() => _services ?? new ServiceCollection()))
-                                   .Bind(services => _handlers.Aggregate(Result.Ok<IServiceCollection>(services), (seed, next) => seed.Bind(s => Result.Try(() => next(s)))))
-                                   .Bind(services => CreateRootModule().Bind(rootModule => Result.Try(() => { rootModule.Load(services); return services; })))
-                                   .Bind(services => Result.Try(() => requireComponent ? services.BuildServiceProvider().GetRequiredService<T>() : services.BuildServiceProvider().GetService<T>()!))
-                                   .Bind(component => Result.Try(() => { Dispose(); return component; }));
-        }
-
-        private Result<RootModule> CreateRootModule()
-        {
-            return Result.Try(() => new RootModule(_configuration))
-                         .Bind(rootModule => rootModule.TryValidate(rootModule.Configuration.ModuleValidatorTypes));
+                                   .Bind(services => _handlers.Aggregate(Result.Ok(services), (seed, next) => seed.Bind(svcs => Result.Try(() => next(svcs)))))
+                                   .Bind(svcs => RootModuleFactory.Create(_configuration)
+                                                                  .Bind(rootModule => Result.Try(() => rootModule.BuildServiceProvider(svcs))))
+                                   .Bind(serviceProvider => Result.Try(() => requireComponent ? serviceProvider.GetRequiredService<T>() : serviceProvider.GetService<T>()!));
         }
 
         private Result FailIfDisposed()

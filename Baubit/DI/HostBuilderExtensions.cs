@@ -1,7 +1,5 @@
-﻿using Baubit.Configuration;
-using FluentResults;
+﻿using FluentResults;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Baubit.DI
@@ -15,10 +13,8 @@ namespace Baubit.DI
             if (onFailure == null) onFailure = Exit;
             if (configuration != null) hostApplicationBuilder.Configuration.AddConfiguration(configuration);
 
-            var registrationResult = hostApplicationBuilder.Configuration
-                                                           .GetRootModuleSection()
-                                                           .Bind(section => section.TryAsModule<IRootModule>())
-                                                           .Bind(registrar => registrar.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
+            var registrationResult = RootModuleFactory.Create(hostApplicationBuilder.Configuration)
+                                                      .Bind(rootModule => rootModule.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
 
             if (registrationResult.IsFailed)
             {
@@ -33,22 +29,6 @@ namespace Baubit.DI
         {
             Console.WriteLine(result.ToString());
             Environment.Exit(-1);
-        }
-        /// <summary>
-        /// Loads all modules defined by <paramref name="embeddedJsonResources"/>
-        /// </summary>
-        /// <param name="services">Your custom service collection</param>
-        /// <param name="embeddedJsonResources">An array of json resources</param>
-        /// <returns><see cref="Result"/></returns>
-        public static Result AddFrom(this IServiceCollection services, params string[] embeddedJsonResources)
-        {
-            return ConfigurationSourceBuilder.CreateNew()
-                                      .Bind(configSourceBuilder => configSourceBuilder.WithEmbeddedJsonResources(embeddedJsonResources))
-                                      .Bind(configSourceBuilder => configSourceBuilder.Build())
-                                      .Bind(configSource => ComponentBuilder<object>.Create(configSource))
-                                      .Bind(componentBuilder => componentBuilder.WithServiceCollection(services))
-                                      .Bind(componentBuilder => componentBuilder.Build(false))
-                                      .Bind(_ => Result.Ok());
         }
     }
 }

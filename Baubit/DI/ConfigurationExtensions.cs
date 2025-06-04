@@ -51,7 +51,7 @@ namespace Baubit.DI
             Type type = null;
             ConfigurationSource objectConfigurationSource = null;
 
-            return TypeResolver.TryResolveTypeAsync(configuration["type"]!)
+            return TypeResolver.TryResolveType(configuration["type"]!)
                                .Bind(typ => { type = typ; return Result.Ok(); })
                                .Bind(configuration.GetObjectConfigurationSourceOrDefault)
                                .Bind(configSource => { objectConfigurationSource = configSource; return Result.Ok(); })
@@ -123,6 +123,11 @@ namespace Baubit.DI
         public static Result<IConfigurationSection> GetObjectConfigurationOrDefault(this IConfiguration configuration)
         {
             return Result.Ok(configuration.GetObjectConfigurationSection().ValueOrDefault);
+        }
+
+        public static Result<IConfigurationSection> GetRootModuleSectionOrDefault(this IConfiguration configurationSection)
+        {
+            return Result.Ok(configurationSection.GetRootModuleSection().ValueOrDefault);
         }
 
         public static Result<IConfigurationSection> GetRootModuleSection(this IConfiguration configurationSection)
