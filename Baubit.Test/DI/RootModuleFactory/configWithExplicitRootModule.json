@@ -1,0 +1,7 @@
+{
+  "rootModule": {
+    "type": "Baubit.Test.DI.RootModuleFactory.Setup.RootModule, Baubit.Test",
+    "configuration": {
+    }
+  }
+}

@@ -44,7 +44,7 @@ namespace Baubit.Test.DI.AModule
         [InlineData("configHavingManyModulesIndirectlyDefined.json")]
         public void ModulesCanBeSerialized(string fileName)
         {
-            var rootModule = RootModuleFactory.Create(new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] }).Value;
+            var rootModule = Baubit.DI.RootModuleFactory.Create(new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] }).Value;
 
             //var rootModule = new RootModule(new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] });
             var jsonSerializerOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -54,7 +54,7 @@ namespace Baubit.Test.DI.AModule
             Assert.True(result.IsSuccess);
 
             //var reconstructedRoot = new RootModule(new ConfigurationSource { RawJsonStrings = [result.Value] });
-            var reconstructedRoot = RootModuleFactory.Create(new ConfigurationSource { RawJsonStrings = [result.Value] });
+            var reconstructedRoot = Baubit.DI.RootModuleFactory.Create(new ConfigurationSource { RawJsonStrings = [result.Value] });
             var reserializationResult = rootModule.Serialize(jsonSerializerOptions);
 
             Assert.True(reserializationResult.IsSuccess);

@@ -27,6 +27,10 @@
     <EmbeddedResource Include="DI\AModule\configWithModuleHavingDependency.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleConstraints.json" />
     <EmbeddedResource Include="DI\AModule\configHavingManyModulesIndirectlyDefined.json" />
+    <EmbeddedResource Include="DI\RootModuleFactory\configWithOutRootModuleWithModuleConstraints.json" />
+    <EmbeddedResource Include="DI\RootModuleFactory\configWithRootModuleWithModuleConstraints.json" />
+    <EmbeddedResource Include="DI\RootModuleFactory\configWithOutRootModule.json" />
+    <EmbeddedResource Include="DI\RootModuleFactory\configWithExplicitRootModule.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithDefaultServiceProviderFactory.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyModuleWithReferenceOfAnotherModule.json" />
     <EmbeddedResource Include="DI\ServiceProviderFactoryRegistrar\configWithEmptyConfiguration.json" />

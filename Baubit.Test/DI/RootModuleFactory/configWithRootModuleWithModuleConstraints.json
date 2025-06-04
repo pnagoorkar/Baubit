@@ -1,0 +1,25 @@
+{
+  "rootModule": {
+    "type": "Baubit.Test.DI.RootModuleFactory.Setup.RootModule, Baubit.Test",
+    "configuration": {
+      "modules": [
+        {
+          "type": "Baubit.Test.DI.RootModuleFactory.Setup.Module, Baubit.Test",
+          "configuration": {
+            "moduleValidatorKeys": [ "Baubit.Test.DI.RootModuleFactory.Setup.MyModuleValidator, Baubit.Test" ]
+          }
+        },
+        {
+          "type": "Baubit.Test.DI.RootModuleFactory.Setup.Module, Baubit.Test",
+          "configuration": {
+            "moduleConstraints": [
+              {
+                "type": "Baubit.DI.Constraints.Singularity`1[[Baubit.Test.DI.RootModuleFactory.Setup.Module, Baubit.Test]], Baubit"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

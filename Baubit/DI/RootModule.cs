@@ -37,7 +37,15 @@ namespace Baubit.DI
         public static Result<IRootModule> Create(IConfiguration configuration)
         {
             return configuration.GetRootModuleSectionOrDefault()
-                                .Bind(section => Result.Try(() => section?.TryAsModule<IRootModule>()?.ValueOrDefault ?? new RootModule(configuration)));
+                                .Bind(section =>
+                                {
+                                    if (section == null) //rootModule has not been explicitly set. Fallback to default - Baubit.DI.RootModule
+                                    {
+                                        var createNewResult = Result.Try(() => new RootModule(configuration));
+                                        return (createNewResult.IsSuccess ? Result.Ok<IRootModule>(createNewResult.Value) : Result.Fail(string.Empty)).WithReasons(createNewResult.Reasons);
+                                    }
+                                    return section.TryAsModule<IRootModule>();
+                                });
         }
         public static Result<IRootModule> Create(ConfigurationSource configSource)
         {
