@@ -7,12 +7,10 @@ namespace Baubit.Test.Testing.ScenarioBuilder
         [InlineData("scenario.json")]
         public void CanBuildScenariosWithEmbeddedJsonResources(string fileName)
         {
-            var scenario = Baubit.Testing.ScenarioBuilder<Setup.Scenario, Setup.Context>.Create()
-                                                                                        .Bind(bldr => bldr.WithEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};Testing.ScenarioBuilder.{fileName}"))
-                                                                                        .Bind(bldr => bldr.Build());
+            var result = Baubit.Testing.ScenarioBuilder<Setup.Scenario>.BuildFromEmbeddedJsonResources($"{this.GetType().Assembly.GetName().Name};Testing.ScenarioBuilder.{fileName}");
 
-            Assert.True(scenario.IsSuccess);
-            Assert.IsType<Setup.Scenario>(scenario.Value);
+            Assert.True(result.IsSuccess);
+            Assert.IsType<Setup.Scenario>(result.Value);
         }
     }
 }

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Testing
 {
-    public class ScenarioBuilder<TScenario, TContext> : IDisposable where TScenario :class, IScenario<TContext> where TContext : IContext
+    public class ScenarioBuilder<TScenario> : IDisposable where TScenario :class, IScenario
     {
         private ConfigurationSourceBuilder _configurationSourceBuilder;
         private bool _isDisposed;
@@ -16,12 +16,22 @@ namespace Baubit.Testing
             _configurationSourceBuilder = configurationBuilder;
         }
 
-        public static Result<ScenarioBuilder<TScenario, TContext>> Create()
+        public static Result<ScenarioBuilder<TScenario>> Create()
         {
-            return ConfigurationSourceBuilder.CreateNew().Bind(configSourceBuilder => Result.Try(() => new ScenarioBuilder<TScenario, TContext>(configSourceBuilder)));
+            return ConfigurationSourceBuilder.CreateNew().Bind(configSourceBuilder => Result.Try(() => new ScenarioBuilder<TScenario>(configSourceBuilder)));
         }
 
-        public Result<ScenarioBuilder<TScenario, TContext>> WithEmbeddedJsonResources(params string[] embeddedJsonResources)
+        public static Result<ScenarioBuilder<TScenario>> CreateFromEmbeddedJsonResources(params string[] embeddedJsonResources)
+        {
+            return Create().Bind(scenarioBuilder => scenarioBuilder.WithEmbeddedJsonResources(embeddedJsonResources));
+        }
+
+        public static Result<TScenario> BuildFromEmbeddedJsonResources(params string[] embeddedJsonResources)
+        {
+            return CreateFromEmbeddedJsonResources(embeddedJsonResources).Bind(scenarioBuilder => scenarioBuilder.Build());
+        }
+
+        public Result<ScenarioBuilder<TScenario>> WithEmbeddedJsonResources(params string[] embeddedJsonResources)
         {
             return _configurationSourceBuilder.WithEmbeddedJsonResources(embeddedJsonResources).Bind(_ => Result.Ok(this));
         }
