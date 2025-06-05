@@ -44,6 +44,7 @@
     <EmbeddedResource Include="Logging\Console\config.json" />
     <EmbeddedResource Include="Logging\Telemetry\ActivityTracker\config.json" />
     <EmbeddedResource Include="Testing\Context\context.json" />
+    <EmbeddedResource Include="Testing\ScenarioBuilder\scenario.json" />
     <EmbeddedResource Include="Testing\Scenario\scenario.json" />
   </ItemGroup>
 
