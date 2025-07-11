@@ -73,6 +73,15 @@ namespace Baubit.Collections
         private readonly List<T> _store = new List<T>();
         private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 
+        public ConcurrentList()
+        {
+
+        }
+        public ConcurrentList(IEnumerable<T> collection)
+        {
+            _store.AddRange(collection);
+        }
+
         /// <summary>
         /// <inheritdoc/>
         /// </summary>
@@ -82,6 +91,23 @@ namespace Baubit.Collections
             {
                 _lock.EnterWriteLock();
                 _store.Add(item);
+            }
+            catch
+            {
+                throw;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+        public virtual void AddRange(IEnumerable<T> collection)
+        {
+            try
+            {
+                _lock.EnterWriteLock();
+                _store.AddRange(collection);
             }
             catch
             {

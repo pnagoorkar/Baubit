@@ -1,7 +1,9 @@
 ﻿using Baubit.IO.Channels.Reasons;
 using Baubit.Tasks;
 using Baubit.Tasks.Reasons;
+using Baubit.Traceability;
 using FluentResults;
+using FluentResults.Extensions;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
@@ -24,6 +26,17 @@ namespace Baubit.IO.Channels
                     //handlers must never throw exceptions.
                 }
             }
+        }
+        public static async Task<Result> ReadAsync2<T>(this Channel<T> channel,
+                                                      Func<T, CancellationToken, Task> handler,
+                                                      CancellationToken cancellationToken)
+        {
+            await foreach (var item in channel.EnumerateAsync(cancellationToken))
+            {
+                var result = await Result.Try(() => handler(item, cancellationToken));
+                if (result.IsFailed) return result;
+            }
+            return Result.Ok();
         }
 
         public static async Task ReadAsync<T>(this Channel<T> channel,
