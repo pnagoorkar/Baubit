@@ -6,33 +6,48 @@ namespace Baubit.Caching
 {
     public abstract class APersistentCache<TValue> : IPersistentCache<TValue>
     {
-        public long Count { get; private set; }
         protected readonly ReaderWriterLockSlim Locker = new();
 
-        protected abstract Task<Result<IEntry<TValue>>> InsertAsync(TValue value);
-        protected abstract Task<Result<IEntry<TValue>>> FetchAsync(long id);
-        protected abstract Task<Result<IEntry<TValue>>> DeleteStorageAsync(long id);
+        protected abstract Result<IEntry<TValue>> Insert(TValue value);
+        protected abstract Result<IEntry<TValue>> Fetch(long id);
+        protected abstract Result<IEntry<TValue>> DeleteStorage(long id);
+        protected abstract Result DeleteAll();
+        protected abstract Result<long> GetCurrentCount();
         protected abstract void DisposeInternal();
 
-        public async Task<Result<long>> AddAsync(TValue value)
+        public Result<long> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try { return await InsertAsync(value).Bind(entry => Result.Try(() => { Count++; return entry.Id; })); }
+            try { return Insert(value).Bind(entry => Result.Try(() => entry.Id)); }
             finally { Locker.ExitWriteLock(); }
         }
 
-        public async Task<Result<TValue>> GetAsync(long id)
+        public Result<TValue> Get(long id)
         {
             Locker.EnterReadLock();
-            try { return await FetchAsync(id).Bind(entry => Result.Try(() => entry.Value)); }
+            try { return Fetch(id).Bind(entry => Result.Try(() => entry.Value)); }
             finally { Locker.ExitReadLock(); }
         }
 
-        public async Task<Result<TValue>> RemoveAsync(long id)
+        public Result<TValue> Remove(long id)
         {
             Locker.EnterWriteLock();
-            try { return await DeleteStorageAsync(id).Bind(entry => Result.Try(() => { Count--; return entry.Value; })); }
+            try { return DeleteStorage(id).Bind(entry => Result.Try(() => entry.Value)); }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        public Result Clear()
+        {
+            Locker.EnterWriteLock();
+            try{ return DeleteAll(); }
+            finally { Locker.ExitWriteLock(); }
+        }
+
+        public Result<long> Count()
+        {
+            Locker.EnterReadLock();
+            try { return GetCurrentCount(); }
+            finally { Locker.ExitReadLock(); }
         }
 
         public void Dispose()

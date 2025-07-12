@@ -12,30 +12,30 @@ namespace Baubit.Test.Caching.APersistentCache
         [InlineData(10000)]
         [InlineData(100000)]
         [InlineData(1000000)]
-        public async void CanInsertValues(int numOfItems)
+        public void CanInsertValues(int numOfItems)
         {
             var inMemoryCache = new InMemoryCache<int>();
 
             ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
 
-            Parallel.For(0, numOfItems, async i => await inMemoryCache.AddAsync(i).Bind(id => Result.Try(() => insertedValues.TryAdd(id, i))));
+            Parallel.For(0, numOfItems, i => inMemoryCache.Add(i).Bind(id => Result.Try(() => insertedValues.TryAdd(id, i))));
 
-            Assert.Equal(numOfItems, inMemoryCache.Count);
+            Assert.Equal(numOfItems, inMemoryCache.Count().ValueOrDefault);
 
-            var readResult = await insertedValues.AsParallel()
-                                                 .Aggregate(Task.FromResult(Result.Ok()),
-                                                            (seed, next) => seed.Bind(() => inMemoryCache.GetAsync(next.Key))
-                                                                                .Bind(val => Result.OkIf(next.Value == val, "Value mismatch at get!")));
+            var readResult = insertedValues.AsParallel()
+                                           .Aggregate(Result.Ok(),
+                                                      (seed, next) => seed.Bind(() => inMemoryCache.Get(next.Key))
+                                                                          .Bind(val => Result.OkIf(next.Value == val, "Value mismatch at get!")));
 
             Assert.True(readResult.IsSuccess);
 
-            var removeResult = await insertedValues.AsParallel()
-                                                   .Aggregate(Task.FromResult(Result.Ok()),
-                                                              (seed, next) => seed.Bind(() => inMemoryCache.RemoveAsync(next.Key))
-                                                                                  .Bind(val => Result.OkIf(next.Value == val, "Value mismatch at remove!")));
+            var removeResult = insertedValues.AsParallel()
+                                             .Aggregate(Result.Ok(),
+                                                        (seed, next) => seed.Bind(() => inMemoryCache.Remove(next.Key))
+                                                                            .Bind(val => Result.OkIf(next.Value == val, "Value mismatch at remove!")));
 
             Assert.True(removeResult.IsSuccess);
-            Assert.Equal(0, inMemoryCache.Count);
+            Assert.Equal(0, inMemoryCache.Count().ValueOrDefault);
         }
     }
 }

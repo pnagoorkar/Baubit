@@ -1,17 +1,27 @@
 ﻿
 using Baubit.Testing;
 using FluentResults;
+using Microsoft.Extensions.Configuration;
 
 namespace Baubit.Test.Testing.ScenarioBuilder.Setup
 {
-    public class Scenario : IScenario<Context>
+    public class Scenario : AScenario<Context, Scenario.Configuration>
     {
-        public Result Run(Context context) => Result.Ok();
+        public Scenario(IConfiguration configuration) : base(configuration)
+        {
+        }
 
-        public Result Run() => Result.Ok();
+        public override Result Run(Context context) => Result.Ok();
 
-        public Task<Result> RunAsync(Context context) => Task.FromResult(Result.Ok());
+        public override Result Run() => Result.Ok();
 
-        public Task<Result> RunAsync() => Task.FromResult(Result.Ok());
+        public override Task<Result> RunAsync(Context context) => Task.FromResult(Result.Ok());
+
+        public override Task<Result> RunAsync() => Task.FromResult(Result.Ok());
+
+        public class Configuration : Baubit.Testing.AConfiguration
+        {
+
+        }
     }
 }
