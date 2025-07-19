@@ -3,10 +3,11 @@ using FluentResults;
 
 namespace Baubit.Test.Caching.Setup
 {
-    public class InMemoryCache<TValue> : APersistentCache<TValue>
+    public class InMemoryCache<TValue> : AOrderedCache<TValue>
     {
         private long _seq;
         private readonly SortedDictionary<long, Entry<TValue>> _data = new();
+        private readonly Dictionary<long, Metadata> metadataDictionary = new();
 
         protected override Result<IEntry<TValue>> Insert(TValue value)
         {
@@ -43,6 +44,49 @@ namespace Baubit.Test.Caching.Setup
         protected override void DisposeInternal()
         {
             _data.Clear();
+        }
+
+        protected override Result Upsert(IEnumerable<Metadata> metadata)
+        {
+            return Result.Try(() =>
+            {
+                foreach (var m in metadata)
+                {
+                    if (metadataDictionary.ContainsKey(m.Id))
+                    {
+                        metadataDictionary[m.Id] = m;
+                    }
+                    else
+                    {
+                        metadataDictionary.Add(m.Id, m);
+                    }
+                }
+            });
+        }
+
+        protected override Result<Metadata> GetCurrentHead()
+        {
+            return Result.Ok(metadataDictionary.Values.SingleOrDefault(value => value.Previous == null)!);
+        }
+
+        protected override Result<Metadata> GetCurrentTail()
+        {
+            return Result.Ok(metadataDictionary.Values.SingleOrDefault(value => value.Next == null)!);
+        }
+
+        protected override Result<Metadata> GetMetadata(long id)
+        {
+            return Result.Ok(metadataDictionary.ContainsKey(id) ? metadataDictionary[id] : null)!;
+        }
+
+        protected override Result DeleteMetadata(long id)
+        {
+            return Result.Try(() => metadataDictionary.Remove(id)).Bind(_ => Result.Ok());
+        }
+
+        protected override Result DeleteAllMetadata()
+        {
+            return Result.Try(() => metadataDictionary.Clear());
         }
     }
 }
