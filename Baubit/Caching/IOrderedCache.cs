@@ -1,5 +1,6 @@
 ﻿using Baubit.IO.Channels;
 using FluentResults;
+using FluentResults.Extensions;
 using System.Collections.Specialized;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
@@ -68,26 +69,26 @@ namespace Baubit.Caching
     }
 
     /// <summary>
-    /// Extension methods for <see cref="IOrderedCache{TValue}"/> to provide additional functionality.
+    /// Extension methods for ordered cache types.
     /// </summary>
-    public static class PersistentCacheExtensions
+    public static class CachingExtensions
     {
         /// <summary>
-        /// Asynchronously reads all values from the persistent cache as an <see cref="IAsyncEnumerable{T}"/>.
+        /// Asynchronously reads entries from the cache, yielding each result.
         /// </summary>
+        /// <typeparam name="TCache">The cache type implementing <see cref="IOrderedCache{TValue}"/>.</typeparam>
         /// <typeparam name="TValue">The type of value stored in the cache.</typeparam>
-        /// <param name="persistentCache">The cache to read from.</param>
+        /// <param name="cache">The cache instance to read from.</param>
         /// <param name="cancellationToken">A token to cancel the operation.</param>
-        /// <returns>
-        /// An <see cref="IAsyncEnumerable{T}"/> that yields each value in the cache.
-        /// </returns>
-        public static async IAsyncEnumerable<TValue> ReadAllAsync<TValue>(this IOrderedCache<TValue> persistentCache, [EnumeratorCancellation] CancellationToken cancellationToken)
+        /// <returns>An async enumerable of results containing cache entries.</returns>
+        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TCache, TValue>(this TCache cache, [EnumeratorCancellation] CancellationToken cancellationToken = default) where TCache : IOrderedCache<TValue>
         {
-            Channel<TValue> channel = Channel.CreateBounded<TValue>(new BoundedChannelOptions(1));
-            await foreach(var next in channel.EnumerateAsync(cancellationToken))
+            long? id = null;
+            do
             {
-                yield return next;
-            }
+                yield return await cache.GetNextAsync(id, cancellationToken).Bind(entry => Result.Try(() => { id = entry.Id; return entry; }));
+
+            } while (!cancellationToken.IsCancellationRequested);
         }
     }
 }
