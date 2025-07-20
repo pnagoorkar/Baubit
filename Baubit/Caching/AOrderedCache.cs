@@ -1,6 +1,8 @@
-﻿using FluentResults;
+﻿using Baubit.Tasks;
+using FluentResults;
 using FluentResults.Extensions;
 using System.Collections.Specialized;
+using System.Runtime.CompilerServices;
 
 namespace Baubit.Caching
 {
@@ -26,7 +28,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Insert(value); }
+            try { return Insert(value).Bind(entry => nextSignal.Set(entry.Id).Bind(() => Result.Ok(entry))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -56,6 +58,37 @@ namespace Baubit.Caching
             Locker.EnterReadLock();
             try { return GetCurrentCount(); }
             finally { Locker.ExitReadLock(); }
+        }
+
+        ManualResetTask<long> nextSignal = new ManualResetTask<long>();
+        public Task<Result<IEntry<TValue>>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                if (id == null)
+                {
+                    var getHeadResult = GetCurrentHead();
+                    if(getHeadResult.ValueOrDefault == null) //there is no data in the cache
+                    {
+                        return AwaitNextAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        return Task.FromResult(getHeadResult.Bind(metadata => Fetch(metadata.Id)));
+                    }
+                }
+                else
+                {
+                    return GetMetadata(id.Value).Bind(metadata => metadata.Next == null ? AwaitNextAsync(cancellationToken) : Task.FromResult(Fetch(metadata.Next.Value)));
+                }
+            }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        private Task<Result<IEntry<TValue>>> AwaitNextAsync(CancellationToken cancellationToken = default)
+        {
+            return nextSignal.Reset(cancellationToken).Bind(() => nextSignal.WaitAsync().Bind(nextId => Fetch(nextId)));
         }
 
         private Result<IEntry<TValue>> AddTail(IEntry<TValue> entry)
@@ -106,6 +139,19 @@ namespace Baubit.Caching
         {
             Locker.Dispose();
             DisposeInternal();
+        }
+    }
+
+    public static class CachingExtensions
+    {
+        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TCache, TValue>(this TCache cache, [EnumeratorCancellation] CancellationToken cancellationToken = default) where TCache : IOrderedCache<TValue>
+        {
+            long? id = null;
+            do
+            {
+                yield return await cache.GetNextAsync(id, cancellationToken).Bind(entry => Result.Try(() => { id = entry.Id; return entry; }));
+
+            } while (!cancellationToken.IsCancellationRequested);
         }
     }
 }
