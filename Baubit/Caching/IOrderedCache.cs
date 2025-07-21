@@ -41,6 +41,18 @@ namespace Baubit.Caching
         Result<IEntry<TValue>> Get(long id);
 
         /// <summary>
+        /// Gets the head (first) entry in the cache.
+        /// </summary>
+        /// <returns>A result containing the head or an error.</returns>
+        Result<IEntry<TValue>> GetFirst();
+
+        /// <summary>
+        /// Gets the tail (last) entry in the cache.
+        /// </summary>
+        /// <returns>A result containing the tail or an error.</returns>
+        Result<IEntry<TValue>> GetLast();
+
+        /// <summary>
         /// Asynchronously retrieves the next entry in the cache after the specified identifier.
         /// </summary>
         /// <param name="id">The identifier to start from, or <c>null</c> to start from the beginning.</param>

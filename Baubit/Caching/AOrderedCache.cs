@@ -112,6 +112,22 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
+        public Result<IEntry<TValue>> GetFirst()
+        {
+            Locker.EnterReadLock();
+            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => Get(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>> GetLast()
+        {
+            Locker.EnterReadLock();
+            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => Get(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        /// <inheritdoc/>
         public Result<IEntry<TValue>> Remove(long id)
         {
             Locker.EnterWriteLock();
