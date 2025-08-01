@@ -5,6 +5,7 @@ using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 namespace Baubit.DI
 {
@@ -29,6 +30,15 @@ namespace Baubit.DI
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
                    Result.Ok<List<TModule>>([.. directlyDefinedModules, .. indirectlyDefinedModules]) :
                    Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
+        }
+
+        public static Result<IConfiguration> AddModules(this IConfiguration configuration, IEnumerable<IModule> modules)
+        {
+            if (!modules.Any()) return Result.Ok(configuration);
+            return modules.SerializeAsJsonObject(new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                          .Bind(jsonStr => Baubit.Configuration.ConfigurationBuilder.CreateNew().Bind(configBuilder => configBuilder.WithRawJsonStrings(jsonStr)))
+                          .Bind(configBuilder => configBuilder.WithAdditionalConfigurations(configuration))
+                          .Bind(configBuilder => configBuilder.Build());
         }
 
         public static Result<List<IConstraint>> LoadConstraints(this IConfiguration configuration)

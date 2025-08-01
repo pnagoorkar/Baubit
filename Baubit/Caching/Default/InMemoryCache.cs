@@ -1,18 +1,24 @@
-﻿using Baubit.Caching;
-using FluentResults;
+﻿using FluentResults;
+using Microsoft.Extensions.Logging;
 
-namespace Baubit.Test.Caching.Setup
+namespace Baubit.Caching.Default
 {
     public class InMemoryCache<TValue> : AOrderedCache<TValue>
     {
         private long _seq;
-        private readonly SortedDictionary<long, Entry<TValue>> _data = new();
+        private readonly SortedDictionary<long, Entry> _data = new();
         private readonly Dictionary<long, Metadata> metadataDictionary = new();
+
+        private readonly ILogger<InMemoryCache<TValue>> _logger;
+        public InMemoryCache(ILoggerFactory loggerFactory) : base(loggerFactory)
+        {
+            _logger = loggerFactory.CreateLogger<InMemoryCache<TValue>>();
+        }
 
         protected override Result<IEntry<TValue>> Insert(TValue value)
         {
             return Result.Try(() => Interlocked.Increment(ref _seq))
-                         .Bind(id => Result.Try(() => new Entry<TValue>(id, value)))
+                         .Bind(id => Result.Try(() => new Entry(id, value)))
                          .Bind(entry => Result.Try(() => _data.Add(entry.Id, entry))
                                               .Bind(() => Result.Ok<IEntry<TValue>>(entry)));
         }
@@ -87,6 +93,18 @@ namespace Baubit.Test.Caching.Setup
         protected override Result DeleteAllMetadata()
         {
             return Result.Try(() => metadataDictionary.Clear());
+        }
+
+        public class Entry : IEntry<TValue>
+        {
+            public long Id { get; init; }
+            public DateTime CreatedOnUTC { get; init; } = DateTime.UtcNow;
+            public TValue Value { get; init; }
+            public Entry(long id, TValue value)
+            {
+                Id = id;
+                Value = value;
+            }
         }
     }
 }

@@ -1,8 +1,11 @@
 ﻿using Baubit.Caching;
+using Baubit.Caching.Default;
+using Baubit.DI;
 using Baubit.Tasks;
-using Baubit.Test.Caching.Setup;
 using FluentResults;
 using FluentResults.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
@@ -17,7 +20,8 @@ namespace Baubit.Test.Caching.AOrderedCache
         //[InlineData(1000000)]
         public void CanInsertValues(int numOfItems)
         {
-            var inMemoryCache = new InMemoryCache<int>();
+            var loggerFactory = new ServiceCollection().AddLogging(builder => builder.AddConsole()).BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+            var inMemoryCache = new InMemoryCache<int>(loggerFactory);
 
             ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
 
@@ -44,7 +48,8 @@ namespace Baubit.Test.Caching.AOrderedCache
         [Fact]
         public async Task CanAwaitValues()
         {
-            var inMemoryCache = new InMemoryCache<int>();
+            var loggerFactory = new ServiceCollection().AddLogging(builder => builder.AddConsole()).BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+            var inMemoryCache = new InMemoryCache<int>(loggerFactory);
             Result<IEntry<int>> getNextResult = null;
             var autoResetEvent = new AutoResetEvent(false);
 
@@ -70,7 +75,8 @@ namespace Baubit.Test.Caching.AOrderedCache
         [Fact]
         public async Task CanCancelGetNextAsync()
         {
-            var inMemoryCache = new InMemoryCache<int>();
+            var loggerFactory = new ServiceCollection().AddLogging(builder => builder.AddConsole()).BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+            var inMemoryCache = new InMemoryCache<int>(loggerFactory);
             var cancellationTokenSource = new CancellationTokenSource();
 
             Task.Run(async () => { await Task.Delay(500); cancellationTokenSource.Cancel(); });

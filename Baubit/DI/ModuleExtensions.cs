@@ -1,8 +1,12 @@
-﻿using Baubit.Reflection;
+﻿using Baubit.Caching;
+using Baubit.IO;
+using Baubit.Reflection;
 using Baubit.Traceability;
 using FluentResults;
+using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Baubit.DI
 {
@@ -36,6 +40,27 @@ namespace Baubit.DI
                 using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = jsonSerializerOptions?.WriteIndented == true });
                 return module.Serialize(writer, jsonSerializerOptions)
                              .Bind(writer => Result.Try(() =>
+                             {
+                                 writer.Flush();
+                                 return Encoding.UTF8.GetString(stream.ToArray());
+                             }))
+                             .ThrowIfFailed()
+                             .Value;
+            });
+        }
+
+        public static Result<string> SerializeAsJsonObject(this IEnumerable<IModule> modules,
+                                                            JsonSerializerOptions jsonSerializerOptions)
+        {
+            return Result.Try(() =>
+            {
+                using var stream = new MemoryStream();
+                using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = jsonSerializerOptions?.WriteIndented == true });
+
+                return Result.Try(() => writer.WriteStartObject())
+                             .Bind(() => modules.WriteModules(writer, jsonSerializerOptions))
+                             .Bind(_ => Result.Try(() => writer.WriteEndObject()))
+                             .Bind(() => Result.Try(() =>
                              {
                                  writer.Flush();
                                  return Encoding.UTF8.GetString(stream.ToArray());
@@ -98,16 +123,22 @@ namespace Baubit.DI
 
                 writer.WriteEndArray();
 
-                writer.WritePropertyName("modules");
-                writer.WriteStartArray();
-
-                module.NestedModules.Aggregate(Result.Ok(writer), (seed, next) => seed.Bind(w => next.Serialize(w, jsonSerializerOptions)));
-
-                writer.WriteEndArray();
+                module.NestedModules.WriteModules(writer, jsonSerializerOptions).ThrowIfFailed();
 
                 writer.WriteEndObject();
                 return writer;
             });
+        }
+
+        private static Result<Utf8JsonWriter> WriteModules(this IEnumerable<IModule> modules,
+                                                           Utf8JsonWriter writer,
+                                                           JsonSerializerOptions jsonSerializerOptions)
+        {
+            return Result.Try(() => writer.WritePropertyName("modules"))
+                         .Bind(() => Result.Try(() => writer.WriteStartArray()))
+                         .Bind(() => modules.Aggregate(Result.Ok(writer), (seed, next) => seed.Bind(w => next.Serialize(w, jsonSerializerOptions))))
+                         .Bind(_ => Result.Try(() => writer.WriteEndArray()))
+                         .Bind(() => Result.Ok(writer));
         }
     }
 }

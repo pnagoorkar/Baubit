@@ -1,18 +1,20 @@
-﻿namespace Baubit.States
+﻿using Baubit.Observation;
+
+namespace Baubit.States
 {
     public class ChangeSubscription<T> : IDisposable where T : Enum
     {
-        private IObserver<StateChanged<T>> _current;
-        private IList<IObserver<StateChanged<T>>> _observers;
-        public ChangeSubscription(IObserver<StateChanged<T>> current,
-                                  IList<IObserver<StateChanged<T>>> observers)
+        private ISubscriber<StateChanged<T>> _current;
+        private IList<ISubscriber<StateChanged<T>>> _subscribers;
+        public ChangeSubscription(ISubscriber<StateChanged<T>> current,
+                                  IList<ISubscriber<StateChanged<T>>> subscribers)
         {
             _current = current;
-            _observers = observers;
+            _subscribers = subscribers;
         }
         public void Dispose()
         {
-            _observers.Remove(_current);
+            _subscribers.Remove(_current);
         }
     }
 }

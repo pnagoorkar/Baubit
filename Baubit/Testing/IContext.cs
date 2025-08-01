@@ -1,7 +1,7 @@
 ﻿
 namespace Baubit.Testing
 {
-    public interface IContext
+    public interface IContext : IDisposable
     {
     }
 }

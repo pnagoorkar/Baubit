@@ -1,6 +1,7 @@
 ﻿using Baubit.Tasks;
 using FluentResults;
 using FluentResults.Extensions;
+using Microsoft.Extensions.Logging;
 using System.Collections.Specialized;
 using System.Runtime.CompilerServices;
 
@@ -17,6 +18,13 @@ namespace Baubit.Caching
         /// Synchronizes access to cache operations for thread safety.
         /// </summary>
         protected readonly ReaderWriterLockSlim Locker = new();
+
+        private readonly ILogger<AOrderedCache<TValue>> _logger;
+
+        protected AOrderedCache(ILoggerFactory loggerFactory)
+        {
+            _logger = loggerFactory.CreateLogger<AOrderedCache<TValue>>();
+        }
 
         /// <summary>
         /// Inserts a value into the cache storage.
@@ -99,7 +107,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Insert(value).Bind(entry => nextSignal.Set(entry.Id).Bind(() => Result.Ok(entry))); }
+            try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => nextSignal.Set(entry.Id).Bind(() => Result.Ok(entry))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -115,7 +123,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> GetFirst()
         {
             Locker.EnterReadLock();
-            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => Get(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
+            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
             finally { Locker.ExitReadLock(); }
         }
 
@@ -123,7 +131,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> GetLast()
         {
             Locker.EnterReadLock();
-            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => Get(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
+            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
             finally { Locker.ExitReadLock(); }
         }
 
@@ -176,7 +184,7 @@ namespace Baubit.Caching
                 }
                 else
                 {
-                    return GetMetadata(id.Value).Bind(metadata => metadata.Next == null ? AwaitNextAsync(cancellationToken) : Task.FromResult(Fetch(metadata.Next.Value)));
+                    return GetMetadata(id.Value).Bind(metadata => metadata == null ? AwaitNextAsync(cancellationToken) : metadata.Next == null ? AwaitNextAsync(cancellationToken) : Task.FromResult(Fetch(metadata.Next.Value)));
                 }
             }
             finally { Locker.ExitReadLock(); }
@@ -189,7 +197,7 @@ namespace Baubit.Caching
         /// <returns>A task containing the result of the next entry.</returns>
         private Task<Result<IEntry<TValue>>> AwaitNextAsync(CancellationToken cancellationToken = default)
         {
-            return nextSignal.Reset(cancellationToken).Bind(() => nextSignal.WaitAsync().Bind(nextId => Fetch(nextId)));
+            return nextSignal.Reset(cancellationToken).Bind(() => nextSignal.WaitAsync().Bind(nextId => Get(nextId)));
         }
 
         /// <summary>

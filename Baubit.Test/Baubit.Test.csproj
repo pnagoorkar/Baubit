@@ -70,4 +70,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DI\ComponentBuilder\Setup\" />
+  </ItemGroup>
+
 </Project>
