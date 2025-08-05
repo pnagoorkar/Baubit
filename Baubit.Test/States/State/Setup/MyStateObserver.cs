@@ -7,6 +7,12 @@ namespace Baubit.Test.States.State.Setup
     public class MyStateObserver : ISubscriber<StateChanged<MyStatefulType.States>>
     {
         public Queue<StateChanged<MyStatefulType.States>> ChangeEvents { get; init; } = new Queue<StateChanged<MyStatefulType.States>>();
+
+        public void Dispose()
+        {
+
+        }
+
         public Result OnCompleted()
         {
             throw new NotImplementedException();

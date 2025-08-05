@@ -1,13 +1,16 @@
-﻿using FluentResults;
+﻿using Baubit.Caching.Reasons;
+using Baubit.Traceability;
+using FluentResults;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Baubit.Caching.Default
 {
     public class InMemoryCache<TValue> : AOrderedCache<TValue>
     {
         private long _seq;
-        private readonly SortedDictionary<long, Entry> _data = new();
-        private readonly Dictionary<long, Metadata> metadataDictionary = new();
+        private readonly ConcurrentDictionary<long, Entry> _data = new();
+        private readonly ConcurrentDictionary<long, Metadata> metadataDictionary = new();
 
         private readonly ILogger<InMemoryCache<TValue>> _logger;
         public InMemoryCache(ILoggerFactory loggerFactory) : base(loggerFactory)
@@ -19,20 +22,25 @@ namespace Baubit.Caching.Default
         {
             return Result.Try(() => Interlocked.Increment(ref _seq))
                          .Bind(id => Result.Try(() => new Entry(id, value)))
-                         .Bind(entry => Result.Try(() => _data.Add(entry.Id, entry))
+                         .Bind(entry => Result.Try(() => _data.TryAdd(entry.Id, entry))
+                                              .Bind(addRes => Result.OkIf(addRes && _data.ContainsKey(entry.Id), nameof(Insert)).AddReasonIfFailed(new EntryNotFound<TValue>(entry.Id)))
                                               .Bind(() => Result.Ok<IEntry<TValue>>(entry)));
         }
 
         protected override Result<IEntry<TValue>> Fetch(long id)
         {
-            return Result.OkIf(_data.ContainsKey(id), "Not found")
+            if (!_data.ContainsKey(id))
+            {
+
+            }
+            return Result.OkIf(_data.ContainsKey(id), nameof(Fetch)).AddReasonIfFailed(new EntryNotFound<TValue>(id))
                          .Bind(() => Result.Try(() => _data[id]))
                          .Bind(entry => Result.Ok<IEntry<TValue>>(entry));
         }
 
         protected override Result<IEntry<TValue>> DeleteStorage(long id)
         {
-            return Result.OkIf(_data.ContainsKey(id), "Not found")
+            return Result.OkIf(_data.ContainsKey(id), nameof(Fetch)).AddReasonIfFailed(new EntryNotFound<TValue>(id))
                          .Bind(() => Result.OkIf(_data.Remove(id, out var entry), "Remove failed")
                                            .Bind(() => Result.Ok<IEntry<TValue>>(entry)));
         }
@@ -50,6 +58,7 @@ namespace Baubit.Caching.Default
         protected override void DisposeInternal()
         {
             _data.Clear();
+            metadataDictionary.Clear();
         }
 
         protected override Result Upsert(IEnumerable<Metadata> metadata)
@@ -64,10 +73,17 @@ namespace Baubit.Caching.Default
                     }
                     else
                     {
-                        metadataDictionary.Add(m.Id, m);
+                        metadataDictionary.TryAdd(m.Id, m);
                     }
                 }
             });
+        }
+
+        protected override Result<IEntry<TValue>> UpdateInternal(long id, TValue value)
+        {
+            return Result.Try(() => new Entry(id, value))
+                         .Bind(entry => Result.Try(() => _data[id] = entry))
+                         .Bind(entry => Result.Ok<IEntry<TValue>>(entry));
         }
 
         protected override Result<Metadata> GetCurrentHead()
@@ -87,7 +103,7 @@ namespace Baubit.Caching.Default
 
         protected override Result DeleteMetadata(long id)
         {
-            return Result.Try(() => metadataDictionary.Remove(id)).Bind(_ => Result.Ok());
+            return Result.Try(() => metadataDictionary.TryRemove(id, out _)).Bind(removeRes => Result.OkIf(removeRes, "Failed to remove"));
         }
 
         protected override Result DeleteAllMetadata()

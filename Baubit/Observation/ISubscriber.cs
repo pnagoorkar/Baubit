@@ -3,7 +3,7 @@ using FluentResults;
 
 namespace Baubit.Observation
 {
-    public interface ISubscriber<T>
+    public interface ISubscriber<T> : IDisposable
     {
         public Result OnNext(T next);
         public Result OnError(Exception error);

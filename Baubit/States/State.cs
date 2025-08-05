@@ -56,7 +56,10 @@ namespace Baubit.States
             {
                 await foreach (var readResult in _cache.ReadAsync<IOrderedCache<T>, T>(cancellationTokenSource.Token))
                 {
-                    readResult.Bind(entry => Result.Try(() => { _changeCache.Add(new StateChanged<T>() { Current = entry.Value }); }));
+                    readResult.Bind(entry => Result.Try(() => new StateChanged<T>() { Current = entry.Value }))
+                              .Bind(@event => _changeCache.Add(@event))
+                              .ThrowIfFailed();
+                    //readResult.Bind(entry => Result.Try(() => { _changeCache.Add(new StateChanged<T>() { Current = entry.Value }); }));
                 }
             }
             catch (TaskCanceledException)

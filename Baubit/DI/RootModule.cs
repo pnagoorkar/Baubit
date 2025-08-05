@@ -15,7 +15,7 @@ namespace Baubit.DI
         {
         }
 
-        public RootModule(RootModuleConfiguration moduleConfiguration, List<AModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
+        public RootModule(RootModuleConfiguration moduleConfiguration, List<IModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
         {
         }
 

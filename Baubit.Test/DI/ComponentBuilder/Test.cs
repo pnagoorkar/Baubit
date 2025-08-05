@@ -56,7 +56,7 @@ namespace Baubit.Test.DI.ComponentBuilder
         public void CanBuildComponentBuilderUsingModules()
         {
             var createResult = ComponentBuilder<ILoggerFactory>.Create()
-                                                               .Bind(componentBuilder => componentBuilder.UsingModules(new Baubit.Logging.DI.Default.Module(ConfigurationSource.Empty)))
+                                                               .Bind(componentBuilder => componentBuilder.UsingModules(new Baubit.Logging.DI.Default.Module(new Baubit.Logging.DI.Default.Configuration { AddConsole = true, AddDebug = true }, [], [])))
                                                                .Bind(componentBuilder => componentBuilder.Build());
             Assert.True(createResult.IsSuccess);
             Assert.NotNull(createResult.Value);

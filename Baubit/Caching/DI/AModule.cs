@@ -12,7 +12,7 @@ namespace Baubit.Caching.DI
         {
         }
 
-        protected AModule(TConfiguration configuration, List<Baubit.DI.AModule> nestedModules, List<Baubit.DI.IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        protected AModule(TConfiguration configuration, List<Baubit.DI.IModule> nestedModules, List<Baubit.DI.IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
     }

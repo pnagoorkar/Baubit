@@ -39,5 +39,10 @@ namespace Baubit.States
         {
             return await _watcher.WaitAsync().Bind(_ => Result.Ok());
         }
+
+        public void Dispose()
+        {
+
+        }
     }
 }

@@ -54,6 +54,11 @@ namespace Baubit.DI
                          .Bind(() => Result.Ok(this));
         }
 
+        public Result<ComponentBuilder<T>> UsingFeatures(params IFeature[] features)
+        {
+            return UsingModules(features.SelectMany(feature => feature.Modules).ToArray());
+        }
+
         public Result<T> Build(bool requireComponent = true)
         {
             return FailIfDisposed().Bind(() => CreateRootModule())

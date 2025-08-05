@@ -15,7 +15,7 @@ namespace Baubit.Test.DI.RootModuleFactory.Setup
         {
         }
 
-        public RootModule(RootModuleConfiguration moduleConfiguration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
+        public RootModule(RootModuleConfiguration moduleConfiguration, List<Baubit.DI.IModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
         {
         }
 

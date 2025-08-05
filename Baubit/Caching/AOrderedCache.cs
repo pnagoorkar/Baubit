@@ -71,6 +71,8 @@ namespace Baubit.Caching
         /// <returns>A result indicating success or failure.</returns>
         protected abstract Result Upsert(IEnumerable<Metadata> metadata);
 
+        protected abstract Result<IEntry<TValue>> UpdateInternal(long id, TValue value);
+
         /// <summary>
         /// Gets the metadata for the head (first) entry in the cache.
         /// </summary>
@@ -108,6 +110,13 @@ namespace Baubit.Caching
         {
             Locker.EnterWriteLock();
             try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => nextSignal.Set(entry.Id).Bind(() => Result.Ok(entry))); }
+            finally { Locker.ExitWriteLock(); }
+        }
+
+        public Result<IEntry<TValue>> Update(long id, TValue value)
+        {
+            Locker.EnterWriteLock();
+            try { return Fetch(id).Bind(entry => UpdateInternal(id, value)); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -163,6 +172,7 @@ namespace Baubit.Caching
         /// Signal used to notify when a new entry is added to the cache.
         /// </summary>
         ManualResetTask<long> nextSignal = new ManualResetTask<long>();
+        private bool disposedValue;
 
         /// <inheritdoc/>
         public Task<Result<IEntry<TValue>>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default)
@@ -170,10 +180,10 @@ namespace Baubit.Caching
             Locker.EnterReadLock();
             try
             {
+                var getHeadResult = GetCurrentHead();
                 if (id == null)
                 {
-                    var getHeadResult = GetCurrentHead();
-                    if(getHeadResult.ValueOrDefault == null) //there is no data in the cache
+                    if (getHeadResult.ValueOrDefault == null) //there is no data in the cache
                     {
                         return AwaitNextAsync(cancellationToken);
                     }
@@ -181,6 +191,10 @@ namespace Baubit.Caching
                     {
                         return Task.FromResult(getHeadResult.Bind(metadata => Fetch(metadata.Id)));
                     }
+                }
+                else if (getHeadResult.ValueOrDefault != null && getHeadResult.ValueOrDefault.Id > id)
+                {
+                    return Task.FromResult(getHeadResult.Bind(metadata => Fetch(metadata.Id)));
                 }
                 else
                 {
@@ -260,13 +274,25 @@ namespace Baubit.Caching
                    }).Bind(() => upsertables.Count == 0 ? Result.Ok() : Upsert(upsertables)).Bind(() => current == null ? Result.Ok() : DeleteMetadata(current.Id));
         }
 
-        /// <summary>
-        /// Releases resources used by the cache.
-        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    Locker.EnterWriteLock();
+                    try { DisposeInternal(); }
+                    finally { Locker.ExitWriteLock(); }                    
+                    Locker.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
         public void Dispose()
         {
-            Locker.Dispose();
-            DisposeInternal();
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

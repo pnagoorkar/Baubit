@@ -8,20 +8,14 @@ namespace Baubit.Test.States.State
 {
     public class Test
     {
-        static IModule[] requiredModules =
-        [
-            new Baubit.States.DI.Module<MyStatefulType.States>(ConfigurationSource.Empty),
-            new Baubit.Caching.Default.DI.Module<MyStatefulType.States>(ConfigurationSource.Empty),
-            new Baubit.Caching.Default.DI.Module<StateChanged<MyStatefulType.States>>(ConfigurationSource.Empty),
-            new Baubit.Logging.DI.Default.Module(ConfigurationSource.Empty)
-        ];
+        static Feature feature = new Feature();
 
         [Fact]
         public void CanInitializeState()
         {
             var typeBuildResult = ComponentBuilder<MyStatefulType>.Create()
                                                                   .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<MyStatefulType>()))
-                                                                  .Bind(componentBuilder => componentBuilder.UsingModules(requiredModules))
+                                                                  .Bind(componentBuilder => componentBuilder.UsingFeatures(feature))
                                                                   .Bind(componentBuilder => componentBuilder.Build(true));
 
             Assert.True(typeBuildResult.IsSuccess);
@@ -34,7 +28,7 @@ namespace Baubit.Test.States.State
         {
             var typeBuildResult = ComponentBuilder<MyStatefulType>.Create()
                                                                   .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<MyStatefulType>()))
-                                                                  .Bind(componentBuilder => componentBuilder.UsingModules(requiredModules))
+                                                                  .Bind(componentBuilder => componentBuilder.UsingFeatures(feature))
                                                                   .Bind(componentBuilder => componentBuilder.Build(true));
 
             Assert.True(typeBuildResult.IsSuccess);
@@ -54,7 +48,7 @@ namespace Baubit.Test.States.State
         {
             var typeBuildResult = ComponentBuilder<StateFactory<MyStatefulType.States>>.Create()
                                                                                        .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<MyStatefulType>()))
-                                                                                       .Bind(componentBuilder => componentBuilder.UsingModules(requiredModules))
+                                                                                       .Bind(componentBuilder => componentBuilder.UsingFeatures(feature))
                                                                                        .Bind(componentBuilder => componentBuilder.Build(true));
 
             Assert.True(typeBuildResult.IsSuccess);

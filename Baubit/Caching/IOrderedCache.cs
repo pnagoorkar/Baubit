@@ -1,4 +1,5 @@
 ﻿using Baubit.IO.Channels;
+using Baubit.Observation;
 using FluentResults;
 using FluentResults.Extensions;
 using System.Collections.Specialized;
@@ -30,6 +31,9 @@ namespace Baubit.Caching
         /// A <see cref="Result{T}"/> containing the created <see cref="IEntry{TValue}"/>, or an error if the operation fails.
         /// </returns>
         Result<IEntry<TValue>> Add(TValue value);
+
+
+        Result<IEntry<TValue>> Update(long id, TValue value);
 
         /// <summary>
         /// Retrieves an entry from the cache by its unique identifier.

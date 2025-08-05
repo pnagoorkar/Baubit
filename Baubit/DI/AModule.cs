@@ -24,7 +24,7 @@ namespace Baubit.DI
 
         public IReadOnlyList<IConstraint> Constraints { get; init; }
 
-        public AModule(AConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints)
+        public AModule(AConfiguration configuration, List<IModule> nestedModules, List<IConstraint> constraints)
         {
             Configuration = configuration;
             NestedModules = nestedModules.Concat(GetKnownDependencies()).ToList().AsReadOnly();
@@ -70,7 +70,7 @@ namespace Baubit.DI
         {
 
         }
-        protected AModule(TConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        protected AModule(TConfiguration configuration, List<IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 
@@ -89,7 +89,7 @@ namespace Baubit.DI
             return configuration.Load<TConfiguration>().ThrowIfFailed().Value;
         }
 
-        private static List<AModule> TryLoadNestedModules(IConfiguration configuration)
+        private static List<IModule> TryLoadNestedModules(IConfiguration configuration)
         {
             return configuration.LoadModules<AModule>().ThrowIfFailed().Value;
         }

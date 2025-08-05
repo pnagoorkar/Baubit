@@ -61,5 +61,16 @@ namespace Baubit.Test.DI.AModule
 
             Assert.Equal(result.Value, reserializationResult.Value);
         }
+
+        [Theory]
+        [InlineData("configHavingModuleProvidersSection.json")]
+        public void CanProvideModulesViaIModuleProvider(string fileName)
+        {
+            var rootModule = Baubit.DI.RootModuleFactory.Create(new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] }).Value;
+            Assert.NotNull(rootModule);
+            Assert.Single(rootModule.NestedModules);
+            Assert.IsType<Baubit.Test.DI.AModule.Setup.Module>(rootModule.NestedModules.First());
+
+        }
     }
 }

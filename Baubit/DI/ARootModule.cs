@@ -34,7 +34,7 @@ namespace Baubit.DI
         {
         }
 
-        protected ARootModule(TConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        protected ARootModule(TConfiguration configuration, List<IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 

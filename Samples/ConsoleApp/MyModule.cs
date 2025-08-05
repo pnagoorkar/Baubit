@@ -16,7 +16,7 @@ namespace ConsoleApp
         {
         }
 
-        public MyModule(MyConfiguration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        public MyModule(MyConfiguration configuration, List<IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
         public override void Load(IServiceCollection services)
