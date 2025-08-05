@@ -14,14 +14,14 @@ namespace Baubit.DI
     {
         public static Result<List<IModule>> LoadModules<TModule>(this IConfiguration configuration)
         {
-            List<IModule> featuredModules = new List<IModule>();
+            List<IModule> featurizedModules = new List<IModule>();
             List<IModule> directlyDefinedModules = new List<IModule>();
             List<IModule> indirectlyDefinedModules = new List<IModule>();
 
             var directlyProvidedModulesExtractionResult = configuration.GetFeaturesSectionOrDefault()
                                                                        .Bind(modulesSection => Result.Try(() => modulesSection?.GetChildren() ?? new List<IConfigurationSection>()))
                                                                        .Bind(sections => Result.Merge(sections.AsParallel().Select(sec => GetFeatures(sec.Value)).ToArray()))
-                                                                       .Bind(features => Result.Try(() => featuredModules = features.SelectMany(moduleProvider => moduleProvider.Modules).ToList()))
+                                                                       .Bind(features => Result.Try(() => featurizedModules = features.SelectMany(moduleProvider => moduleProvider.Modules).ToList()))
                                                                        .Bind(_ => Result.Ok());
 
             var directlyDefinedModulesExtractionResult = configuration.GetModulesSectionOrDefault()
@@ -36,7 +36,7 @@ namespace Baubit.DI
                                                                         .Bind(modules => { indirectlyDefinedModules = modules.SelectMany(x => x).ToList(); return Result.Ok(); });
 
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
-                   Result.Ok<List<IModule>>([.. featuredModules,  ..directlyDefinedModules, .. indirectlyDefinedModules]) :
+                   Result.Ok<List<IModule>>([.. featurizedModules,  ..directlyDefinedModules, .. indirectlyDefinedModules]) :
                    Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
         }
 
