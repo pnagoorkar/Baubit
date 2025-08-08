@@ -34,10 +34,6 @@ namespace Baubit.Caching.InMemory
 
         protected override Result<IEntry<TValue>> Fetch(long id)
         {
-            if (!_data.ContainsKey(id))
-            {
-
-            }
             return Result.OkIf(_data.ContainsKey(id), nameof(Fetch)).AddReasonIfFailed(new EntryNotFound<TValue>(id))
                          .Bind(() => Result.Try(() => _data[id]))
                          .Bind(entry => Result.Ok<IEntry<TValue>>(entry));
