@@ -15,7 +15,7 @@ namespace Baubit.Test.States.State
         {
             var typeBuildResult = ComponentBuilder<MyStatefulType>.Create()
                                                                   .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<MyStatefulType>()))
-                                                                  .Bind(componentBuilder => componentBuilder.UsingFeatures(feature))
+                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures(feature))
                                                                   .Bind(componentBuilder => componentBuilder.Build(true));
 
             Assert.True(typeBuildResult.IsSuccess);
@@ -28,7 +28,7 @@ namespace Baubit.Test.States.State
         {
             var typeBuildResult = ComponentBuilder<MyStatefulType>.Create()
                                                                   .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<MyStatefulType>()))
-                                                                  .Bind(componentBuilder => componentBuilder.UsingFeatures(feature))
+                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures(feature))
                                                                   .Bind(componentBuilder => componentBuilder.Build(true));
 
             Assert.True(typeBuildResult.IsSuccess);
@@ -49,7 +49,7 @@ namespace Baubit.Test.States.State
         {
             var typeBuildResult = ComponentBuilder<StateFactory<MyStatefulType.States>>.Create()
                                                                                        .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<MyStatefulType>()))
-                                                                                       .Bind(componentBuilder => componentBuilder.UsingFeatures(feature))
+                                                                                       .Bind(componentBuilder => componentBuilder.WithFeatures(feature))
                                                                                        .Bind(componentBuilder => componentBuilder.Build(true));
 
             Assert.True(typeBuildResult.IsSuccess);

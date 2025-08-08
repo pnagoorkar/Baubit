@@ -3,6 +3,8 @@ using Baubit.Configuration;
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
 
 namespace Baubit.Caching.InMemory.DI
 {
@@ -22,7 +24,8 @@ namespace Baubit.Caching.InMemory.DI
 
         public override void Load(IServiceCollection services)
         {
-            services.AddSingleton<IOrderedCache<TValue>, OrderedCache<TValue>>();
+            services.AddSingleton(serviceProvider => new OrderedCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
+            services.AddSingleton<IOrderedCache<TValue>>(serviceProvider => serviceProvider.GetRequiredService<OrderedCache<TValue>>());
         }
     }
 }

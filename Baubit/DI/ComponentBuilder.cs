@@ -48,15 +48,15 @@ namespace Baubit.DI
             return Result.Try(() => _services = services).Bind(_ => Result.Ok(this));
         }
 
-        public Result<ComponentBuilder<T>> UsingModules(params IModule[] modules)
+        public Result<ComponentBuilder<T>> WithModules(params IModule[] modules)
         {
             return Result.Try(() => _modules.AddRange(modules))
                          .Bind(() => Result.Ok(this));
         }
 
-        public Result<ComponentBuilder<T>> UsingFeatures(params IFeature[] features)
+        public Result<ComponentBuilder<T>> WithFeatures(params IFeature[] features)
         {
-            return UsingModules(features.SelectMany(feature => feature.Modules).ToArray());
+            return WithModules(features.SelectMany(feature => feature.Modules).ToArray());
         }
 
         public Result<T> Build(bool requireComponent = true)

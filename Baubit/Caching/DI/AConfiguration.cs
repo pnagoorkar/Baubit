@@ -2,5 +2,6 @@
 {
     public class AConfiguration : Baubit.DI.AConfiguration
     {
+        public Baubit.Caching.Configuration CacheConfiguration { get; init; }
     }
 }

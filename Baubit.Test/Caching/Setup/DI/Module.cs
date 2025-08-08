@@ -5,9 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Baubit.States.DI
+namespace Baubit.Test.Caching.Setup.DI
 {
-    public class Module<T> : AModule<Configuration> where T : Enum
+    public class Module<TValue> : Baubit.Caching.DI.AModule<TValue, Configuration>
     {
         public Module(ConfigurationSource configurationSource) : base(configurationSource)
         {
@@ -23,9 +23,8 @@ namespace Baubit.States.DI
 
         public override void Load(IServiceCollection services)
         {
-            services.AddSingleton<StateFactory<T>>(serviceProvider => () => new State<T>(serviceProvider.GetRequiredService<IOrderedCache<T>>(), 
-                                                                                         serviceProvider.GetRequiredService<IOrderedCache<StateChanged<T>>>(), 
-                                                                                         serviceProvider.GetRequiredService<ILoggerFactory>()));
+            services.AddSingleton(serviceProvider => new DummyCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
+            services.AddSingleton<IOrderedCache<TValue>>(serviceProvider => serviceProvider.GetRequiredService<DummyCache<TValue>>());
         }
     }
 }

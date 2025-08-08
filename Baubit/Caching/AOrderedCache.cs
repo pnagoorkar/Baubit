@@ -1,4 +1,5 @@
-﻿using Baubit.Tasks;
+﻿using Baubit.Collections;
+using Baubit.Tasks;
 using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Logging;
@@ -22,13 +23,22 @@ namespace Baubit.Caching
         private readonly ILogger<AOrderedCache<TValue>> _logger;
 
         private bool disposedValue;
-
+        private int _l1StoreCurrentCap;
+        private LinkedList<IEntry<TValue>> _l1Store = new LinkedList<IEntry<TValue>>();
+        private Dictionary<long, LinkedListNode<IEntry<TValue>>> l1Lookup = new Dictionary<long, LinkedListNode<IEntry<TValue>>>();
         private volatile bool areReadersWaiting = false;
         private TaskCompletionSource<bool> nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        protected AOrderedCache(ILoggerFactory loggerFactory)
+        public Configuration Configuration { get; init; }
+        public int L1StoreCurrentCap { get => _l1StoreCurrentCap; private set => _l1StoreCurrentCap = value; }
+        public int L1StoreCount => _l1Store.Count;
+
+        protected AOrderedCache(Configuration cacheConfiguration, 
+                                ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<AOrderedCache<TValue>>();
+            Configuration = cacheConfiguration;
+            L1StoreCurrentCap = Configuration.L1StoreCap;
         }
 
         /// <summary>
@@ -44,6 +54,8 @@ namespace Baubit.Caching
         /// <param name="id">The unique identifier of the entry.</param>
         /// <returns>A result containing the entry or an error.</returns>
         protected abstract Result<IEntry<TValue>> Fetch(long id);
+
+        protected abstract Result<IEntry<TValue>> FetchNext(long id);
 
         /// <summary>
         /// Deletes an entry from the cache storage by its identifier.
@@ -114,55 +126,117 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => SignalAwaiters().Bind(() => Result.Ok(entry))); }
+            try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters().Bind(() => Result.Ok(entry)))); }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result AddToL1Store(IEntry<TValue> entry)
+        {
+            return L1StoreCount >= L1StoreCurrentCap ? Result.Ok() : Result.Try(() => _l1Store.AddLast(entry))
+                                                                           .Bind(node => Result.Try(() => l1Lookup.Add(entry.Id, node)));
         }
 
         public Result<IEntry<TValue>> Update(long id, TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Fetch(id).Bind(entry => UpdateInternal(id, value)); }
+            try { return Fetch(id).Bind(entry => UpdateInternal(id, value)).Bind(entry => UpdateL1Store(entry).Bind(() => Result.Ok(entry))); }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result UpdateL1Store(IEntry<TValue> entry)
+        {
+            return l1Lookup.TryGetValueOrDefault<Dictionary<long, LinkedListNode<IEntry<TValue>>>, long, LinkedListNode<IEntry<TValue>>>(entry.Id)
+                           .Bind(node => node == null ? Result.Ok() : Result.Try(() => { node.Value = entry; }));
         }
 
         /// <inheritdoc/>
         public Result<IEntry<TValue>> Get(long id)
         {
             Locker.EnterReadLock();
-            try { return Fetch(id); }
+            try { return TryGetFromL1Store(id).Bind(entry => entry == null ? Fetch(id) : Result.Ok(entry)); }
             finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>?> TryGetFromL1Store(long id)
+        {
+            return l1Lookup.TryGetValueOrDefault<Dictionary<long, LinkedListNode<IEntry<TValue>>>, long, LinkedListNode<IEntry<TValue>>>(id)
+                           .Bind(node => Result.Ok(node?.Value));
         }
 
         /// <inheritdoc/>
         public Result<IEntry<TValue>> GetFirst()
         {
             Locker.EnterReadLock();
-            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
+            try { return GetFirstInternal()!; }
             finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>?> GetFirstInternal()
+        {
+            return TryGetFirstFromL1Store().Bind(first => first != null ? Result.Ok(first) : GetCurrentCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null!)))!;
+        }
+
+        private Result<IEntry<TValue>?> TryGetFirstFromL1Store()
+        {
+            return Result.Ok<IEntry<TValue>?>(_l1Store?.First?.Value);
         }
 
         /// <inheritdoc/>
         public Result<IEntry<TValue>> GetLast()
         {
             Locker.EnterReadLock();
-            try { return GetCurrentCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null)); }
+            try { return TryGetLastFromL1Store().Bind(last => last != null ? Result.Ok(last) : GetCurrentCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null))); }
             finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>?> TryGetLastFromL1Store()
+        {
+            return Result.Ok<IEntry<TValue>?>(_l1Store?.Last?.Value);
         }
 
         /// <inheritdoc/>
         public Result<IEntry<TValue>> Remove(long id)
         {
             Locker.EnterWriteLock();
-            try { return DeleteStorage(id).Bind(entry => RemoveMetadata(entry.Id).Bind(() => Result.Ok(entry))); }
+            try { return DeleteStorage(id).Bind(entry => RemoveMetadata(entry.Id).Bind(() => RemoveFromL1Store(id).Bind(() => Result.Ok(entry)))); }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result RemoveFromL1Store(long id)
+        {
+            return l1Lookup.TryGetValueOrDefault<Dictionary<long, LinkedListNode<IEntry<TValue>>>, long, LinkedListNode<IEntry<TValue>>>(id)
+                           .Bind(node => node == null ? Result.Ok() : Result.Try(() => _l1Store.Remove(node))
+                                                                            .Bind(() => Result.Try(() => l1Lookup.Remove(id))
+                                                                                              .Bind(removeResult => removeResult ? Result.Ok() : Result.Fail(""))))
+                           .Bind(() => ReplenishL1Store());
+        }
+
+        private Result ReplenishL1Store()
+        {
+            var fetchNextFromL2Result = L1StoreCount == 0 ? GetFirstInternal() : FetchNext(_l1Store.Last.Value.Id);
+            while (L1StoreCount < L1StoreCurrentCap && fetchNextFromL2Result.ValueOrDefault != null)
+            {
+                fetchNextFromL2Result = AddToL1Store(fetchNextFromL2Result.Value).Bind(() => FetchNext(_l1Store.Last.Value.Id));
+            }
+            return fetchNextFromL2Result.Bind(_ => Result.Ok());
         }
 
         /// <inheritdoc/>
         public Result Clear()
         {
             Locker.EnterWriteLock();
-            try{ return DeleteAll().Bind(() => DeleteAllMetadata()); }
+            try{ return ClearInternal(); }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result ClearInternal()
+        {
+            return DeleteAll().Bind(() => DeleteAllMetadata()).Bind(() => ClearL1Store());
+        }
+
+        public Result ClearL1Store()
+        {
+            return Result.Try(() => _l1Store.Clear()).Bind(() => Result.Try(() => l1Lookup.Clear()));
         }
 
         /// <inheritdoc/>
@@ -179,7 +253,7 @@ namespace Baubit.Caching
             Locker.EnterReadLock();
             try
             {
-                var getHeadResult = GetCurrentHead();
+                var getHeadResult = GetFirstInternal();
                 if (id == null)
                 {
                     if (getHeadResult.ValueOrDefault == null) //there is no data in the cache
@@ -188,18 +262,18 @@ namespace Baubit.Caching
                     }
                     else
                     {
-                        return Task.FromResult(getHeadResult.Bind(metadata => Fetch(metadata.Id)));
+                        return Task.FromResult(getHeadResult);
                     }
                 }
-                else if (getHeadResult.ValueOrDefault != null && getHeadResult.ValueOrDefault.Id > id)
+                else if (getHeadResult?.ValueOrDefault?.Id > id)
                 {
-                    return Task.FromResult(getHeadResult.Bind(metadata => Fetch(metadata.Id)));
+                    return Task.FromResult(getHeadResult);
                 }
                 else
                 {
-                    return GetMetadata(id.Value).Bind(metadata => metadata?.Next == null ?
-                                                                  GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => Task.FromResult(Get(id.Value))) :
-                                                                  Task.FromResult(Fetch(metadata.Next.Value)));
+                    return FetchNext(id.Value).Bind(nextEntry => nextEntry == null ? 
+                                                                 GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => Task.FromResult(Get(id.Value))) : 
+                                                                 Task.FromResult(Result.Ok(nextEntry)));
                 }
             }
             finally { Locker.ExitReadLock(); }
@@ -294,6 +368,7 @@ namespace Baubit.Caching
                     Locker.EnterWriteLock();
                     try
                     {
+                        ClearInternal();
                         nextGenAwaiter.TrySetCanceled();
                         areReadersWaiting = false;
                         DisposeInternal();

@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Baubit.Caching.InMemory
@@ -18,7 +19,8 @@ namespace Baubit.Caching.InMemory
         private readonly ConcurrentDictionary<long, Metadata> metadataDictionary = new();
 
         private readonly ILogger<OrderedCache<TValue>> _logger;
-        public OrderedCache(ILoggerFactory loggerFactory) : base(loggerFactory)
+        public OrderedCache(Configuration cacheConfiguration,
+                            ILoggerFactory loggerFactory) : base(cacheConfiguration, loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
         }
@@ -37,6 +39,11 @@ namespace Baubit.Caching.InMemory
             return Result.OkIf(_data.ContainsKey(id), nameof(Fetch)).AddReasonIfFailed(new EntryNotFound<TValue>(id))
                          .Bind(() => Result.Try(() => _data[id]))
                          .Bind(entry => Result.Ok<IEntry<TValue>>(entry));
+        }
+
+        protected override Result<IEntry<TValue>?> FetchNext(long id)
+        {
+            return GetMetadata(id).Bind(metadata => metadata?.Next == null ? Result.Ok(default(IEntry<TValue>))! : Fetch(metadata.Next.Value))!;
         }
 
         protected override Result<IEntry<TValue>> DeleteStorage(long id)

@@ -89,15 +89,7 @@ namespace Baubit.Caching
     /// </summary>
     public static class CachingExtensions
     {
-        /// <summary>
-        /// Asynchronously reads entries from the cache, yielding each result.
-        /// </summary>
-        /// <typeparam name="TCache">The cache type implementing <see cref="IOrderedCache{TValue}"/>.</typeparam>
-        /// <typeparam name="TValue">The type of value stored in the cache.</typeparam>
-        /// <param name="cache">The cache instance to read from.</param>
-        /// <param name="cancellationToken">A token to cancel the operation.</param>
-        /// <returns>An async enumerable of results containing cache entries.</returns>
-        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TCache, TValue>(this TCache cache, long? startingId = null, [EnumeratorCancellation] CancellationToken cancellationToken = default) where TCache : IOrderedCache<TValue>
+        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TValue>(this IOrderedCache<TValue> cache, long? startingId = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             if (startingId != null)
             {
