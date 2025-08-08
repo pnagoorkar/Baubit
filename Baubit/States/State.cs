@@ -36,7 +36,7 @@ namespace Baubit.States
             _changeCache = changeCache;
             _logger = loggerFactory.CreateLogger<State<T>>();
             eventDispatcher = Task.Run(DispatchEventsAsync).ContinueWith(completedTask => LogDispatcherEndStatus(completedTask));
-            eventGenerator = Task.Run(GenerateChangeEventsAsync);
+            eventGenerator = Task.Run(GenerateChangeEventsAsync).ContinueWith(completedTask => LogEventGeneratorEndStatus(completedTask));
         }
 
         public Result Set(T value) => _cache.Add(value).Bind(_ => Result.Ok());
@@ -50,16 +50,38 @@ namespace Baubit.States
                          .Bind(() => Result.Try<IDisposable>(() => new ChangeSubscription<T>(subscriber, _subscribers)));
         }
 
+        public async Task<Result> AwaitAsync(T targetState, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                long? tailId = null;
+                _changeCache.GetLast().Bind(tailEntry => Result.Try(() => tailId = tailEntry?.Id));
+                await foreach (var entryResult in _changeCache.ReadAsync<IOrderedCache<StateChanged<T>>, StateChanged<T>>(tailId, cancellationToken))
+                {
+                    var result = entryResult.Bind(entry => Result.Try(() => entry.Value.Current.Equals(targetState)));
+                    if (result.IsSuccess) return Result.Ok();
+                }
+                return Result.Fail(""); //This should never be hit. The above loop will only break if the caller cancels via the cancellation token
+            }
+            catch (TaskCanceledException)
+            {
+                return Result.Fail("Cancelled");
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
         private async Task<Result> GenerateChangeEventsAsync()
         {
             try
             {
-                await foreach (var readResult in _cache.ReadAsync<IOrderedCache<T>, T>(cancellationTokenSource.Token))
+                await foreach (var readResult in _cache.ReadAsync<IOrderedCache<T>, T>(null, cancellationTokenSource.Token))
                 {
                     readResult.Bind(entry => Result.Try(() => new StateChanged<T>() { Current = entry.Value }))
                               .Bind(@event => _changeCache.Add(@event))
                               .ThrowIfFailed();
-                    //readResult.Bind(entry => Result.Try(() => { _changeCache.Add(new StateChanged<T>() { Current = entry.Value }); }));
                 }
             }
             catch (TaskCanceledException)
@@ -77,7 +99,7 @@ namespace Baubit.States
         {
             try
             {
-                await foreach (var change in _changeCache.ReadAsync<IOrderedCache<StateChanged<T>>, StateChanged<T>>(cancellationTokenSource.Token))
+                await foreach (var change in _changeCache.ReadAsync<IOrderedCache<StateChanged<T>>, StateChanged<T>>(null, cancellationTokenSource.Token))
                 {
                     change.Bind(entry => Result.Try(() => Parallel.ForEach(_subscribers, subscriber => subscriber.OnNextOrError(entry.Value))));
                 }
@@ -100,11 +122,26 @@ namespace Baubit.States
             {
                 if (completedTask.Result.IsSuccess)
                 {
-                    _logger.LogInformation("Dispatched finished gracefully");
+                    _logger.LogInformation("Dispatcher finished gracefully");
                 }
                 else
                 {
-                    _logger.LogError($"Dispatched finished in error:{Environment.NewLine}{completedTask.Result.UnwrapReasons().ValueOrDefault}");
+                    _logger.LogError($"Dispatcher finished in error:{Environment.NewLine}{completedTask.Result.UnwrapReasons().ValueOrDefault}");
+                }
+            }).Bind(() => completedTask.Result);
+        }
+
+        private Result LogEventGeneratorEndStatus(Task<Result> completedTask)
+        {
+            return Result.Try(() =>
+            {
+                if (completedTask.Result.IsSuccess)
+                {
+                    _logger.LogInformation("Event generator finished gracefully");
+                }
+                else
+                {
+                    _logger.LogError($"Event generator finished in error:{Environment.NewLine}{completedTask.Result.UnwrapReasons().ValueOrDefault}");
                 }
             }).Bind(() => completedTask.Result);
         }
@@ -130,18 +167,6 @@ namespace Baubit.States
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
-        }
-    }
-
-    public static class StateExtensions
-    {
-        public static async Task<Result> AwaitAsync<T>(this State<T> state, T targetState, CancellationToken cancellationToken = default) where T : Enum
-        {
-            return await Result.Try(() => new StateWatcher<T>(targetState))
-                               .Bind(watcher => state.Subscribe(watcher)
-                                                     .Bind(subscription => watcher.AwaitAsync(cancellationToken)
-                                                                                  .Bind(() => Result.Try(() => subscription.Dispose())
-                                                                                                    .Bind(() => Task.FromResult(Result.Ok())))));
         }
     }
 }

@@ -42,5 +42,11 @@ namespace Baubit.Tasks
                 }
             }
         }
+
+        public static Result RegisterCancellationToken<T>(this TaskCompletionSource<T> taskCompletionSource, CancellationToken cancellationToken)
+        {
+            return Result.Try(() => cancellationToken.Register(() => taskCompletionSource.TrySetCanceled(cancellationToken), useSynchronizationContext: false))
+                         .Bind(registration => Result.Try(() => { taskCompletionSource.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default); }));
+        }
     }
 }

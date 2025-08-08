@@ -40,6 +40,7 @@ namespace Baubit.Test.States.State
             Assert.Empty(myObserver.ChangeEvents);
             typeBuildResult.Value.State.Set(MyStatefulType.States.State1);
             var stateChangeResult = await typeBuildResult.Value.State.AwaitAsync(MyStatefulType.States.State1);
+            await Task.Delay(100);
             Assert.NotEmpty(myObserver.ChangeEvents);
         }
 

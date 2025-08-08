@@ -21,6 +21,11 @@ namespace Baubit.Caching
 
         private readonly ILogger<AOrderedCache<TValue>> _logger;
 
+        private bool disposedValue;
+
+        private volatile bool areReadersWaiting = false;
+        private TaskCompletionSource<bool> nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         protected AOrderedCache(ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<AOrderedCache<TValue>>();
@@ -109,7 +114,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => nextSignal.Set(entry.Id).Bind(() => Result.Ok(entry))); }
+            try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => SignalAwaiters().Bind(() => Result.Ok(entry))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -168,12 +173,6 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
-        /// <summary>
-        /// Signal used to notify when a new entry is added to the cache.
-        /// </summary>
-        ManualResetTask<long> nextSignal = new ManualResetTask<long>();
-        private bool disposedValue;
-
         /// <inheritdoc/>
         public Task<Result<IEntry<TValue>>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default)
         {
@@ -185,7 +184,7 @@ namespace Baubit.Caching
                 {
                     if (getHeadResult.ValueOrDefault == null) //there is no data in the cache
                     {
-                        return AwaitNextAsync(cancellationToken);
+                        return GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => Task.FromResult(GetFirst()));
                     }
                     else
                     {
@@ -198,20 +197,32 @@ namespace Baubit.Caching
                 }
                 else
                 {
-                    return GetMetadata(id.Value).Bind(metadata => metadata == null ? AwaitNextAsync(cancellationToken) : metadata.Next == null ? AwaitNextAsync(cancellationToken) : Task.FromResult(Fetch(metadata.Next.Value)));
+                    return GetMetadata(id.Value).Bind(metadata => metadata?.Next == null ?
+                                                                  GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => Task.FromResult(Get(id.Value))) :
+                                                                  Task.FromResult(Fetch(metadata.Next.Value)));
                 }
             }
             finally { Locker.ExitReadLock(); }
         }
 
-        /// <summary>
-        /// Waits asynchronously for the next entry to be added to the cache.
-        /// </summary>
-        /// <param name="cancellationToken">A token to cancel the operation.</param>
-        /// <returns>A task containing the result of the next entry.</returns>
-        private Task<Result<IEntry<TValue>>> AwaitNextAsync(CancellationToken cancellationToken = default)
+        private Result<Task<bool>> GetNextGenAwaiter(CancellationToken cancellationToken = default)
         {
-            return nextSignal.Reset(cancellationToken).Bind(() => nextSignal.WaitAsync().Bind(nextId => Get(nextId)));
+            return Result.Try(() => areReadersWaiting = true)
+                         .Bind(_ => nextGenAwaiter.RegisterCancellationToken(cancellationToken))
+                         .Bind(() => Result.Ok(nextGenAwaiter.Task));
+        }
+
+        private Result SignalAwaiters()
+        {
+            return areReadersWaiting ?
+                   Result.Try(() =>
+                   {
+                       var prevGenAwaiter = nextGenAwaiter;
+                       nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                       areReadersWaiting = false;
+                       prevGenAwaiter.TrySetResult(true);
+                   }) : 
+                   Result.Ok();
         }
 
         /// <summary>
@@ -281,7 +292,12 @@ namespace Baubit.Caching
                 if (disposing)
                 {
                     Locker.EnterWriteLock();
-                    try { DisposeInternal(); }
+                    try
+                    {
+                        nextGenAwaiter.TrySetCanceled();
+                        areReadersWaiting = false;
+                        DisposeInternal();
+                    }
                     finally { Locker.ExitWriteLock(); }                    
                     Locker.Dispose();
                 }

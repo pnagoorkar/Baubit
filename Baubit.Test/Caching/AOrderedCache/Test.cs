@@ -79,9 +79,9 @@ namespace Baubit.Test.Caching.AOrderedCache
             var inMemoryCache = new InMemoryCache<int>(loggerFactory);
             var cancellationTokenSource = new CancellationTokenSource();
 
-            Task.Run(async () => { await Task.Delay(500); cancellationTokenSource.Cancel(); });
+            Task.Run(async () => { await Task.Delay(500); cancellationTokenSource.Cancel(); });            
 
-            var getResult = await Result.Try(() => inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token)).Bind(_ => Result.Ok());
+            var getResult = await inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token);
 
             Assert.True(getResult.IsFailed);
             Assert.Contains(getResult.Errors, err => err is ExceptionalError expErr && expErr.Message == "A task was canceled.");

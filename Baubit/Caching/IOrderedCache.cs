@@ -97,12 +97,20 @@ namespace Baubit.Caching
         /// <param name="cache">The cache instance to read from.</param>
         /// <param name="cancellationToken">A token to cancel the operation.</param>
         /// <returns>An async enumerable of results containing cache entries.</returns>
-        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TCache, TValue>(this TCache cache, [EnumeratorCancellation] CancellationToken cancellationToken = default) where TCache : IOrderedCache<TValue>
+        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TCache, TValue>(this TCache cache, long? startingId = null, [EnumeratorCancellation] CancellationToken cancellationToken = default) where TCache : IOrderedCache<TValue>
         {
-            long? id = null;
+            if (startingId != null)
+            {
+                var getResult = cache.Get(startingId.Value);
+                if (getResult.IsSuccess && getResult.Value != null)
+                {
+                    yield return getResult;
+                }
+            }
+            long? afterId = startingId;
             do
             {
-                yield return await cache.GetNextAsync(id, cancellationToken).Bind(entry => Result.Try(() => { id = entry.Id; return entry; }));
+                yield return await cache.GetNextAsync(afterId, cancellationToken).Bind(entry => Result.Try(() => { afterId = entry.Id; return entry; }));
 
             } while (!cancellationToken.IsCancellationRequested);
         }
