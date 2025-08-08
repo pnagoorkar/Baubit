@@ -2,10 +2,12 @@
 {
     public class FeatureIdAttribute : Attribute
     {
-        public string Value { get; init; }
-        public FeatureIdAttribute(string value)
+        public string Function { get; init; }
+        public string Variant { get; init; }
+        public FeatureIdAttribute(string function, string variant)
         {
-            Value = value;
+            Function = function;
+            Variant = variant;
         }
     }
 }

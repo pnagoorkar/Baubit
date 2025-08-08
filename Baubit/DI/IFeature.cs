@@ -4,4 +4,6 @@
     {
         public IEnumerable<IModule> Modules { get; }
     }
+
+    public record FeatureDescriptor(string Function, string Variant);
 }

@@ -20,8 +20,8 @@ namespace Baubit.DI
 
             var directlyProvidedModulesExtractionResult = configuration.GetFeaturesSectionOrDefault()
                                                                        .Bind(modulesSection => Result.Try(() => modulesSection?.GetChildren() ?? new List<IConfigurationSection>()))
-                                                                       .Bind(sections => Result.Merge(sections.AsParallel().Select(sec => GetFeatures(sec.Value)).ToArray()))
-                                                                       .Bind(features => Result.Try(() => featurizedModules = features.SelectMany(moduleProvider => moduleProvider.Modules).ToList()))
+                                                                       .Bind(sections => Result.Merge(sections.AsParallel().Select(sec => GetFeatures(sec.Get<FeatureDescriptor>())).ToArray()))
+                                                                       .Bind(features => Result.Try(() => featurizedModules = features.SelectMany(feature => feature.Modules).ToList()))
                                                                        .Bind(_ => Result.Ok());
 
             var directlyDefinedModulesExtractionResult = configuration.GetModulesSectionOrDefault()
@@ -58,7 +58,7 @@ namespace Baubit.DI
                                                                                                                                    .Value).ToList() ?? new List<IConstraint>()));
         }
 
-        public static Result<IFeature> GetFeatures(string featureId)
+        public static Result<IFeature> GetFeatures(FeatureDescriptor featureDescriptor)
         {
             return Result.Try(() => AppDomain.CurrentDomain
                                              .GetAssemblies()
@@ -70,7 +70,8 @@ namespace Baubit.DI
                                                                                                   type.IsPublic &&
                                                                                                   !type.IsAbstract &&
                                                                                                   typeof(IFeature).IsAssignableFrom(type) &&
-                                                                                                  type.GetCustomAttribute<FeatureIdAttribute>()?.Value == featureId).ToArray()).SingleOrDefault())
+                                                                                                  type.GetCustomAttribute<FeatureIdAttribute>()?.Function == featureDescriptor.Function && 
+                                                                                                  type.GetCustomAttribute<FeatureIdAttribute>()?.Variant == featureDescriptor.Variant).ToArray()).SingleOrDefault())
                          .Bind(type => Result.Try(() => (IFeature)Activator.CreateInstance(type)!));
         }
 

@@ -63,8 +63,8 @@ namespace Baubit.Test.DI.AModule
         }
 
         [Theory]
-        [InlineData("configHavingModuleProvidersSection.json")]
-        public void CanProvideModulesViaIModuleProvider(string fileName)
+        [InlineData("configHavingFeaturesSection.json")]
+        public void CanLoadFeaturizedModules(string fileName)
         {
             var rootModule = Baubit.DI.RootModuleFactory.Create(new ConfigurationSource { EmbeddedJsonResources = [$"{this.GetType().Assembly.GetName().Name};DI.AModule.{fileName}"] }).Value;
             Assert.NotNull(rootModule);

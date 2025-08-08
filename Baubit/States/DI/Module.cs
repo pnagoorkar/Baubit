@@ -28,4 +28,14 @@ namespace Baubit.States.DI
                                                                                          serviceProvider.GetRequiredService<ILoggerFactory>()));
         }
     }
+
+    public class StatesBackedByInMemoryCache<T> : IFeature where T: Enum
+    {
+        public IEnumerable<IModule> Modules =>
+        [
+            new Baubit.Caching.InMemory.DI.Module<T>(ConfigurationSource.Empty),
+            new Baubit.Caching.InMemory.DI.Module<StateChanged<T>>(ConfigurationSource.Empty),
+            new Module<T>(ConfigurationSource.Empty)
+        ];
+    }
 }

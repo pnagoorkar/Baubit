@@ -25,7 +25,7 @@
     <EmbeddedResource Include="Configuration\AConfiguration\configWithOutValidator.json" />
     <EmbeddedResource Include="Configuration\AConfiguration\config.json" />
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
-    <EmbeddedResource Include="DI\AModule\configHavingModuleProvidersSection.json" />
+    <EmbeddedResource Include="DI\AModule\configHavingFeaturesSection.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleHavingDependency.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleConstraints.json" />
     <EmbeddedResource Include="DI\AModule\configHavingManyModulesIndirectlyDefined.json" />
