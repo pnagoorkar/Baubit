@@ -1,5 +1,5 @@
 ﻿using Baubit.Caching;
-using Baubit.Caching.Default;
+using Baubit.Caching.InMemory;
 using Baubit.DI;
 using Baubit.Tasks;
 using FluentResults;
@@ -21,7 +21,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         public void CanInsertValues(int numOfItems)
         {
             var loggerFactory = new ServiceCollection().AddLogging(builder => builder.AddConsole()).BuildServiceProvider().GetRequiredService<ILoggerFactory>();
-            var inMemoryCache = new InMemoryCache<int>(loggerFactory);
+            var inMemoryCache = new OrderedCache<int>(loggerFactory);
 
             ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
 
@@ -49,7 +49,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         public async Task CanAwaitValues()
         {
             var loggerFactory = new ServiceCollection().AddLogging(builder => builder.AddConsole()).BuildServiceProvider().GetRequiredService<ILoggerFactory>();
-            var inMemoryCache = new InMemoryCache<int>(loggerFactory);
+            var inMemoryCache = new OrderedCache<int>(loggerFactory);
             Result<IEntry<int>> getNextResult = null;
             var autoResetEvent = new AutoResetEvent(false);
 
@@ -76,7 +76,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         public async Task CanCancelGetNextAsync()
         {
             var loggerFactory = new ServiceCollection().AddLogging(builder => builder.AddConsole()).BuildServiceProvider().GetRequiredService<ILoggerFactory>();
-            var inMemoryCache = new InMemoryCache<int>(loggerFactory);
+            var inMemoryCache = new OrderedCache<int>(loggerFactory);
             var cancellationTokenSource = new CancellationTokenSource();
 
             Task.Run(async () => { await Task.Delay(500); cancellationTokenSource.Cancel(); });            

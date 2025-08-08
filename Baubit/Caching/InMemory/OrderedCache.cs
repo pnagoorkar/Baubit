@@ -2,20 +2,25 @@
 using Baubit.Traceability;
 using FluentResults;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Baubit.Caching.Default
+namespace Baubit.Caching.InMemory
 {
-    public class InMemoryCache<TValue> : AOrderedCache<TValue>
+    public class OrderedCache<TValue> : AOrderedCache<TValue>
     {
         private long _seq;
         private readonly ConcurrentDictionary<long, Entry> _data = new();
         private readonly ConcurrentDictionary<long, Metadata> metadataDictionary = new();
 
-        private readonly ILogger<InMemoryCache<TValue>> _logger;
-        public InMemoryCache(ILoggerFactory loggerFactory) : base(loggerFactory)
+        private readonly ILogger<OrderedCache<TValue>> _logger;
+        public OrderedCache(ILoggerFactory loggerFactory) : base(loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger<InMemoryCache<TValue>>();
+            _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
         }
 
         protected override Result<IEntry<TValue>> Insert(TValue value)

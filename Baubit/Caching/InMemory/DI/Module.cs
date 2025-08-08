@@ -1,14 +1,14 @@
-﻿using Baubit.Caching.Default;
-using Baubit.Caching.DI;
+﻿using Baubit.Caching.DI;
+using Baubit.Configuration;
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Baubit.Caching.Default.DI
+namespace Baubit.Caching.InMemory.DI
 {
     public class Module<TValue> : AModule<TValue, Configuration>
     {
-        public Module(Baubit.Configuration.ConfigurationSource configurationSource) : base(configurationSource)
+        public Module(ConfigurationSource configurationSource) : base(configurationSource)
         {
         }
 
@@ -22,7 +22,7 @@ namespace Baubit.Caching.Default.DI
 
         public override void Load(IServiceCollection services)
         {
-            services.AddSingleton<IOrderedCache<TValue>, InMemoryCache<TValue>>();
+            services.AddSingleton<IOrderedCache<TValue>, OrderedCache<TValue>>();
         }
     }
 }
