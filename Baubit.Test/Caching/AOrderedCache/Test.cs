@@ -1,5 +1,6 @@
 ﻿using Baubit.Caching;
 using Baubit.Caching.InMemory;
+using Baubit.Collections;
 using Baubit.DI;
 using Baubit.Tasks;
 using Baubit.Test.Caching.Setup;
@@ -22,57 +23,11 @@ namespace Baubit.Test.Caching.AOrderedCache
             new Baubit.Caching.InMemory.Features.F000<int>(),
             new Baubit.Logging.Features.F000()
         ];
-        [Theory]
-        [InlineData(1000)]
-        [InlineData(10000)]
-        public async Task CanReadAndWriteSimultaneously(int numOfItems)
-        {
-            var inMemoryCache = ComponentBuilder<OrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
-
-            ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
-            ConcurrentDictionary<long, int> readValues = new ConcurrentDictionary<long, int>();
-
-            CancellationTokenSource readCTS = new CancellationTokenSource();
-
-            var read = async () =>
-            {
-                try
-                {
-                    await foreach (var item in inMemoryCache.ReadAsync(null, readCTS.Token))
-                    {
-                        item.Bind(entry => Result.Try(() => readValues.TryAdd(entry.Id, entry.Value))).ThrowIfFailed();
-                        if (readValues.Count == numOfItems) break;
-                    }
-                    return Result.Ok();
-                }
-                catch (TaskCanceledException)
-                {
-                    return Result.Ok();
-                }
-                catch (Exception exp)
-                {
-                    return Result.Fail(new ExceptionalError(exp));
-                }
-            };
-
-            var reader = read();
-
-            Parallel.For(0, numOfItems, i => inMemoryCache.Add(i).Bind(entry => Result.Try(() => insertedValues.TryAdd(entry.Id, i))));
-
-            Assert.Equal(numOfItems, inMemoryCache.Count().ValueOrDefault);
-
-            await reader;
-
-            Assert.Equal(insertedValues, readValues);
-
-            var removeResult = insertedValues.AsParallel()
-                                             .Aggregate(Result.Ok(),
-                                                        (seed, next) => seed.Bind(() => inMemoryCache.Remove(next.Key))
-                                                                            .Bind(entry => Result.OkIf(next.Value == entry.Value, "Value mismatch at remove!")));
-
-            Assert.True(removeResult.IsSuccess);
-            Assert.Equal(0, inMemoryCache.Count().ValueOrDefault);
-        }
+        static IFeature[] inMemoryCacheWithAdaptiveResizingFeatures =
+        [
+            new Baubit.Caching.InMemory.Features.F001<int>(),
+            new Baubit.Logging.Features.F001()
+        ];
 
         [Fact]
         public async Task CanAwaitValues()
@@ -121,7 +76,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         public async Task UsesL1CacheForFastLookup(int numOfItems)
         {
             var dummyCache = ComponentBuilder<DummyCache<int>>.Create()
-                                                              .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DI.Module<int>(new Setup.DI.Configuration { CacheConfiguration = new Baubit.Caching.Configuration() { L1StoreCap = numOfItems } }, [], [])))
+                                                              .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DI.Module<int>(new Setup.DI.Configuration { CacheConfiguration = new Baubit.Caching.Configuration() { L1StoreInitialCap = numOfItems } }, [], [])))
                                                               .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
                                                               .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -148,6 +103,76 @@ namespace Baubit.Test.Caching.AOrderedCache
 
             Assert.True(removeResult.IsSuccess);
             Assert.Equal(0, dummyCache.L1StoreCount);
+        }
+
+        [Theory]
+        [InlineData(10000, 100)]
+        public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders)
+        {
+            var inMemoryCache = ComponentBuilder<OrderedCache<int>>.Create()
+                                                                   .Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheWithAdaptiveResizingFeatures))
+                                                                   .Bind(componentBuilder => componentBuilder.Build()).Value;
+
+            ConcurrentDictionary<long, int> readMap = new ConcurrentDictionary<long, int>();
+
+            long numRead = 0;
+            int expectedNumOfReads = numOfItems * numOfReaders;
+            CancellationTokenSource readCTS = new CancellationTokenSource();
+            SemaphoreSlim readSyncer = new SemaphoreSlim(1);
+
+            ConcurrentList<Task<Result>> readerTasks = new ConcurrentList<Task<Result>>();
+
+            var reader = async (int i) =>
+            {
+                return await inMemoryCache.ReadAsync(null, readCTS.Token)
+                                          .AggregateAsync(entry =>
+                                          {
+                                              readSyncer.Wait();
+                                              Result.Try(() =>
+                                              {
+                                                  if (!readMap.ContainsKey(entry.Id)) readMap.TryAdd(entry.Id, 0);
+                                                  readMap[entry.Id]++;
+                                                  if (++numRead == expectedNumOfReads)
+                                                  {
+                                                      readCTS.Cancel();
+                                                  }
+                                              }); 
+                                              readSyncer.Release();
+                                              return Result.Ok();
+                                          }, readCTS.Token);
+            };
+
+            var readerBurst = () => { Parallel.For(0, numOfReaders, i => readerTasks.Add(reader(i))); };
+
+            var writerBurst = (int batchSize) => Parallel.For(0, batchSize, i => inMemoryCache.Add(i));
+
+            var insertedCount = 0;
+            var deletedItems = new HashSet<long>();
+            var deleterBurst = async () =>
+            {
+                await Task.Yield();
+                while (deletedItems.Count < numOfItems)
+                {
+                    readMap.Where(kvp => !deletedItems.Contains(kvp.Key) && kvp.Value == numOfReaders)
+                           .Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => inMemoryCache.Remove(next.Key)).Bind(_ => Result.Try(() => { deletedItems.Add(next.Key); })));
+                    Thread.Sleep(100);
+                }
+            };
+
+            readerBurst();
+            var deleter = deleterBurst();
+
+            while (insertedCount < numOfItems)
+            {
+                var batchSize = Math.Min(numOfItems - insertedCount, Random.Shared.Next(5, 20));
+                writerBurst(batchSize);
+                Thread.Sleep(10);
+                insertedCount += batchSize;
+            }
+
+            await Task.WhenAll(readerTasks);
+            await deleter;
+
         }
     }
 }

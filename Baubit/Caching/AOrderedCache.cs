@@ -1,5 +1,7 @@
 ﻿using Baubit.Collections;
+using Baubit.States;
 using Baubit.Tasks;
+using Baubit.Traceability;
 using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Logging;
@@ -23,7 +25,7 @@ namespace Baubit.Caching
         private readonly ILogger<AOrderedCache<TValue>> _logger;
 
         private bool disposedValue;
-        private int _l1StoreCurrentCap;
+        private volatile int _l1StoreCurrentCap;
         private LinkedList<IEntry<TValue>> _l1Store = new LinkedList<IEntry<TValue>>();
         private Dictionary<long, LinkedListNode<IEntry<TValue>>> l1Lookup = new Dictionary<long, LinkedListNode<IEntry<TValue>>>();
         private volatile bool areReadersWaiting = false;
@@ -33,14 +35,73 @@ namespace Baubit.Caching
         public int L1StoreCurrentCap { get => _l1StoreCurrentCap; private set => _l1StoreCurrentCap = value; }
         public int L1StoreCount => _l1Store.Count;
 
-        protected AOrderedCache(Configuration cacheConfiguration, 
+        private Task<Result> adaptionRunner;
+        private CancellationTokenSource adaptionCTS;
+
+        protected AOrderedCache(Configuration cacheConfiguration,
                                 ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<AOrderedCache<TValue>>();
             Configuration = cacheConfiguration;
-            L1StoreCurrentCap = Configuration.L1StoreCap;
+            L1StoreCurrentCap = Configuration.L1StoreInitialCap;
+            if (Configuration.RunAdaptiveResizing)
+            {
+                adaptionCTS = new CancellationTokenSource();
+                adaptionRunner = RunAdaptiveResizing(adaptionCTS.Token);
+            }
         }
 
+        private long _gateCount;
+
+        private async Task<Result> RunAdaptiveResizing(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(Configuration.AdaptionWindowMS, cancellationToken);
+                    _logger.LogDebug($"Gates this cycle: {_gateCount}");
+                    var gatesThisCycle = Interlocked.Exchange(ref _gateCount, 0);
+
+                    double gateRate = gatesThisCycle * 1_000.0 / Configuration.AdaptionWindowMS;
+
+                    _logger.LogTrace($"Gate rate: {gateRate}");
+
+                    int? newCap = null;
+                    if (gateRate > Configuration.GateRateUpperLimit && L1StoreCurrentCap < Configuration.MaxCap)
+                    {
+                        newCap = Math.Min(Configuration.MaxCap, _l1StoreCurrentCap + Configuration.GrowStep);
+                    }
+                    else if (gateRate < Configuration.GateRateLowerLimit && L1StoreCurrentCap > Configuration.MinCap)
+                    {
+                        newCap = Math.Max(Configuration.MinCap, _l1StoreCurrentCap - Configuration.ShrinkStep);
+                    }
+                    if (newCap != null)
+                    {
+                        ResizeL1Store(newCap.Value).ThrowIfFailed();
+                        _logger.LogTrace($"Resized L1Store. New size: {L1StoreCurrentCap}");
+                    }
+                }
+                return Result.Ok();
+            }
+            catch(TaskCanceledException)
+            {
+                return Result.Ok();
+            }
+            catch(Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        private Result ResizeL1Store(int newCapacity)
+        {
+            Locker.EnterWriteLock();
+            try { return Result.Try(() => Interlocked.Exchange(ref _l1StoreCurrentCap, newCapacity)).Bind(_ => ReplenishL1Store()); }
+            finally { Locker.ExitWriteLock(); }
+        }
+
+        #region Abstract methods
         /// <summary>
         /// Inserts a value into the cache storage.
         /// </summary>
@@ -121,6 +182,8 @@ namespace Baubit.Caching
         /// </summary>
         /// <returns>A result indicating success or failure.</returns>
         protected abstract Result DeleteAllMetadata();
+
+        #endregion
 
         /// <inheritdoc/>
         public Result<IEntry<TValue>> Add(TValue value)
@@ -271,8 +334,8 @@ namespace Baubit.Caching
                 }
                 else
                 {
-                    return FetchNext(id.Value).Bind(nextEntry => nextEntry == null ? 
-                                                                 GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => Task.FromResult(Get(id.Value))) : 
+                    return FetchNext(id.Value).Bind(nextEntry => nextEntry == null ?
+                                                                 GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => GetNextAsync(id.Value, cancellationToken)) :
                                                                  Task.FromResult(Result.Ok(nextEntry)));
                 }
             }
@@ -291,6 +354,7 @@ namespace Baubit.Caching
             return areReadersWaiting ?
                    Result.Try(() =>
                    {
+                       if (Configuration.RunAdaptiveResizing) Interlocked.Increment(ref _gateCount);
                        var prevGenAwaiter = nextGenAwaiter;
                        nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                        areReadersWaiting = false;
@@ -368,6 +432,8 @@ namespace Baubit.Caching
                     Locker.EnterWriteLock();
                     try
                     {
+                        adaptionCTS?.Cancel();
+                        adaptionRunner?.Wait(true);
                         ClearInternal();
                         nextGenAwaiter.TrySetCanceled();
                         areReadersWaiting = false;

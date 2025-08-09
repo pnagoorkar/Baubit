@@ -83,28 +83,4 @@ namespace Baubit.Caching
         /// </returns>
         Result Clear();
     }
-
-    /// <summary>
-    /// Extension methods for ordered cache types.
-    /// </summary>
-    public static class CachingExtensions
-    {
-        public static async IAsyncEnumerable<Result<IEntry<TValue>>> ReadAsync<TValue>(this IOrderedCache<TValue> cache, long? startingId = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            if (startingId != null)
-            {
-                var getResult = cache.Get(startingId.Value);
-                if (getResult.IsSuccess && getResult.Value != null)
-                {
-                    yield return getResult;
-                }
-            }
-            long? afterId = startingId;
-            do
-            {
-                yield return await cache.GetNextAsync(afterId, cancellationToken).Bind(entry => Result.Try(() => { afterId = entry.Id; return entry; }));
-
-            } while (!cancellationToken.IsCancellationRequested);
-        }
-    }
 }
