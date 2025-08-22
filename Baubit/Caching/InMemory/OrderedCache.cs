@@ -25,49 +25,49 @@ namespace Baubit.Caching.InMemory
             _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
         }
 
-        protected override Result<IEntry<TValue>> Insert(TValue value)
+        protected override Result<IEntry<TValue>> AddToL2Store(TValue value)
         {
             return Result.Try(() => Interlocked.Increment(ref _seq))
                          .Bind(id => Result.Try(() => new Entry(id, value)))
                          .Bind(entry => Result.Try(() => _data.TryAdd(entry.Id, entry))
-                                              .Bind(addRes => Result.OkIf(addRes && _data.ContainsKey(entry.Id), nameof(Insert)).AddReasonIfFailed(new EntryNotFound<TValue>(entry.Id)))
+                                              .Bind(addRes => Result.OkIf(addRes && _data.ContainsKey(entry.Id), nameof(AddToL2Store)).AddReasonIfFailed(new EntryNotFound<TValue>(entry.Id)))
                                               .Bind(() => Result.Ok<IEntry<TValue>>(entry)));
         }
 
-        protected override Result<IEntry<TValue>> Fetch(long id)
+        protected override Result<IEntry<TValue>> GetFromL2Store(long id)
         {
             return _data.TryGetValue(id, out var val) ? Result.Ok<IEntry<TValue>>(val) : Result.Ok(default(IEntry<TValue>)).WithReason(new EntryNotFound<TValue>(id));
         }
 
-        protected override Result<IEntry<TValue>?> FetchNext(long id)
+        protected override Result<IEntry<TValue>?> GetNextFromL2Store(long id)
         {
-            return GetMetadata(id).Bind(metadata => metadata?.Next == null ? Result.Ok(default(IEntry<TValue>))! : Fetch(metadata.Next.Value))!;
+            return GetMetadata(id).Bind(metadata => metadata?.Next == null ? Result.Ok(default(IEntry<TValue>))! : GetFromL2Store(metadata.Next.Value))!;
         }
 
-        protected override Result<IEntry<TValue>> DeleteStorage(long id)
+        protected override Result<IEntry<TValue>> DeleteFromL2Store(long id)
         {
-            return Result.OkIf(_data.ContainsKey(id), nameof(Fetch)).AddReasonIfFailed(new EntryNotFound<TValue>(id))
+            return Result.OkIf(_data.ContainsKey(id), nameof(GetFromL2Store)).AddReasonIfFailed(new EntryNotFound<TValue>(id))
                          .Bind(() => Result.OkIf(_data.Remove(id, out var entry), "Remove failed")
                                            .Bind(() => Result.Ok<IEntry<TValue>>(entry)));
         }
 
-        protected override Result DeleteAll()
+        protected override Result ClearL2Store()
         {
             return Result.Try(() => _data.Clear());
         }
 
-        protected override Result<long> GetCurrentCount()
+        protected override Result<long> GetL2StoreCount()
         {
             return Result.Try(() => (long)_data.Count);
         }
 
-        protected override void DisposeInternal()
+        protected override void DisposeL2StoreResources()
         {
             _data.Clear();
             metadataDictionary.Clear();
         }
 
-        protected override Result Upsert(IEnumerable<Metadata> metadata)
+        protected override Result UpsertL2Store(IEnumerable<Metadata> metadata)
         {
             return Result.Try(() =>
             {
@@ -85,7 +85,7 @@ namespace Baubit.Caching.InMemory
             });
         }
 
-        protected override Result<IEntry<TValue>> UpdateInternal(long id, TValue value)
+        protected override Result<IEntry<TValue>> UpdateL2Store(long id, TValue value)
         {
             return Result.Try(() => new Entry(id, value))
                          .Bind(entry => Result.Try(() => _data[id] = entry))
@@ -112,7 +112,7 @@ namespace Baubit.Caching.InMemory
             return Result.Try(() => metadataDictionary.TryRemove(id, out _)).Bind(removeRes => Result.OkIf(removeRes, "Failed to remove"));
         }
 
-        protected override Result DeleteAllMetadata()
+        protected override Result ClearMetadata()
         {
             return Result.Try(() => metadataDictionary.Clear());
         }

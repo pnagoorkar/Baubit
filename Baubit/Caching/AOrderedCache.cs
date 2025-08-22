@@ -107,49 +107,49 @@ namespace Baubit.Caching
         /// </summary>
         /// <param name="value">The value to insert.</param>
         /// <returns>A result containing the created entry or an error.</returns>
-        protected abstract Result<IEntry<TValue>> Insert(TValue value);
+        protected abstract Result<IEntry<TValue>> AddToL2Store(TValue value);
 
         /// <summary>
         /// Fetches an entry from the cache by its identifier.
         /// </summary>
         /// <param name="id">The unique identifier of the entry.</param>
         /// <returns>A result containing the entry or an error.</returns>
-        protected abstract Result<IEntry<TValue>> Fetch(long id);
+        protected abstract Result<IEntry<TValue>> GetFromL2Store(long id);
 
-        protected abstract Result<IEntry<TValue>> FetchNext(long id);
+        protected abstract Result<IEntry<TValue>> GetNextFromL2Store(long id);
 
         /// <summary>
         /// Deletes an entry from the cache storage by its identifier.
         /// </summary>
         /// <param name="id">The unique identifier of the entry to delete.</param>
         /// <returns>A result containing the deleted entry or an error.</returns>
-        protected abstract Result<IEntry<TValue>> DeleteStorage(long id);
+        protected abstract Result<IEntry<TValue>> DeleteFromL2Store(long id);
 
         /// <summary>
         /// Deletes all entries from the cache storage.
         /// </summary>
         /// <returns>A result indicating success or failure.</returns>
-        protected abstract Result DeleteAll();
+        protected abstract Result ClearL2Store();
 
         /// <summary>
         /// Gets the current count of entries in the cache.
         /// </summary>
         /// <returns>A result containing the count or an error.</returns>
-        protected abstract Result<long> GetCurrentCount();
+        protected abstract Result<long> GetL2StoreCount();
 
         /// <summary>
         /// Performs custom disposal logic for derived classes.
         /// </summary>
-        protected abstract void DisposeInternal();
+        protected abstract void DisposeL2StoreResources();
 
         /// <summary>
         /// Updates or inserts metadata for cache entries.
         /// </summary>
         /// <param name="metadata">The metadata to upsert.</param>
         /// <returns>A result indicating success or failure.</returns>
-        protected abstract Result Upsert(IEnumerable<Metadata> metadata);
+        protected abstract Result UpsertL2Store(IEnumerable<Metadata> metadata);
 
-        protected abstract Result<IEntry<TValue>> UpdateInternal(long id, TValue value);
+        protected abstract Result<IEntry<TValue>> UpdateL2Store(long id, TValue value);
 
         /// <summary>
         /// Gets the metadata for the head (first) entry in the cache.
@@ -181,7 +181,7 @@ namespace Baubit.Caching
         /// Deletes all metadata from the cache.
         /// </summary>
         /// <returns>A result indicating success or failure.</returns>
-        protected abstract Result DeleteAllMetadata();
+        protected abstract Result ClearMetadata();
 
         #endregion
 
@@ -189,7 +189,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Insert(value).Bind(entry => AddTail(entry)).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters().Bind(() => Result.Ok(entry)))); }
+            try { return AddToL2Store(value).Bind(entry => AddTail(entry)).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters().Bind(() => Result.Ok(entry)))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -202,7 +202,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Update(long id, TValue value)
         {
             Locker.EnterWriteLock();
-            try { return Fetch(id).Bind(entry => UpdateInternal(id, value)).Bind(entry => UpdateL1Store(entry).Bind(() => Result.Ok(entry))); }
+            try { return GetFromL2Store(id).Bind(entry => UpdateL2Store(id, value)).Bind(entry => UpdateL1Store(entry).Bind(() => Result.Ok(entry))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -222,7 +222,7 @@ namespace Baubit.Caching
 
         private Result<IEntry<TValue>> GetInternal(long id)
         {
-            return TryGetFromL1Store(id).Bind(entry => entry == null ? Fetch(id) : Result.Ok(entry));
+            return TryGetFromL1Store(id).Bind(entry => entry == null ? GetFromL2Store(id) : Result.Ok(entry));
         }
 
         public Result<IEntry<TValue>> GetNext(long? id)
@@ -240,7 +240,7 @@ namespace Baubit.Caching
 
         public Result<IEntry<TValue>> GetNextInternal(long id)
         {
-            return TryGetNextFromL1Store(id).Bind(entry => entry == null ? FetchNext(id) : Result.Ok(entry));
+            return TryGetNextFromL1Store(id).Bind(entry => entry == null ? GetNextFromL2Store(id) : Result.Ok(entry));
         }
 
         private Result<IEntry<TValue>?> TryGetFromL1Store(long id)
@@ -265,7 +265,7 @@ namespace Baubit.Caching
 
         private Result<IEntry<TValue>?> GetFirstInternal()
         {
-            return TryGetFirstFromL1Store().Bind(first => first != null ? Result.Ok(first) : GetCurrentCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null!)))!;
+            return TryGetFirstFromL1Store().Bind(first => first != null ? Result.Ok(first) : GetL2StoreCount().Bind(count => count > 0 ? GetCurrentHead().Bind(metadata => GetFromL2Store(metadata.Id)) : Result.Ok<IEntry<TValue>>(null!)))!;
         }
 
         private Result<IEntry<TValue>?> TryGetFirstFromL1Store()
@@ -277,7 +277,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> GetLast()
         {
             Locker.EnterReadLock();
-            try { return TryGetLastFromL1Store().Bind(last => last != null ? Result.Ok(last) : GetCurrentCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => Fetch(metadata.Id)) : Result.Ok<IEntry<TValue>>(null))); }
+            try { return TryGetLastFromL1Store().Bind(last => last != null ? Result.Ok(last) : GetL2StoreCount().Bind(count => count > 0 ? GetCurrentTail().Bind(metadata => GetFromL2Store(metadata.Id)) : Result.Ok<IEntry<TValue>>(null))); }
             finally { Locker.ExitReadLock(); }
         }
 
@@ -290,7 +290,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Remove(long id)
         {
             Locker.EnterWriteLock();
-            try { return GetInternal(id).Bind(entry => entry == null ? Result.Ok() : DeleteStorage(id).Bind(entry => RemoveMetadata(entry.Id).Bind(() => RemoveFromL1Store(id).Bind(() => Result.Ok(entry))))); }
+            try { return GetInternal(id).Bind(entry => entry == null ? Result.Ok() : DeleteFromL2Store(id).Bind(entry => RemoveMetadata(entry.Id).Bind(() => RemoveFromL1Store(id).Bind(() => Result.Ok(entry))))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -305,10 +305,10 @@ namespace Baubit.Caching
 
         private Result ReplenishL1Store()
         {
-            var fetchNextFromL2Result = L1StoreCount == 0 ? GetFirstInternal() : FetchNext(_l1Store.Last.Value.Id);
+            var fetchNextFromL2Result = L1StoreCount == 0 ? GetFirstInternal() : GetNextFromL2Store(_l1Store.Last.Value.Id);
             while (L1StoreCount < L1StoreCurrentCap && fetchNextFromL2Result.ValueOrDefault != null)
             {
-                fetchNextFromL2Result = AddToL1Store(fetchNextFromL2Result.Value).Bind(() => FetchNext(_l1Store.Last.Value.Id));
+                fetchNextFromL2Result = AddToL1Store(fetchNextFromL2Result.Value).Bind(() => GetNextFromL2Store(_l1Store.Last.Value.Id));
             }
             return fetchNextFromL2Result.Bind(_ => Result.Ok());
         }
@@ -323,7 +323,7 @@ namespace Baubit.Caching
 
         private Result ClearInternal()
         {
-            return DeleteAll().Bind(() => DeleteAllMetadata()).Bind(() => ClearL1Store());
+            return ClearL2Store().Bind(() => ClearMetadata()).Bind(() => ClearL1Store());
         }
 
         public Result ClearL1Store()
@@ -335,7 +335,7 @@ namespace Baubit.Caching
         public Result<long> Count()
         {
             Locker.EnterReadLock();
-            try { return GetCurrentCount(); }
+            try { return GetL2StoreCount(); }
             finally { Locker.ExitReadLock(); }
         }
 
@@ -400,7 +400,7 @@ namespace Baubit.Caching
         private Result<IEntry<TValue>> AddTail(IEntry<TValue> entry)
         {
             return Result.Try(() => new Metadata { Id = entry.Id })
-                         .Bind(newTail => GetCurrentTail().Bind(currentTail => AddTail(currentTail, newTail).Bind(() => Upsert(currentTail == null ? [newTail] : [currentTail, newTail]))))
+                         .Bind(newTail => GetCurrentTail().Bind(currentTail => AddTail(currentTail, newTail).Bind(() => UpsertL2Store(currentTail == null ? [newTail] : [currentTail, newTail]))))
                          .Bind(() => Result.Ok(entry));
         }
 
@@ -449,7 +449,7 @@ namespace Baubit.Caching
                            upsertables.Add(next);
                        }
                    
-                   }).Bind(() => upsertables.Count == 0 ? Result.Ok() : Upsert(upsertables)).Bind(() => current == null ? Result.Ok() : DeleteMetadata(current.Id));
+                   }).Bind(() => upsertables.Count == 0 ? Result.Ok() : UpsertL2Store(upsertables)).Bind(() => current == null ? Result.Ok() : DeleteMetadata(current.Id));
         }
 
         protected virtual void Dispose(bool disposing)
@@ -466,7 +466,7 @@ namespace Baubit.Caching
                         ClearInternal();
                         nextGenAwaiter.TrySetCanceled();
                         areReadersWaiting = false;
-                        DisposeInternal();
+                        DisposeL2StoreResources();
                     }
                     finally { Locker.ExitWriteLock(); }                    
                     Locker.Dispose();
