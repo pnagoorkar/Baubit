@@ -22,10 +22,10 @@ namespace Baubit.Caching.InMemory.DI
         {
         }
 
-        public override void Load(IServiceCollection services)
+        protected override IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider)
         {
-            services.AddSingleton(serviceProvider => new OrderedCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
-            services.AddSingleton<IOrderedCache<TValue>>(serviceProvider => serviceProvider.GetRequiredService<OrderedCache<TValue>>());
+            return new OrderedCache<TValue>(Configuration.CacheConfiguration,
+                                            serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

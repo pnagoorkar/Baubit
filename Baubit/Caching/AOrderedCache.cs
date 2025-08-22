@@ -216,14 +216,43 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Get(long id)
         {
             Locker.EnterReadLock();
-            try { return TryGetFromL1Store(id).Bind(entry => entry == null ? Fetch(id) : Result.Ok(entry)); }
+            try { return GetInternal(id); }
             finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>> GetInternal(long id)
+        {
+            return TryGetFromL1Store(id).Bind(entry => entry == null ? Fetch(id) : Result.Ok(entry));
+        }
+
+        public Result<IEntry<TValue>> GetNext(long? id)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                var getFirstResult = GetFirstInternal();
+                if (id == null) return getFirstResult;
+                else if (id.Value < getFirstResult?.ValueOrDefault?.Id) return getFirstResult;
+                else return GetNextInternal(id.Value);
+            }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        public Result<IEntry<TValue>> GetNextInternal(long id)
+        {
+            return TryGetNextFromL1Store(id).Bind(entry => entry == null ? FetchNext(id) : Result.Ok(entry));
         }
 
         private Result<IEntry<TValue>?> TryGetFromL1Store(long id)
         {
             return l1Lookup.TryGetValueOrDefault<Dictionary<long, LinkedListNode<IEntry<TValue>>>, long, LinkedListNode<IEntry<TValue>>>(id)
                            .Bind(node => Result.Ok(node?.Value));
+        }
+
+        private Result<IEntry<TValue>?> TryGetNextFromL1Store(long id)
+        {
+            return l1Lookup.TryGetValueOrDefault<Dictionary<long, LinkedListNode<IEntry<TValue>>>, long, LinkedListNode<IEntry<TValue>>>(id)
+                           .Bind(node => Result.Ok(node?.Next?.Value));
         }
 
         /// <inheritdoc/>
@@ -261,7 +290,7 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Remove(long id)
         {
             Locker.EnterWriteLock();
-            try { return DeleteStorage(id).Bind(entry => RemoveMetadata(entry.Id).Bind(() => RemoveFromL1Store(id).Bind(() => Result.Ok(entry)))); }
+            try { return GetInternal(id).Bind(entry => entry == null ? Result.Ok() : DeleteStorage(id).Bind(entry => RemoveMetadata(entry.Id).Bind(() => RemoveFromL1Store(id).Bind(() => Result.Ok(entry))))); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -334,9 +363,9 @@ namespace Baubit.Caching
                 }
                 else
                 {
-                    return FetchNext(id.Value).Bind(nextEntry => nextEntry == null ?
-                                                                 GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => GetNextAsync(id.Value, cancellationToken)) :
-                                                                 Task.FromResult(Result.Ok(nextEntry)));
+                    return GetNextInternal(id.Value).Bind(nextEntry => nextEntry == null ?
+                                                                       GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task)).Bind(_ => GetNextAsync(id.Value, cancellationToken)) :
+                                                                       Task.FromResult(Result.Ok(nextEntry)));
                 }
             }
             finally { Locker.ExitReadLock(); }

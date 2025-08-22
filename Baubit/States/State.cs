@@ -56,7 +56,7 @@ namespace Baubit.States
             {
                 long? tailId = null;
                 _changeCache.GetLast().Bind(tailEntry => Result.Try(() => tailId = tailEntry?.Id));
-                await foreach (var entryResult in _changeCache.ReadAsync(tailId, cancellationToken))
+                await foreach (var entryResult in _changeCache.ReadAllAsync(tailId, cancellationToken))
                 {
                     var result = entryResult.Bind(entry => Result.Try(() => entry.Value.Current.Equals(targetState)));
                     if (result.IsSuccess) return Result.Ok();
@@ -77,7 +77,7 @@ namespace Baubit.States
         {
             try
             {
-                await foreach (var readResult in _cache.ReadAsync(null, cancellationTokenSource.Token))
+                await foreach (var readResult in _cache.ReadAllAsync(null, cancellationTokenSource.Token))
                 {
                     readResult.Bind(entry => Result.Try(() => new StateChanged<T>() { Current = entry.Value }))
                               .Bind(@event => _changeCache.Add(@event))
@@ -99,7 +99,7 @@ namespace Baubit.States
         {
             try
             {
-                await foreach (var change in _changeCache.ReadAsync(null, cancellationTokenSource.Token))
+                await foreach (var change in _changeCache.ReadAllAsync(null, cancellationTokenSource.Token))
                 {
                     change.Bind(entry => Result.Try(() => Parallel.ForEach(_subscribers, subscriber => subscriber.OnNextOrError(entry.Value))));
                 }

@@ -32,7 +32,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         [Fact]
         public async Task CanAwaitValues()
         {
-            var inMemoryCache = ComponentBuilder<OrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
+            var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
 
             Result<IEntry<int>> getNextResult = null;
             var autoResetEvent = new AutoResetEvent(false);
@@ -59,7 +59,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         [Fact]
         public async Task CanCancelGetNextAsync()
         {
-            var inMemoryCache = ComponentBuilder<OrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
+            var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
 
             var cancellationTokenSource = new CancellationTokenSource();
 
@@ -75,10 +75,10 @@ namespace Baubit.Test.Caching.AOrderedCache
         [InlineData(1000)]
         public async Task UsesL1CacheForFastLookup(int numOfItems)
         {
-            var dummyCache = ComponentBuilder<DummyCache<int>>.Create()
-                                                              .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DI.Module<int>(new Setup.DI.Configuration { CacheConfiguration = new Baubit.Caching.Configuration() { L1StoreInitialCap = numOfItems } }, [], [])))
-                                                              .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
-                                                              .Bind(componentBuilder => componentBuilder.Build()).Value;
+            var dummyCache = (DummyCache<int>)ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                                  .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DI.Module<int>(new Setup.DI.Configuration { CacheConfiguration = new Baubit.Caching.Configuration() { L1StoreInitialCap = numOfItems } }, [], [])))
+                                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
+                                                                                  .Bind(componentBuilder => componentBuilder.Build()).Value;
 
             ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
 
@@ -109,7 +109,7 @@ namespace Baubit.Test.Caching.AOrderedCache
         [InlineData(10000, 100)]
         public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders)
         {
-            var inMemoryCache = ComponentBuilder<OrderedCache<int>>.Create()
+            var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheWithAdaptiveResizingFeatures))
                                                                    .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -124,7 +124,7 @@ namespace Baubit.Test.Caching.AOrderedCache
 
             var reader = async (int i) =>
             {
-                return await inMemoryCache.ReadAsync(null, readCTS.Token)
+                return await inMemoryCache.ReadAllAsync(null, readCTS.Token)
                                           .AggregateAsync(entry =>
                                           {
                                               readSyncer.Wait();

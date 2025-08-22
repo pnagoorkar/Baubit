@@ -21,10 +21,9 @@ namespace Baubit.Test.Caching.Setup.DI
         {
         }
 
-        public override void Load(IServiceCollection services)
+        protected override IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider)
         {
-            services.AddSingleton(serviceProvider => new DummyCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>()));
-            services.AddSingleton<IOrderedCache<TValue>>(serviceProvider => serviceProvider.GetRequiredService<DummyCache<TValue>>());
+            return new DummyCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

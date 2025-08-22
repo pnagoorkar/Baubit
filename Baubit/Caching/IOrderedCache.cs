@@ -44,6 +44,8 @@ namespace Baubit.Caching
         /// </returns>
         Result<IEntry<TValue>> Get(long id);
 
+        Result<IEntry<TValue>> GetNext(long? id);
+
         /// <summary>
         /// Gets the head (first) entry in the cache.
         /// </summary>

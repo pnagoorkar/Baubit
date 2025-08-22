@@ -67,6 +67,16 @@ namespace Baubit.Collections
             }
         }
 
+        public ConcurrentList()
+        {
+            
+        }
+
+        public ConcurrentList(IEnumerable<T> collection)
+        {
+            _store = new List<T>(collection);
+        }
+
 
         public bool IsReadOnly => false;
 
