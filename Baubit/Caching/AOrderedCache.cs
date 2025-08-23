@@ -11,32 +11,47 @@ using System.Runtime.CompilerServices;
 namespace Baubit.Caching
 {
     /// <summary>
-    /// Provides a base implementation for an ordered cache with thread-safe operations.
-    /// Manages storage, retrieval, and metadata for cache entries.
+    /// Provides a base implementation of <see cref="IOrderedCache{TValue}"/> with
+    /// thread-safe operations, in-memory L1 storage, and pluggable L2 persistence.
     /// </summary>
-    /// <typeparam name="TValue">The type of value stored in the cache.</typeparam>
+    /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
     public abstract class AOrderedCache<TValue> : IOrderedCache<TValue>
     {
+        /// <summary>
+        /// Gets the cache configuration values.
+        /// </summary>
+        public Configuration Configuration { get; init; }
+
+        /// <summary>
+        /// Gets the current capacity of the L1 store.<br/>
+        /// This may grow or shrink adaptively if enabled.
+        /// </summary>
+        public int L1StoreCurrentCap { get => _l1StoreCurrentCap; private set => _l1StoreCurrentCap = value; }
+
+        /// <summary>
+        /// Gets the current number of entries in the L1 store.
+        /// </summary>
+        public int L1StoreCount => _l1Store.Count;
+
         /// <summary>
         /// Synchronizes access to cache operations for thread safety.
         /// </summary>
         protected readonly ReaderWriterLockSlim Locker = new();
 
-        private readonly ILogger<AOrderedCache<TValue>> _logger;
-
+        #region PrivateMembers
         private bool disposedValue;
+
+        private long _gateCount;
         private volatile int _l1StoreCurrentCap;
         private LinkedList<IEntry<TValue>> _l1Store = new LinkedList<IEntry<TValue>>();
         private Dictionary<long, LinkedListNode<IEntry<TValue>>> l1Lookup = new Dictionary<long, LinkedListNode<IEntry<TValue>>>();
         private volatile bool areReadersWaiting = false;
         private TaskCompletionSource<bool> nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Configuration Configuration { get; init; }
-        public int L1StoreCurrentCap { get => _l1StoreCurrentCap; private set => _l1StoreCurrentCap = value; }
-        public int L1StoreCount => _l1Store.Count;
-
         private Task<Result> adaptionRunner;
         private CancellationTokenSource adaptionCTS;
+        private readonly ILogger<AOrderedCache<TValue>> _logger;
+        #endregion
 
         protected AOrderedCache(Configuration cacheConfiguration,
                                 ILoggerFactory loggerFactory)
@@ -51,8 +66,7 @@ namespace Baubit.Caching
             }
         }
 
-        private long _gateCount;
-
+        #region AdaptiveResizing
         private async Task<Result> RunAdaptiveResizing(CancellationToken cancellationToken = default)
         {
             try
@@ -100,87 +114,77 @@ namespace Baubit.Caching
             try { return Result.Try(() => Interlocked.Exchange(ref _l1StoreCurrentCap, newCapacity)).Bind(_ => ReplenishL1Store()); }
             finally { Locker.ExitWriteLock(); }
         }
+        #endregion
 
-        #region Abstract methods
+        #region AbstractMethods
         /// <summary>
-        /// Inserts a value into the cache storage.
+        /// Inserts a value into the L2 store.
         /// </summary>
-        /// <param name="value">The value to insert.</param>
-        /// <returns>A result containing the created entry or an error.</returns>
         protected abstract Result<IEntry<TValue>> AddToL2Store(TValue value);
 
         /// <summary>
-        /// Fetches an entry from the cache by its identifier.
+        /// Retrieves an entry by identifier from the L2 store.
         /// </summary>
-        /// <param name="id">The unique identifier of the entry.</param>
-        /// <returns>A result containing the entry or an error.</returns>
         protected abstract Result<IEntry<TValue>> GetFromL2Store(long id);
 
+        /// <summary>
+        /// Retrieves the entry following the specified identifier from the L2 store.
+        /// </summary>
         protected abstract Result<IEntry<TValue>> GetNextFromL2Store(long id);
 
         /// <summary>
-        /// Deletes an entry from the cache storage by its identifier.
+        /// Deletes an entry by identifier from the L2 store.
         /// </summary>
-        /// <param name="id">The unique identifier of the entry to delete.</param>
-        /// <returns>A result containing the deleted entry or an error.</returns>
         protected abstract Result<IEntry<TValue>> DeleteFromL2Store(long id);
 
         /// <summary>
-        /// Deletes all entries from the cache storage.
+        /// Deletes all entries from the L2 store.
         /// </summary>
-        /// <returns>A result indicating success or failure.</returns>
         protected abstract Result ClearL2Store();
 
         /// <summary>
-        /// Gets the current count of entries in the cache.
+        /// Returns the count of entries in the L2 store.
         /// </summary>
-        /// <returns>A result containing the count or an error.</returns>
         protected abstract Result<long> GetL2StoreCount();
 
         /// <summary>
-        /// Performs custom disposal logic for derived classes.
+        /// Releases resources owned by the L2 store implementation.
         /// </summary>
         protected abstract void DisposeL2StoreResources();
 
         /// <summary>
-        /// Updates or inserts metadata for cache entries.
+        /// Creates or updates metadata entries in the L2 store.
         /// </summary>
-        /// <param name="metadata">The metadata to upsert.</param>
-        /// <returns>A result indicating success or failure.</returns>
         protected abstract Result UpsertL2Store(IEnumerable<Metadata> metadata);
 
+        /// <summary>
+        /// Updates an existing L2 entry.
+        /// </summary>
         protected abstract Result<IEntry<TValue>> UpdateL2Store(long id, TValue value);
 
         /// <summary>
-        /// Gets the metadata for the head (first) entry in the cache.
+        /// Retrieves the metadata for the head entry in L2.
         /// </summary>
-        /// <returns>A result containing the head metadata or an error.</returns>
         protected abstract Result<Metadata> GetCurrentHead();
 
         /// <summary>
-        /// Gets the metadata for the tail (last) entry in the cache.
+        /// Retrieves the metadata for the tail entry in L2.
         /// </summary>
-        /// <returns>A result containing the tail metadata or an error.</returns>
         protected abstract Result<Metadata> GetCurrentTail();
 
         /// <summary>
-        /// Gets the metadata for a specific entry by its identifier.
+        /// Retrieves metadata for a given entry identifier.
         /// </summary>
-        /// <param name="id">The unique identifier of the entry.</param>
-        /// <returns>A result containing the metadata or an error.</returns>
         protected abstract Result<Metadata> GetMetadata(long id);
 
         /// <summary>
-        /// Deletes metadata for a specific entry by its identifier.
+        /// Deletes metadata by entry identifier.
         /// </summary>
-        /// <param name="id">The unique identifier of the metadata to delete.</param>
-        /// <returns>A result indicating success or failure.</returns>
         protected abstract Result DeleteMetadata(long id);
 
         /// <summary>
-        /// Deletes all metadata from the cache.
+        /// Clears all metadata records from the L2 store.
         /// </summary>
-        /// <returns>A result indicating success or failure.</returns>
         protected abstract Result ClearMetadata();
 
         #endregion
@@ -199,6 +203,7 @@ namespace Baubit.Caching
                                                                            .Bind(node => Result.Try(() => l1Lookup.Add(entry.Id, node)));
         }
 
+        /// <inheritdoc/>
         public Result<IEntry<TValue>> Update(long id, TValue value)
         {
             Locker.EnterWriteLock();
@@ -225,6 +230,7 @@ namespace Baubit.Caching
             return TryGetFromL1Store(id).Bind(entry => entry == null ? GetFromL2Store(id) : Result.Ok(entry));
         }
 
+        /// <inheritdoc/>
         public Result<IEntry<TValue>> GetNext(long? id)
         {
             Locker.EnterReadLock();
@@ -238,6 +244,7 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
+        /// <inheritdoc/>
         public Result<IEntry<TValue>> GetNextInternal(long id)
         {
             return TryGetNextFromL1Store(id).Bind(entry => entry == null ? GetNextFromL2Store(id) : Result.Ok(entry));
@@ -326,7 +333,7 @@ namespace Baubit.Caching
             return ClearL2Store().Bind(() => ClearMetadata()).Bind(() => ClearL1Store());
         }
 
-        public Result ClearL1Store()
+        private Result ClearL1Store()
         {
             return Result.Try(() => _l1Store.Clear()).Bind(() => Result.Try(() => l1Lookup.Clear()));
         }
@@ -404,26 +411,15 @@ namespace Baubit.Caching
                          .Bind(() => Result.Ok(entry));
         }
 
-        /// <summary>
-        /// Updates the tail and previous pointers in the cache metadata.
-        /// </summary>
-        /// <param name="currentTail">The current tail metadata.</param>
-        /// <param name="newTail">The new tail metadata.</param>
-        /// <returns>A result indicating success or failure.</returns>
         private Result AddTail(Metadata currentTail, Metadata newTail)
         {
-            return currentTail == null ? 
-                   Result.Ok() : 
+            return currentTail == null ?
+                   Result.Ok() :
                    Result.Try(() => currentTail.Next = newTail.Id)
                          .Bind(_ => Result.Try(() => newTail.Previous = currentTail.Id))
                          .Bind(_ => Result.Ok());
         }
 
-        /// <summary>
-        /// Removes metadata for a specific entry and updates adjacent entries.
-        /// </summary>
-        /// <param name="id">The unique identifier of the entry to remove.</param>
-        /// <returns>A result indicating success or failure.</returns>
         private Result RemoveMetadata(long id)
         {
             Metadata current = null;
@@ -475,6 +471,7 @@ namespace Baubit.Caching
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(disposing: true);
