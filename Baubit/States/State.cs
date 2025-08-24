@@ -19,7 +19,7 @@ namespace Baubit.States
     }
     public sealed class State<T> : IPublisher<StateChanged<T>>, IDisposable where T : Enum
     {
-        public T Current { get => _cache.GetLast().Bind(entry => entry == null ? Result.Ok(default(T)) : Result.Ok(entry.Value)).Value; }
+        public T Current { get => _cache.GetLastOrDefault().Bind(entry => entry == null ? Result.Ok(default(T)) : Result.Ok(entry.Value)).Value; }
 
         IOrderedCache<T> _cache;
         IOrderedCache<StateChanged<T>> _changeCache;
@@ -55,7 +55,7 @@ namespace Baubit.States
             try
             {
                 long? tailId = null;
-                _changeCache.GetLast().Bind(tailEntry => Result.Try(() => tailId = tailEntry?.Id));
+                _changeCache.GetLastOrDefault().Bind(tailEntry => Result.Try(() => tailId = tailEntry?.Id));
                 await foreach (var entryResult in _changeCache.ReadAllAsync(tailId, cancellationToken))
                 {
                     var result = entryResult.Bind(entry => Result.Try(() => entry.Value.Current.Equals(targetState)));

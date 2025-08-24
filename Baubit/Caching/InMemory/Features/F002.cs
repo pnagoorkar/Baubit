@@ -1,4 +1,4 @@
-﻿using Baubit.Caching.InMemory.DI;
+﻿using Baubit.Caching.DI;
 using Baubit.DI;
 using Microsoft.Extensions.DependencyInjection;
 

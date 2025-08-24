@@ -1,0 +1,337 @@
+﻿using Baubit.Caching.InMemory;
+using Baubit.Tasks;
+using Baubit.Traceability;
+using FluentResults;
+using FluentResults.Extensions;
+using Microsoft.Extensions.Logging;
+using System;
+
+namespace Baubit.Caching
+{
+    public class OrderedCache<TValue> : IOrderedCache<TValue>
+    {
+        public Configuration Configuration { get; init; }
+
+        public long Count { get => _metadata.Count; }
+
+        protected readonly ReaderWriterLockSlim Locker = new();
+
+        #region PrivateMembers
+        private bool disposedValue;
+
+        private long _gateCount;
+
+        private IMetadata _metadata = new Metadata();
+
+        private volatile bool areReadersWaiting = false;
+        private TaskCompletionSource<bool> nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private Task<Result> adaptionRunner;
+        private CancellationTokenSource adaptionCTS;
+        private readonly ILogger<OrderedCache<TValue>> _logger;
+
+        private DataStore<TValue> _l1DataStore = new DataStore<TValue>();
+        private DataStore<TValue> _l2DataStore = new DataStore<TValue>();
+        long? _l1LastId;
+        #endregion
+
+        public OrderedCache(Configuration cacheConfiguration,
+                            ILoggerFactory loggerFactory)
+        {
+            _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
+            Configuration = cacheConfiguration;
+            if (Configuration.RunAdaptiveResizing)
+            {
+                adaptionCTS = new CancellationTokenSource();
+                adaptionRunner = RunAdaptiveResizing(adaptionCTS.Token);
+            }
+        }
+
+        #region AdaptiveResizing
+        private async Task<Result> RunAdaptiveResizing(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(Configuration.AdaptionWindowMS, cancellationToken);
+                    _logger.LogDebug($"Gates this cycle: {_gateCount}");
+                    var gatesThisCycle = Interlocked.Exchange(ref _gateCount, 0);
+
+                    double gateRate = gatesThisCycle * 1_000.0 / Configuration.AdaptionWindowMS;
+
+                    _logger.LogTrace($"Gate rate: {gateRate}");
+
+                    if (gateRate > Configuration.GateRateUpperLimit)
+                    {
+                        _l1DataStore.AddCapacity(Configuration.GrowStep); 
+                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore.TargetCapacity}");
+                    }
+                    else if (gateRate < Configuration.GateRateLowerLimit)
+                    {
+                        _l1DataStore.CutCapacity(Configuration.ShrinkStep);
+                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore.TargetCapacity}");
+                    }
+                    Locker.EnterWriteLock();
+                    try { ReplenishL1Store(); }
+                    catch { throw; }
+                    finally { Locker.ExitWriteLock(); }
+                }
+                return Result.Ok();
+            }
+            catch(TaskCanceledException)
+            {
+                return Result.Ok();
+            }
+            catch(Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+        #endregion
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>> Add(TValue value)
+        {
+            Locker.EnterWriteLock();
+            try 
+            { 
+
+                return CreateNewEntry(value).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters().Bind(() => Result.Ok(entry)))); 
+            }
+            finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result<IEntry<TValue>> CreateNewEntry(TValue value)
+        {
+            return _l2DataStore.Add(value).Bind(entry => _metadata.AddTail(entry.Id).Bind(() => Result.Ok(entry)));
+        }
+
+        private Result AddToL1Store(IEntry<TValue> entry)
+        {
+            return _l1DataStore.HasCapacity ? _l1DataStore.Add(entry).Bind(() => Result.Try(() => { _l1LastId = entry.Id; })) : Result.Ok();
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>> Update(long id, TValue value) // TBD - datastore refactor
+        {
+            Locker.EnterWriteLock();
+            try 
+            {
+                return GetEntryOrDefaultInternal(id).Bind(entry => entry == null ? Result.Ok(entry) : _l2DataStore.Update(id, value).Bind(entry => UpdateL1Store(entry).Bind(() => Result.Ok(entry))));
+            }
+            finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result UpdateL1Store(IEntry<TValue> entry)
+        {
+            return _l1DataStore.Update(entry).Bind(_ => Result.Ok());
+        }
+
+        public Result<IEntry<TValue>?> this[long index] => GetEntryOrDefault(index); // TBD - datastore refactor
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>?> GetEntryOrDefault(long? id) // TBD - datastore refactor
+        {
+            Locker.EnterReadLock();
+            try { return GetEntryOrDefaultInternal(id); }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>?> GetEntryOrDefaultInternal(long? id)
+        {
+            try
+            {
+                if (id.HasValue && _metadata.ContainsKey(id.Value))
+                {
+                    return _l1DataStore.GetEntryOrDefault(id).Bind(entry => entry == null ? _l2DataStore.GetEntryOrDefault(id) : Result.Ok<IEntry<TValue>?>(entry));
+                }
+                else
+                {
+                    return Result.Ok(default(IEntry<TValue>));
+                }
+            }
+            catch (Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>?> GetNextOrDefault(long? id) // TBD - datastore refactor
+        {
+            Locker.EnterReadLock();
+            try { return GetNextOrDefaultInternal(id); }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>?> GetNextOrDefaultInternal(long? id) // TBD - datastore refactor
+        {
+            return _metadata.GetNextId(id).Bind(GetEntryOrDefaultInternal);
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>?> GetFirstOrDefault() // TBD - datastore refactor
+        {
+            Locker.EnterReadLock();
+            try { return GetFirstOrDefaultInternal()!; }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>?> GetFirstOrDefaultInternal() // TBD - datastore refactor
+        {
+            return GetEntryOrDefaultInternal(_metadata.HeadId);
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>?> GetLastOrDefault() // TBD - datastore refactor
+        {
+            Locker.EnterReadLock();
+            try { return GetLastOrDefaultInternal(); }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<IEntry<TValue>?> GetLastOrDefaultInternal() // TBD - datastore refactor
+        {
+            return GetEntryOrDefaultInternal(_metadata.TailId);
+        }
+
+        /// <inheritdoc/>
+        public Result<IEntry<TValue>?> Remove(long id)
+        {
+            Locker.EnterWriteLock();
+            try { return RemoveInternal(id); }
+            finally { Locker.ExitWriteLock(); }
+        }
+        
+        private Result<IEntry<TValue>?> RemoveInternal(long id)
+        {
+            try
+            {
+                if (!_metadata.ContainsKey(id)) return Result.Ok();
+
+                var l2RemoveResult = _l2DataStore.Remove(id).ThrowIfFailed();
+                var l1RemoveResult = _l1DataStore.Remove(id).ThrowIfFailed();
+                var replenishResult = ReplenishL1Store().ThrowIfFailed();
+
+                return Result.Ok(l2RemoveResult.Value).WithReasons(l1RemoveResult.Reasons).WithReasons(l1RemoveResult.Reasons).WithReasons(replenishResult.Reasons);
+            }
+            catch(Exception exp)
+            {
+                return Result.Fail(new ExceptionalError(exp));
+            }
+        }
+
+
+        private Result ReplenishL1Store()
+        {
+            return Enumerable.Range(0, (int)_l1DataStore.CurrentCapacity).Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => AddNextToL1Store(_l1LastId)));
+        }
+
+        private Result AddNextToL1Store(long? id)
+        {
+            return _metadata.GetNextId(id).Bind(nextId => _l2DataStore.GetEntryOrDefault(nextId)).Bind(nextEntry => Result.Try(() => { if (nextEntry != null) AddToL1Store(nextEntry); }));
+        }
+
+        /// <inheritdoc/>
+        public Result Clear()
+        {
+            Locker.EnterWriteLock();
+            try{ return ClearInternal(); }
+            finally { Locker.ExitWriteLock(); }
+        }
+
+        private Result ClearInternal()
+        {
+            return _l2DataStore.Clear().Bind(ClearL1Store).Bind(ClearMetadata);
+        }
+
+        private Result ClearL1Store()
+        {
+            return _l1DataStore.Clear();
+        }
+
+        private Result ClearMetadata()
+        {
+            return _metadata.Clear();
+        }
+
+        /// <inheritdoc/>
+        public Task<Result<IEntry<TValue>>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                return GetNextOrDefaultInternal(id).Bind(nextEntry => nextEntry == null ? 
+                                                                      GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task))
+                                                                                                          .Bind(_ => GetNextAsync(id, cancellationToken)) : 
+                                                                      Task.FromResult(Result.Ok(nextEntry)));
+            }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        private Result<Task<bool>> GetNextGenAwaiter(CancellationToken cancellationToken = default)
+        {
+            return Result.Try(() => areReadersWaiting = true)
+                         .Bind(_ => nextGenAwaiter.RegisterCancellationToken(cancellationToken))
+                         .Bind(() => Result.Ok(nextGenAwaiter.Task));
+        }
+
+        private Result SignalAwaiters()
+        {
+            return areReadersWaiting ?
+                   Result.Try(() =>
+                   {
+                       if (Configuration.RunAdaptiveResizing) Interlocked.Increment(ref _gateCount);
+                       var prevGenAwaiter = nextGenAwaiter;
+                       nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                       areReadersWaiting = false;
+                       prevGenAwaiter.TrySetResult(true);
+                   }) : 
+                   Result.Ok();
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    Locker.EnterWriteLock();
+                    try
+                    {
+                        adaptionCTS?.Cancel();
+                        adaptionRunner?.Wait(true);
+                        ClearInternal();
+                        nextGenAwaiter.TrySetCanceled();
+                        areReadersWaiting = false;
+                        _l1DataStore?.Dispose();
+                        _l2DataStore?.Dispose();
+                    }
+                    finally { Locker.ExitWriteLock(); }                    
+                    Locker.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+    }
+    public class Entry<TValue> : IEntry<TValue>
+    {
+        public long Id { get; init; }
+        public DateTime CreatedOnUTC { get; init; } = DateTime.UtcNow;
+        public TValue Value { get; init; }
+        public Entry(long id, TValue value)
+        {
+            Id = id;
+            Value = value;
+        }
+    }
+}

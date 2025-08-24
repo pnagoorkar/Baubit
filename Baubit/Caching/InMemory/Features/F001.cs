@@ -1,5 +1,5 @@
-﻿using Baubit.DI;
-using Baubit.Caching.InMemory.DI;
+﻿using Baubit.Caching.DI;
+using Baubit.DI;
 
 namespace Baubit.Caching.InMemory.Features
 {

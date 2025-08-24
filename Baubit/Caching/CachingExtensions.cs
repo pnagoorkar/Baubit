@@ -9,7 +9,7 @@ namespace Baubit.Caching
     {
         public static Result<TValue> GetValue<TValue>(this IOrderedCache<TValue> cache, long id)
         {
-            return cache.Get(id).Bind(entry => Result.Try(() => entry.Value));
+            return cache.GetEntryOrDefault(id).Bind(entry => Result.Try(() => entry.Value));
         }
         public static IEnumerable<TValue> EnumerateValues<TValue>(this IOrderedCache<TValue> cache, long? startingId = null)
         {
@@ -24,7 +24,7 @@ namespace Baubit.Caching
             var getResult = default(Result<IEntry<TValue>>);
             if (startingId != null)
             {
-                getResult = cache.Get(startingId.Value);
+                getResult = cache.GetEntryOrDefault(startingId.Value);
                 if (getResult.IsSuccess && getResult.Value != null)
                 {
                     yield return getResult;
@@ -34,7 +34,7 @@ namespace Baubit.Caching
             do
             {
                 afterId = getResult?.Value?.Id;
-                getResult = cache.GetNext(afterId);
+                getResult = cache.GetNextOrDefault(afterId);
                 if (getResult == default(Result<IEntry<TValue>>)) break;
                 yield return getResult;
             } while (getResult != default(Result<IEntry<TValue>>));
@@ -67,7 +67,7 @@ namespace Baubit.Caching
         {
             if (startingId != null)
             {
-                var getResult = cache.Get(startingId.Value);
+                var getResult = cache.GetEntryOrDefault(startingId.Value);
                 if (getResult.IsSuccess && getResult.Value != null)
                 {
                     yield return getResult;

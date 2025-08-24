@@ -15,14 +15,8 @@ namespace Baubit.Caching
     /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
     public interface IOrderedCache<TValue> : IDisposable
     {
-        /// <summary>
-        /// Gets the number of entries currently stored in the cache.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="Result"/> containing the total number of entries,
-        /// or an error if the operation fails.
-        /// </returns>
-        Result<long> Count();
+
+        public long Count { get; }
 
         /// <summary>
         /// Adds a value to the cache.
@@ -45,37 +39,14 @@ namespace Baubit.Caching
         /// </returns>
         Result<IEntry<TValue>> Update(long id, TValue value);
 
-        /// <summary>
-        /// Retrieves an entry by its identifier.
-        /// </summary>
-        /// <param name="id">The unique identifier of the entry.</param>
-        /// <returns>
-        /// A <see cref="Result"/> containing the entry,
-        /// or an error if the entry does not exist.
-        /// </returns>
-        Result<IEntry<TValue>> Get(long id);
 
-        /// <summary>
-        /// Retrieves the entry immediately following the specified identifier.
-        /// </summary>
-        /// <param name="id">
-        /// The identifier of the current entry, or <c>null</c> to return the head entry.
-        /// </param>
-        /// <returns>
-        /// A <see cref="Result"/> containing the next entry,
-        /// or an error if none exists.
-        /// </returns>
-        Result<IEntry<TValue>> GetNext(long? id);
+        Result<IEntry<TValue>?> GetEntryOrDefault(long? id);
 
-        /// <summary>
-        /// Retrieves the head (first) entry in the cache.
-        /// </summary>
-        Result<IEntry<TValue>> GetFirst();
+        Result<IEntry<TValue>?> GetNextOrDefault(long? id);
 
-        /// <summary>
-        /// Retrieves the tail (last) entry in the cache.
-        /// </summary>
-        Result<IEntry<TValue>> GetLast();
+        Result<IEntry<TValue>?> GetFirstOrDefault();
+
+        Result<IEntry<TValue>?> GetLastOrDefault();
 
         /// <summary>
         /// Asynchronously retrieves the entry following the specified identifier.<br/>
@@ -100,7 +71,7 @@ namespace Baubit.Caching
         /// A <see cref="Result"/> containing the removed entry,
         /// or an error if the entry does not exist.
         /// </returns>
-        Result<IEntry<TValue>> Remove(long id);
+        Result<IEntry<TValue>?> Remove(long id);
 
         /// <summary>
         /// Removes all entries from the cache.

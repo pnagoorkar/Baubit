@@ -1,19 +1,22 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Baubit.Configuration;
+using Baubit.DI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching.DI
 {
-    public abstract class AModule<TValue, TConfiguration> : Baubit.DI.AModule<TConfiguration> where TConfiguration : AConfiguration
+    public class Module<TValue> : Baubit.DI.AModule<Configuration>
     {
-        protected AModule(Baubit.Configuration.ConfigurationSource configurationSource) : base(configurationSource)
+        public Module(ConfigurationSource configurationSource) : base(configurationSource)
         {
         }
 
-        protected AModule(IConfiguration configuration) : base(configuration)
+        public Module(IConfiguration configuration) : base(configuration)
         {
         }
 
-        protected AModule(TConfiguration configuration, List<Baubit.DI.IModule> nestedModules, List<Baubit.DI.IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        public Module(Configuration configuration, List<IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 
@@ -34,6 +37,9 @@ namespace Baubit.Caching.DI
             }
         }
 
-        protected abstract IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider);
+        private IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider)
+        {
+            return new OrderedCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
+        }
     }
 }

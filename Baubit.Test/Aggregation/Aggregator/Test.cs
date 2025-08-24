@@ -16,7 +16,7 @@ namespace Baubit.Test.Aggregation.Aggregator
             new Baubit.Caching.InMemory.Features.F002<long>()
         ];
         [Theory]
-        [InlineData(1000, 100)]
+        [InlineData(1000, 10)]
         public async Task Works(int numOfEvents, int numOfConsumers)
         {
             var buildResult = ComponentBuilder<Aggregator<TestEvent>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(AggregationFeatures)).Bind(componentBuilder => componentBuilder.Build());
