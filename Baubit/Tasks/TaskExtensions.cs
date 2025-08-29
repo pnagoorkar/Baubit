@@ -27,7 +27,7 @@ namespace Baubit.Tasks
         {
             try
             {
-                await task;
+                await task.ConfigureAwait(false);
                 return Result.Ok();
             }
             catch (AggregateException aExp)

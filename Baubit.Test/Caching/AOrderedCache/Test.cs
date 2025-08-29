@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 
 namespace Baubit.Test.Caching.AOrderedCache
@@ -38,7 +39,7 @@ namespace Baubit.Test.Caching.AOrderedCache
 
             Parallel.Invoke(async () =>
             {
-                getNextResult = await inMemoryCache.GetNextAsync();
+                getNextResult = await inMemoryCache.GetNextAsync().ConfigureAwait(false);
                 autoResetEvent.Set();
             });
 
@@ -62,9 +63,9 @@ namespace Baubit.Test.Caching.AOrderedCache
 
             var cancellationTokenSource = new CancellationTokenSource();
 
-            Task.Run(async () => { await Task.Delay(500); cancellationTokenSource.Cancel(); });            
+            Task.Run(async () => { await Task.Delay(500).ConfigureAwait(false); cancellationTokenSource.Cancel(); });            
 
-            var getResult = await inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token);
+            var getResult = await Result.Try(() => inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token));
 
             Assert.True(getResult.IsFailed);
             Assert.Contains(getResult.Errors, err => err is ExceptionalError expErr && expErr.Message == "A task was canceled.");
@@ -105,8 +106,8 @@ namespace Baubit.Test.Caching.AOrderedCache
         //}
 
         [Theory]
-        [InlineData(1000, 100)]
-        public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders)
+        [InlineData(1000, 100, 5, 20)]
+        public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders, int writerBatchMinSize, int writerBatchMaxSize)
         {
             var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheWithAdaptiveResizingFeatures))
@@ -144,7 +145,8 @@ namespace Baubit.Test.Caching.AOrderedCache
                                               });
                                               readSyncer.Release();
                                               return Result.Ok();
-                                          }, readCTS.Token);
+                                          }, readCTS.Token)
+                                          .ConfigureAwait(false);
             };
 
             var readerBurst = () => { Parallel.For(0, numOfReaders, i => readerTasks.Add(reader(i))); };
@@ -169,7 +171,7 @@ namespace Baubit.Test.Caching.AOrderedCache
 
             while (insertedCount < numOfItems)
             {
-                var batchSize = Math.Min(numOfItems - insertedCount, Random.Shared.Next(5, 20));
+                var batchSize = Math.Min(numOfItems - insertedCount, Random.Shared.Next(writerBatchMinSize, writerBatchMaxSize));
                 writerBurst(batchSize);
                 Thread.Sleep(10);
                 insertedCount += batchSize;

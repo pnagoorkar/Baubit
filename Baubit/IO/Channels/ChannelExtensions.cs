@@ -13,11 +13,11 @@ namespace Baubit.IO.Channels
                                               Func<T, CancellationToken, Task> handler,
                                               CancellationToken cancellationToken)
         {
-            await foreach (var item in channel.EnumerateAsync(cancellationToken))
+            await foreach (var item in channel.EnumerateAsync(cancellationToken).ConfigureAwait(false))
             {
                 try
                 {
-                    await handler(item, cancellationToken);
+                    await handler(item, cancellationToken).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -30,7 +30,7 @@ namespace Baubit.IO.Channels
                                               Action<T> handler,
                                               CancellationToken cancellationToken)
         {
-            await foreach (var item in channel.EnumerateAsync(cancellationToken))
+            await foreach (var item in channel.EnumerateAsync(cancellationToken).ConfigureAwait(false))
             {
                 try
                 {
@@ -50,13 +50,13 @@ namespace Baubit.IO.Channels
             {
                 try
                 {
-                    canRead = await channel.Reader.WaitToReadAsync(cancellationToken);
+                    canRead = await channel.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException exp)
                 {
                     break;
                 }
-                yield return await channel.Reader.ReadAsync(cancellationToken);
+                yield return await channel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -85,7 +85,7 @@ namespace Baubit.IO.Channels
             var compositeCancellationTokenSource = new CompositeCancellationTokenSource(maxWaitToWrite, cancellationToken);
             try
             {
-                bool waitResult = await channel.Writer.WaitToWriteAsync(compositeCancellationTokenSource.Token);
+                bool waitResult = await channel.Writer.WaitToWriteAsync(compositeCancellationTokenSource.Token).ConfigureAwait(false);
                 if (!waitResult) return Result.Fail("").WithReason(new ClosedForWriting());
                 if (channel.Writer.TryWrite(item)) return Result.Ok();
                 else return Result.Fail("Unknown write error !");

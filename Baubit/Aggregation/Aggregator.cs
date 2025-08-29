@@ -65,7 +65,7 @@ namespace Baubit.Aggregation
 
         private Result Dispatch(long id)
         {
-            return Result.Try(() => { Parallel.ForEach(_activeSubscriptions.ToArray(), sub => sub.Publish(id)); });
+            return _activeSubscriptions.Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => next.Publish(id)));
         }
 
         public Result<IDisposable> Subscribe(ISubscriber<T> subscriber)

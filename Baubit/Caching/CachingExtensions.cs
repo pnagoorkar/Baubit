@@ -45,7 +45,7 @@ namespace Baubit.Caching
                                                                                   startingId = null, 
                                                                                   [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            await foreach (var entry in cache.EnumerateEntriesAsync(startingId, cancellationToken))
+            await foreach (var entry in cache.EnumerateEntriesAsync(startingId, cancellationToken).ConfigureAwait(false))
             {
                 yield return entry.Value;
             }
@@ -55,7 +55,7 @@ namespace Baubit.Caching
                                                                                            long? startingId = null, 
                                                                                            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            await foreach (var result in cache.ReadAllAsync(startingId, cancellationToken))
+            await foreach (var result in cache.ReadAllAsync(startingId, cancellationToken).ConfigureAwait(false))
             {
                 yield return result.Value;
             }
@@ -76,7 +76,18 @@ namespace Baubit.Caching
             long? afterId = startingId;
             do
             {
-                yield return await cache.GetNextAsync(afterId, cancellationToken).Bind(entry => Result.Try(() => { afterId = entry.Id; return entry; }));
+                var nextEntryResult = default(Result<IEntry<TValue>>);
+                try
+                {
+                    nextEntryResult = await cache.GetNextAsync(afterId, cancellationToken)
+                                                 .Bind(entry => Result.Try(() => { afterId = entry.Id; return entry; }))
+                                                 .ConfigureAwait(false);
+                }
+                catch (TaskCanceledException) { }
+                if (!cancellationToken.IsCancellationRequested && nextEntryResult != default(Result<IEntry<TValue>>))
+                {
+                    yield return nextEntryResult;
+                }
 
             } while (!cancellationToken.IsCancellationRequested);
         }
@@ -86,7 +97,7 @@ namespace Baubit.Caching
                                                            CancellationToken cancellationToken = default)
         {
             var retVal = Result.Ok();
-            await foreach (var item in asyncEnumerable)
+            await foreach (var item in asyncEnumerable.ConfigureAwait(false))
             {
                 retVal = retVal?.Bind(() => func(item));
                 if (cancellationToken.IsCancellationRequested || retVal.IsFailed) break;
@@ -99,7 +110,7 @@ namespace Baubit.Caching
                                                            CancellationToken cancellationToken = default)
         {
             var retVal = Result.Ok();
-            await foreach (var item in asyncEnumerable)
+            await foreach (var item in asyncEnumerable.ConfigureAwait(false))
             {
                 retVal = retVal?.Bind(() => item.Bind(entry => func(entry)));
                 if (cancellationToken.IsCancellationRequested || retVal.IsFailed) break;

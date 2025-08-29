@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace Baubit.Caching.InMemory
 {
-    public class DataStore<TValue> : IDisposable
+    public class DataStore<TValue> : IDataStore<TValue>
     {
         public long MaxCapacity { get; init; } = 8192;
         public long MinCapacity { get; init; } = 0;
@@ -28,7 +28,7 @@ namespace Baubit.Caching.InMemory
         public Result Add(IEntry<TValue> entry)
         {
             return Result.Try(() => _data.TryAdd(entry.Id, entry))
-                         .Bind(addRes => Result.OkIf(addRes && _data.ContainsKey(entry.Id), nameof(Add)).AddReasonIfFailed(new EntryNotFound<TValue>(entry.Id)));
+                         .Bind(addRes => Result.OkIf(addRes, nameof(Add)).AddReasonIfFailed(new FailedToAddEntry<TValue>(entry)));
         }
 
         public Result<IEntry<TValue>?> Remove(long id)
@@ -49,23 +49,6 @@ namespace Baubit.Caching.InMemory
                          .Bind(entry => Result.Try(() => _data[id] = entry))
                          .Bind(entry => Result.Ok<IEntry<TValue>>(entry));
         }
-
-        //public Result<IEntry<TValue>?> GetEntryOrDefault(long? id)
-        //{
-        //    if (id == null) return Result.Ok(default(IEntry<TValue>)).WithReason(new IdIsNull());
-        //    try
-        //    {
-        //        return Result.Ok(_data[id.Value]);
-        //    }
-        //    catch (KeyNotFoundException kExp)
-        //    {
-        //        return Result.Ok(default(IEntry<TValue>)).WithReason(new EntryNotFound<TValue>(id.Value));
-        //    }
-        //    catch (Exception exp)
-        //    {
-        //        return Result.Fail(new ExceptionalError(exp));
-        //    }
-        //}
 
         public Result<IEntry<TValue>?> GetEntryOrDefault(long? id)
         {
@@ -100,7 +83,7 @@ namespace Baubit.Caching.InMemory
 
         public Result AddCapacity(int additionalCapacity)
         {
-            return Result.Try(() => 
+            return Result.Try(() =>
             {
                 TargetCapacity = Math.Min(MaxCapacity, TargetCapacity + additionalCapacity);
             });

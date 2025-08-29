@@ -5,6 +5,7 @@ using FluentResults;
 using FluentResults.Extensions;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace Baubit.Caching
 {
@@ -19,13 +20,11 @@ namespace Baubit.Caching
         #region PrivateMembers
         private bool disposedValue;
 
-        private long _gateCount;
+        private long _roomCount;
 
         private IMetadata _metadata = new Metadata();
 
-        private volatile bool areReadersWaiting = false;
-        private TaskCompletionSource<bool> nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
+        private WaitingRoom<Result<IEntry<TValue>>> _waitingRoom = new WaitingRoom<Result<IEntry<TValue>>>();
         private Task<Result> adaptionRunner;
         private CancellationTokenSource adaptionCTS;
         private readonly ILogger<OrderedCache<TValue>> _logger;
@@ -54,20 +53,20 @@ namespace Baubit.Caching
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    await Task.Delay(Configuration.AdaptionWindowMS, cancellationToken);
-                    _logger.LogDebug($"Gates this cycle: {_gateCount}");
-                    var gatesThisCycle = Interlocked.Exchange(ref _gateCount, 0);
+                    await Task.Delay(Configuration.AdaptionWindowMS, cancellationToken).ConfigureAwait(false);
+                    _logger.LogDebug($"Rooms this cycle: {_roomCount}");
+                    var roomsThisCycle = Interlocked.Exchange(ref _roomCount, 0);
 
-                    double gateRate = gatesThisCycle * 1_000.0 / Configuration.AdaptionWindowMS;
+                    double roomRate = roomsThisCycle * 1_000.0 / Configuration.AdaptionWindowMS;
 
-                    _logger.LogTrace($"Gate rate: {gateRate}");
+                    _logger.LogTrace($"Room rate: {roomRate}");
 
-                    if (gateRate > Configuration.GateRateUpperLimit)
+                    if (roomRate > Configuration.RoomRateUpperLimit)
                     {
                         _l1DataStore.AddCapacity(Configuration.GrowStep); 
                         _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore.TargetCapacity}");
                     }
-                    else if (gateRate < Configuration.GateRateLowerLimit)
+                    else if (roomRate < Configuration.RoomRateLowerLimit)
                     {
                         _l1DataStore.CutCapacity(Configuration.ShrinkStep);
                         _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore.TargetCapacity}");
@@ -97,7 +96,7 @@ namespace Baubit.Caching
             try 
             { 
 
-                return CreateNewEntry(value).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters().Bind(() => Result.Ok(entry)))); 
+                return CreateNewEntry(value).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters(Result.Ok(entry)).Bind(() => Result.Ok(entry)))); 
             }
             finally { Locker.ExitWriteLock(); }
         }
@@ -142,14 +141,7 @@ namespace Baubit.Caching
         {
             try
             {
-                if (id.HasValue && _metadata.ContainsKey(id.Value))
-                {
-                    return _l1DataStore.GetEntryOrDefault(id).Bind(entry => entry == null ? _l2DataStore.GetEntryOrDefault(id) : Result.Ok<IEntry<TValue>?>(entry));
-                }
-                else
-                {
-                    return Result.Ok(default(IEntry<TValue>));
-                }
+                return _l1DataStore.GetEntryOrDefault(id).Bind(entry => entry == null ? _l2DataStore.GetEntryOrDefault(id) : Result.Ok<IEntry<TValue>?>(entry));
             }
             catch (Exception exp)
             {
@@ -263,32 +255,21 @@ namespace Baubit.Caching
             Locker.EnterReadLock();
             try
             {
-                return GetNextOrDefaultInternal(id).Bind(nextEntry => nextEntry == null ? 
-                                                                      GetNextGenAwaiter(cancellationToken).Bind(task => Result.Try(() => task))
-                                                                                                          .Bind(_ => GetNextAsync(id, cancellationToken)) : 
-                                                                      Task.FromResult(Result.Ok(nextEntry)));
+                return GetNextOrDefaultInternal(id).Bind(entry => entry == null ? _waitingRoom.Join(cancellationToken) : Task.FromResult(Result.Ok(entry)));
             }
             finally { Locker.ExitReadLock(); }
         }
 
-        private Result<Task<bool>> GetNextGenAwaiter(CancellationToken cancellationToken = default)
+        private Result SignalAwaiters(Result<IEntry<TValue>> res)
         {
-            return Result.Try(() => areReadersWaiting = true)
-                         .Bind(_ => nextGenAwaiter.RegisterCancellationToken(cancellationToken))
-                         .Bind(() => Result.Ok(nextGenAwaiter.Task));
-        }
-
-        private Result SignalAwaiters()
-        {
-            return areReadersWaiting ?
+            return _waitingRoom.HasGuests ?
                    Result.Try(() =>
                    {
-                       if (Configuration.RunAdaptiveResizing) Interlocked.Increment(ref _gateCount);
-                       var prevGenAwaiter = nextGenAwaiter;
-                       nextGenAwaiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                       areReadersWaiting = false;
-                       prevGenAwaiter.TrySetResult(true);
-                   }) : 
+                       if (Configuration.RunAdaptiveResizing) Interlocked.Increment(ref _roomCount);
+                       var prevRoom = _waitingRoom;
+                       _waitingRoom = new WaitingRoom<Result<IEntry<TValue>>>();
+                       prevRoom.TrySetResult(res);
+                   }) :
                    Result.Ok();
         }
 
@@ -304,8 +285,7 @@ namespace Baubit.Caching
                         adaptionCTS?.Cancel();
                         adaptionRunner?.Wait(true);
                         ClearInternal();
-                        nextGenAwaiter.TrySetCanceled();
-                        areReadersWaiting = false;
+                        _waitingRoom.TrySetCanceled();
                         _l1DataStore?.Dispose();
                         _l2DataStore?.Dispose();
                     }

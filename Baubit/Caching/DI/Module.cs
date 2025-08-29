@@ -39,7 +39,12 @@ namespace Baubit.Caching.DI
 
         private IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider)
         {
-            return new OrderedCache<TValue>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new OrderedCache<TValue>(Configuration.CacheConfiguration,
+                                            serviceProvider.GetRequiredService<ILoggerFactory>());
+            //return new OrderedCache<TValue>(Configuration.CacheConfiguration,
+            //                                serviceProvider.GetKeyedService<IDataStore<TValue>>(Configuration.L1StoreDIKey),
+            //                                serviceProvider.GetRequiredKeyedService<IDataStore<TValue>>(Configuration.L2StoreDIKey),
+            //                                serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

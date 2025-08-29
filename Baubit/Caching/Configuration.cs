@@ -9,7 +9,7 @@
         public int ShrinkStep { get; init; } = 32;
         public int MinCap { get; init; } = 128;
         public int MaxCap { get; init; } = 8192;
-        public double GateRateLowerLimit { get; init; } = 1;
-        public double GateRateUpperLimit { get; init; } = 5;
+        public double RoomRateLowerLimit { get; init; } = 1;
+        public double RoomRateUpperLimit { get; init; } = 5;
     }
 }

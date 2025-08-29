@@ -40,7 +40,7 @@ namespace Baubit.Reflection
         public static async Task<Result<string>> ReadResource(this Assembly assembly, string resourceName)
         {
             return await Result.Try(() => assembly.GetManifestResourceStream(resourceName))
-                               .Bind(stream => stream!.ReadStringAsync());
+                               .Bind(stream => stream!.ReadStringAsync()).ConfigureAwait(false);
         }
 
         public static Result<string> GetBaubitFormattedAssemblyQualifiedName(this Type type)

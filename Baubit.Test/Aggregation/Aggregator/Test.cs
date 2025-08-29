@@ -17,7 +17,7 @@ namespace Baubit.Test.Aggregation.Aggregator
         ];
         [Theory]
         [InlineData(1000, 10)]
-        public async Task Works(int numOfEvents, int numOfConsumers)
+        public async Task CanReadAndWriteSimultaneously(int numOfEvents, int numOfConsumers)
         {
             var buildResult = ComponentBuilder<Aggregator<TestEvent>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(AggregationFeatures)).Bind(componentBuilder => componentBuilder.Build());
             Assert.True(buildResult.IsSuccess);
