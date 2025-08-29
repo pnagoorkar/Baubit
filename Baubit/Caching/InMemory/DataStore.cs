@@ -9,12 +9,12 @@ namespace Baubit.Caching.InMemory
 {
     public class DataStore<TValue> : IDataStore<TValue>
     {
-        public bool Uncapped { get; init; } = false;
-        public long MinCapacity { get; init; }
-        public long MaxCapacity { get; init; }
-        public long TargetCapacity { get; private set; }
-        public long CurrentCapacity { get => Uncapped ? -1 : Math.Max(0, TargetCapacity - GetCount().Value); }
-        public bool HasCapacity { get => Uncapped || CurrentCapacity > 0; }
+        public bool Uncapped { get => !TargetCapacity.HasValue; }
+        public long? MinCapacity { get; init; }
+        public long? MaxCapacity { get; init; }
+        public long? TargetCapacity { get; private set; }
+        public long? CurrentCapacity { get => Uncapped ? null : Math.Max(0, TargetCapacity!.Value - GetCount().Value); }
+        public bool HasCapacity { get => CurrentCapacity > 0; }
 
         public long? HeadId { get => _data.Count > 0 ? _data.Keys.Min() : null; }
         public long? TailId { get => _data.Count > 0 ? _data.Keys.Max() : null; }
@@ -25,8 +25,8 @@ namespace Baubit.Caching.InMemory
 
         private ILogger<DataStore<TValue>> _logger;
 
-        public DataStore(int minCap,
-                         int maxCap, 
+        public DataStore(long? minCap,
+                         long? maxCap, 
                          ILoggerFactory loggerFactory)
         {
             TargetCapacity = MinCapacity = minCap;
@@ -34,9 +34,9 @@ namespace Baubit.Caching.InMemory
             _logger = loggerFactory.CreateLogger<DataStore<TValue>>();
         }
 
-        public DataStore(ILoggerFactory loggerFactory) : this(-1, -1, loggerFactory)
+        public DataStore(ILoggerFactory loggerFactory) : this(null, null, loggerFactory)
         {
-            Uncapped = true;
+
         }
 
         public Result<IEntry<TValue>> Add(TValue value)
@@ -107,7 +107,7 @@ namespace Baubit.Caching.InMemory
             if (Uncapped) return Result.Ok();
             return Result.Try(() =>
             {
-                TargetCapacity = Math.Min(MaxCapacity, TargetCapacity + additionalCapacity);
+                TargetCapacity = Math.Min(MaxCapacity!.Value, TargetCapacity!.Value + additionalCapacity);
             });
         }
 
@@ -116,7 +116,7 @@ namespace Baubit.Caching.InMemory
             if (Uncapped) return Result.Ok();
             return Result.Try(() =>
             {
-                TargetCapacity = Math.Max(MinCapacity, TargetCapacity - cap);
+                TargetCapacity = Math.Max(MinCapacity!.Value, TargetCapacity!.Value - cap);
             });
         }
 

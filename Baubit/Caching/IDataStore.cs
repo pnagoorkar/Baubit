@@ -4,11 +4,12 @@ namespace Baubit.Caching
 {
     public interface IDataStore<TValue> : IDisposable
     {
-        long CurrentCapacity { get; }
+        bool Uncapped { get; }
+        long? CurrentCapacity { get; }
         bool HasCapacity { get; }
-        long MaxCapacity { get; init; }
-        long MinCapacity { get; init; }
-        long TargetCapacity { get; }
+        long? MaxCapacity { get; init; }
+        long? MinCapacity { get; init; }
+        long? TargetCapacity { get; }
         long? HeadId { get; }
         long? TailId { get; }
 

@@ -31,17 +31,17 @@ namespace Baubit.Caching
         #endregion
 
         public OrderedCache(Configuration cacheConfiguration, 
-                             IDataStore<TValue>? l1DataStore, 
-                             IDataStore<TValue> l2DataStore,
-                             IMetadata metadata,
-                             ILoggerFactory loggerFactory)
+                            IDataStore<TValue>? l1DataStore, 
+                            IDataStore<TValue> l2DataStore,
+                            IMetadata metadata,
+                            ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
             Configuration = cacheConfiguration;
             _l1DataStore = l1DataStore;
             _l2DataStore = l2DataStore;
             _metadata = metadata;
-            if (_l1DataStore != null && Configuration?.RunAdaptiveResizing == true)
+            if (_l1DataStore != null && !_l1DataStore.Uncapped && Configuration?.RunAdaptiveResizing == true)
             {
                 adaptionCTS = new CancellationTokenSource();
                 adaptionRunner = RunAdaptiveResizing(adaptionCTS.Token);
