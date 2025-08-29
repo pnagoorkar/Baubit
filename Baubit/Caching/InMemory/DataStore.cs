@@ -16,6 +16,9 @@ namespace Baubit.Caching.InMemory
         public long CurrentCapacity { get => Uncapped ? -1 : Math.Max(0, TargetCapacity - GetCount().Value); }
         public bool HasCapacity { get => Uncapped || CurrentCapacity > 0; }
 
+        public long? HeadId { get => _data.Count > 0 ? _data.Keys.Min() : null; }
+        public long? TailId { get => _data.Count > 0 ? _data.Keys.Max() : null; }
+
         private long _seq;
         private bool disposedValue;
         private readonly Dictionary<long, IEntry<TValue>> _data = new();

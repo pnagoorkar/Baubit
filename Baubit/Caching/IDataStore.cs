@@ -9,6 +9,8 @@ namespace Baubit.Caching
         long MaxCapacity { get; init; }
         long MinCapacity { get; init; }
         long TargetCapacity { get; }
+        long? HeadId { get; }
+        long? TailId { get; }
 
         Result Add(IEntry<TValue> entry);
         Result<IEntry<TValue>> Add(TValue value);
