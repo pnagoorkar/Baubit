@@ -2,11 +2,12 @@
 
 namespace Baubit.Caching.DI
 {
-    public class Configuration : Baubit.DI.AConfiguration
+    public abstract class AConfiguration : Baubit.DI.AConfiguration
     {
+        public bool IncludeL1Caching { get; init; }
+        public int L1MinCap { get; init; } = 128;
+        public int L1MaxCap { get; init; } = 8192;
         public Baubit.Caching.Configuration CacheConfiguration { get; init; }
         public ServiceLifetime CacheLifetime { get; init; } = ServiceLifetime.Singleton;
-        public string L1StoreDIKey { get; init; }
-        public string L2StoreDIKey { get; init; }
     }
 }

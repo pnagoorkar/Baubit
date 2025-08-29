@@ -11,7 +11,11 @@ namespace Baubit.Caching.InMemory.Features
     {
         public IEnumerable<IModule> Modules =>
         [
-            new Baubit.Caching.DI.Module<TValue>(new Baubit.Caching.DI.Configuration{CacheConfiguration = new Configuration{ L1StoreInitialCap = 100 } }, [], [])
+            new Baubit.Caching.InMemory.DI.Module<TValue>(new Baubit.Caching.InMemory.DI.Configuration{ IncludeL1Caching = true, L1MinCap = 100, L1MaxCap = 100 }, [], [])
         ];
+        //public IEnumerable<IModule> Modules =>
+        //[
+        //    new Baubit.Caching.DI.Module<TValue>(new Baubit.Caching.DI.Configuration{CacheConfiguration = new Configuration{ L1StoreInitialCap = 100 } }, [], [])
+        //];
     }
 }

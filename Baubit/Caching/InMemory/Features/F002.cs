@@ -1,4 +1,4 @@
-﻿using Baubit.Caching.DI;
+﻿using Baubit.Caching.InMemory.DI;
 using Baubit.DI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,7 +8,7 @@ namespace Baubit.Caching.InMemory.Features
     {
         public IEnumerable<IModule> Modules =>
         [
-            new Module<TValue>(new DI.Configuration { CacheConfiguration = new Configuration{ L1StoreInitialCap = 100 }, CacheLifetime = ServiceLifetime.Transient }, [], [])
+            new Module<TValue>(new DI.Configuration { IncludeL1Caching = true, L1MinCap = 100, L1MaxCap = 100, CacheLifetime = ServiceLifetime.Transient }, [], [])
         ];
     }
 }

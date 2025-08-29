@@ -1,15 +1,12 @@
 ﻿using Baubit.Caching.InMemory;
-using Baubit.Tasks;
 using Baubit.Traceability;
 using FluentResults;
-using FluentResults.Extensions;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
+using Baubit.Tasks;
 
 namespace Baubit.Caching
 {
-    public class OrderedCache<TValue> : IOrderedCache<TValue>
+    public abstract class AOrderedCache<TValue> : IOrderedCache<TValue>
     {
         public Configuration Configuration { get; init; }
 
@@ -22,24 +19,30 @@ namespace Baubit.Caching
 
         private long _roomCount;
 
-        private IMetadata _metadata = new Metadata();
+        private IMetadata _metadata;
 
         private WaitingRoom<Result<IEntry<TValue>>> _waitingRoom = new WaitingRoom<Result<IEntry<TValue>>>();
-        private Task<Result> adaptionRunner;
-        private CancellationTokenSource adaptionCTS;
-        private readonly ILogger<OrderedCache<TValue>> _logger;
+        private Task<Result>? adaptionRunner;
+        private CancellationTokenSource? adaptionCTS;
+        private readonly ILogger<AOrderedCache<TValue>> _logger;
 
-        private DataStore<TValue> _l1DataStore = new DataStore<TValue>();
-        private DataStore<TValue> _l2DataStore = new DataStore<TValue>();
+        private IDataStore<TValue>? _l1DataStore;
+        private IDataStore<TValue> _l2DataStore;
         long? _l1LastId;
         #endregion
 
-        public OrderedCache(Configuration cacheConfiguration,
-                            ILoggerFactory loggerFactory)
+        public AOrderedCache(Configuration cacheConfiguration, 
+                             IDataStore<TValue>? l1DataStore, 
+                             IDataStore<TValue> l2DataStore,
+                             IMetadata metadata,
+                             ILoggerFactory loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
+            _logger = loggerFactory.CreateLogger<AOrderedCache<TValue>>();
             Configuration = cacheConfiguration;
-            if (Configuration.RunAdaptiveResizing)
+            _l1DataStore = l1DataStore;
+            _l2DataStore = l2DataStore;
+            _metadata = metadata;
+            if (_l1DataStore != null && Configuration?.RunAdaptiveResizing == true)
             {
                 adaptionCTS = new CancellationTokenSource();
                 adaptionRunner = RunAdaptiveResizing(adaptionCTS.Token);
@@ -63,13 +66,13 @@ namespace Baubit.Caching
 
                     if (roomRate > Configuration.RoomRateUpperLimit)
                     {
-                        _l1DataStore.AddCapacity(Configuration.GrowStep); 
-                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore.TargetCapacity}");
+                        _l1DataStore?.AddCapacity(Configuration.GrowStep);
+                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore?.TargetCapacity}");
                     }
                     else if (roomRate < Configuration.RoomRateLowerLimit)
                     {
-                        _l1DataStore.CutCapacity(Configuration.ShrinkStep);
-                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore.TargetCapacity}");
+                        _l1DataStore?.CutCapacity(Configuration.ShrinkStep);
+                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore?.TargetCapacity}");
                     }
                     Locker.EnterWriteLock();
                     try { ReplenishL1Store(); }
@@ -78,11 +81,11 @@ namespace Baubit.Caching
                 }
                 return Result.Ok();
             }
-            catch(TaskCanceledException)
+            catch (TaskCanceledException)
             {
                 return Result.Ok();
             }
-            catch(Exception exp)
+            catch (Exception exp)
             {
                 return Result.Fail(new ExceptionalError(exp));
             }
@@ -93,10 +96,10 @@ namespace Baubit.Caching
         public Result<IEntry<TValue>> Add(TValue value)
         {
             Locker.EnterWriteLock();
-            try 
-            { 
+            try
+            {
 
-                return CreateNewEntry(value).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters(Result.Ok(entry)).Bind(() => Result.Ok(entry)))); 
+                return CreateNewEntry(value).Bind(entry => AddToL1Store(entry).Bind(() => SignalAwaiters(Result.Ok(entry)).Bind(() => Result.Ok(entry))));
             }
             finally { Locker.ExitWriteLock(); }
         }
@@ -108,14 +111,14 @@ namespace Baubit.Caching
 
         private Result AddToL1Store(IEntry<TValue> entry)
         {
-            return _l1DataStore.HasCapacity ? _l1DataStore.Add(entry).Bind(() => Result.Try(() => { _l1LastId = entry.Id; })) : Result.Ok();
+            return _l1DataStore == null ? Result.Ok() : _l1DataStore.HasCapacity ? _l1DataStore.Add(entry).Bind(() => Result.Try(() => { _l1LastId = entry.Id; })) : Result.Ok();
         }
 
         /// <inheritdoc/>
         public Result<IEntry<TValue>> Update(long id, TValue value) // TBD - datastore refactor
         {
             Locker.EnterWriteLock();
-            try 
+            try
             {
                 return GetEntryOrDefaultInternal(id).Bind(entry => entry == null ? Result.Ok(entry) : _l2DataStore.Update(id, value).Bind(entry => UpdateL1Store(entry).Bind(() => Result.Ok(entry))));
             }
@@ -124,7 +127,7 @@ namespace Baubit.Caching
 
         private Result UpdateL1Store(IEntry<TValue> entry)
         {
-            return _l1DataStore.Update(entry).Bind(_ => Result.Ok());
+            return _l1DataStore == null ? Result.Ok() : _l1DataStore.Update(entry).Bind(_ => Result.Ok());
         }
 
         public Result<IEntry<TValue>?> this[long index] => GetEntryOrDefault(index); // TBD - datastore refactor
@@ -141,7 +144,8 @@ namespace Baubit.Caching
         {
             try
             {
-                return _l1DataStore.GetEntryOrDefault(id).Bind(entry => entry == null ? _l2DataStore.GetEntryOrDefault(id) : Result.Ok<IEntry<TValue>?>(entry));
+                return Result.Ok().Bind(() => _l1DataStore == null ? Result.Ok(default(IEntry<TValue>)) : _l1DataStore.GetEntryOrDefault(id)).Bind(entry => entry == null ? _l2DataStore.GetEntryOrDefault(id) : Result.Ok<IEntry<TValue>?>(entry));
+                //return _l1DataStore.GetEntryOrDefault(id).Bind(entry => entry == null ? _l2DataStore.GetEntryOrDefault(id) : Result.Ok<IEntry<TValue>?>(entry));
             }
             catch (Exception exp)
             {
@@ -196,20 +200,16 @@ namespace Baubit.Caching
             try { return RemoveInternal(id); }
             finally { Locker.ExitWriteLock(); }
         }
-        
+
         private Result<IEntry<TValue>?> RemoveInternal(long id)
         {
             try
             {
                 if (!_metadata.ContainsKey(id)) return Result.Ok();
 
-                var l2RemoveResult = _l2DataStore.Remove(id).ThrowIfFailed();
-                var l1RemoveResult = _l1DataStore.Remove(id).ThrowIfFailed();
-                var replenishResult = ReplenishL1Store().ThrowIfFailed();
-
-                return Result.Ok(l2RemoveResult.Value).WithReasons(l1RemoveResult.Reasons).WithReasons(l1RemoveResult.Reasons).WithReasons(replenishResult.Reasons);
+                return _l2DataStore.Remove(id).Bind(entry => _l1DataStore == null ? Result.Ok<IEntry<TValue>?>(entry) : _l1DataStore.Remove(id).Bind(_ => ReplenishL1Store()));
             }
-            catch(Exception exp)
+            catch (Exception exp)
             {
                 return Result.Fail(new ExceptionalError(exp));
             }
@@ -218,7 +218,7 @@ namespace Baubit.Caching
 
         private Result ReplenishL1Store()
         {
-            return Enumerable.Range(0, (int)_l1DataStore.CurrentCapacity).Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => AddNextToL1Store(_l1LastId)));
+            return Enumerable.Range(0, (int)_l1DataStore!.CurrentCapacity).Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => AddNextToL1Store(_l1LastId)));
         }
 
         private Result AddNextToL1Store(long? id)
@@ -230,7 +230,7 @@ namespace Baubit.Caching
         public Result Clear()
         {
             Locker.EnterWriteLock();
-            try{ return ClearInternal(); }
+            try { return ClearInternal(); }
             finally { Locker.ExitWriteLock(); }
         }
 
@@ -241,7 +241,7 @@ namespace Baubit.Caching
 
         private Result ClearL1Store()
         {
-            return _l1DataStore.Clear();
+            return _l1DataStore == null ? Result.Ok() : _l1DataStore.Clear();
         }
 
         private Result ClearMetadata()
@@ -265,7 +265,7 @@ namespace Baubit.Caching
             return _waitingRoom.HasGuests ?
                    Result.Try(() =>
                    {
-                       if (Configuration.RunAdaptiveResizing) Interlocked.Increment(ref _roomCount);
+                       if (Configuration?.RunAdaptiveResizing == true) Interlocked.Increment(ref _roomCount);
                        var prevRoom = _waitingRoom;
                        _waitingRoom = new WaitingRoom<Result<IEntry<TValue>>>();
                        prevRoom.TrySetResult(res);
@@ -289,7 +289,7 @@ namespace Baubit.Caching
                         _l1DataStore?.Dispose();
                         _l2DataStore?.Dispose();
                     }
-                    finally { Locker.ExitWriteLock(); }                    
+                    finally { Locker.ExitWriteLock(); }
                     Locker.Dispose();
                 }
                 disposedValue = true;
@@ -301,17 +301,6 @@ namespace Baubit.Caching
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
-        }
-    }
-    public class Entry<TValue> : IEntry<TValue>
-    {
-        public long Id { get; init; }
-        public DateTime CreatedOnUTC { get; init; } = DateTime.UtcNow;
-        public TValue Value { get; init; }
-        public Entry(long id, TValue value)
-        {
-            Id = id;
-            Value = value;
         }
     }
 }
