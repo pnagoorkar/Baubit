@@ -40,6 +40,7 @@ namespace Baubit.Caching.InMemory
             return Result.Try(() => 
             {
                 if (id == null) return HeadId;
+                else if(HeadId == null) return null; // if id is not null but HeadId is null means id is the tail that was deleted just before the call arrived here. Return null so the caller can get the next arriving item
                 else if (IsIdSmallerThanHeadId(id)) return HeadId;
                 else if (IsIdTailId(id)) return null;
                 else if (id.HasValue && IdNodeMap.TryGetValue(id.Value, out var node)) return node.Next.Value;

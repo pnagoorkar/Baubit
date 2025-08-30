@@ -1,13 +1,14 @@
-﻿using Baubit.Caching.DI;
+﻿using Baubit.Caching;
+using Baubit.Caching.InMemory;
 using Baubit.Configuration;
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Baubit.Caching.InMemory.DI
+namespace Baubit.Test.Caching.Setup.DummyL2.DI
 {
-    public class Module<TValue> : AModule<Configuration, TValue>
+    public class Module<TValue> : Baubit.Caching.DI.AModule<Configuration, TValue>
     {
         public Module(ConfigurationSource configurationSource) : base(configurationSource)
         {
@@ -28,7 +29,7 @@ namespace Baubit.Caching.InMemory.DI
 
         protected override IDataStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new DataStore<TValue>(serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new DummyStore<TValue>(serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         protected override IMetadata BuildMetadata(IServiceProvider serviceProvider)

@@ -73,7 +73,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Caching\Setup\" />
     <Folder Include="DI\ComponentBuilder\Setup\" />
   </ItemGroup>
 

@@ -205,7 +205,10 @@ namespace Baubit.Caching
             {
                 if (!_metadata.ContainsKey(id)) return Result.Ok();
 
-                return _l2DataStore.Remove(id).Bind(entry => _l1DataStore == null ? Result.Ok<IEntry<TValue>?>(entry) : _l1DataStore.Remove(id).Bind(_ => ReplenishL1Store()));
+                return _l2DataStore.Remove(id)
+                                   .Bind(entry => Result.FailIf(entry == null, "<TBD>").Bind(() => Result.Ok(entry)))
+                                   .Bind(entry => _l1DataStore == null ? Result.Ok<IEntry<TValue>?>(entry) : _l1DataStore.Remove(id))
+                                   .Bind(entry => _metadata.Remove(id).Bind(() => ReplenishL1Store()).Bind(() => Result.Ok(entry)));
             }
             catch (Exception exp)
             {

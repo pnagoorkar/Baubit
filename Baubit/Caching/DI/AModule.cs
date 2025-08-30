@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Baubit.Caching.InMemory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -35,6 +36,19 @@ namespace Baubit.Caching.DI
             }
         }
 
-        protected abstract IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider);
+        private IOrderedCache<TValue> BuildOrderedCache(IServiceProvider serviceProvider)
+        {
+            return new OrderedCache<TValue>(Configuration.CacheConfiguration,
+                                            Configuration.IncludeL1Caching ? BuildL1DataStore(serviceProvider) : null,
+                                            BuildL2DataStore(serviceProvider),
+                                            BuildMetadata(serviceProvider),
+                                            serviceProvider.GetRequiredService<ILoggerFactory>());
+        }
+
+        protected abstract IDataStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider);
+
+        protected abstract IDataStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider);
+
+        protected abstract IMetadata BuildMetadata(IServiceProvider serviceProvider);
     }
 }

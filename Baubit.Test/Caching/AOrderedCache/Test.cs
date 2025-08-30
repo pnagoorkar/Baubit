@@ -70,39 +70,39 @@ namespace Baubit.Test.Caching.AOrderedCache
             Assert.Contains(getResult.Errors, err => err is ExceptionalError expErr && expErr.Message == "A task was canceled.");
         }
 
-        //[Theory]
-        //[InlineData(1000)]
-        //public async Task UsesL1CacheForFastLookup(int numOfItems)
-        //{
-        //    var dummyCache = (DummyCache<int>)ComponentBuilder<IOrderedCache<int>>.Create()
-        //                                                                          .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DI.Module<int>(new Setup.DI.Configuration { CacheConfiguration = new Baubit.Caching.Configuration() { L1StoreInitialCap = numOfItems } }, [], [])))
-        //                                                                          .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
-        //                                                                          .Bind(componentBuilder => componentBuilder.Build()).Value;
+        [Theory]
+        [InlineData(1000)]
+        public async Task UsesL1CacheForFastLookup(int numOfItems)
+        {
+            var cacheWithDummyL2 = ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                       .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DummyL2.DI.Module<int>(new Setup.DummyL2.DI.Configuration { IncludeL1Caching = true, L1MaxCap = numOfItems, L1MinCap = numOfItems }, [], [])))
+                                                                       .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
+                                                                       .Bind(componentBuilder => componentBuilder.Build()).Value;
 
-        //    ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
+            ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
 
-        //    Parallel.For(0, numOfItems, i => dummyCache.Add(i).Bind(entry => Result.Try(() => insertedValues.TryAdd(entry.Id, i))));
+            Parallel.For(0, numOfItems, i => cacheWithDummyL2.Add(i).Bind(entry => Result.Try(() => insertedValues.TryAdd(entry.Id, i))));
 
-        //    Assert.Equal(numOfItems, dummyCache.L1StoreCount);
+            Assert.Equal(numOfItems, cacheWithDummyL2.Count);
 
-        //    var readResult = insertedValues.AsParallel()
-        //                                   .Aggregate(Result.Ok(),
-        //                                              (seed, next) => seed.Bind(() => dummyCache.GetEntryOrDefault(next.Key))
-        //                                                                  .Bind(entry => Result.OkIf(next.Value == entry.Value, "Value mismatch at get!")));
+            var readResult = insertedValues.AsParallel()
+                                           .Aggregate(Result.Ok(),
+                                                      (seed, next) => seed.Bind(() => cacheWithDummyL2.GetEntryOrDefault(next.Key))
+                                                                          .Bind(entry => Result.OkIf(next.Value == entry.Value, "Value mismatch at get!")));
 
-        //    Assert.True(readResult.IsSuccess);
+            Assert.True(readResult.IsSuccess);
 
-        //    Assert.Equal(numOfItems, dummyCache.L1StoreCount);
-        //    var currentCount = dummyCache.L1StoreCount;
+            Assert.Equal(numOfItems, cacheWithDummyL2.Count);
+            var currentCount = cacheWithDummyL2.Count;
 
-        //    var removeResult = insertedValues.AsParallel()
-        //                                     .Aggregate(Result.Ok(),
-        //                                                (seed, next) => seed.Bind(() => dummyCache.Remove(next.Key))
-        //                                                                    .Bind(entry => Result.OkIf(--currentCount == dummyCache.L1StoreCount, "Count does not tally after remove!")));
+            var removeResult = insertedValues.AsParallel()
+                                             .Aggregate(Result.Ok(),
+                                                        (seed, next) => seed.Bind(() => cacheWithDummyL2.Remove(next.Key))
+                                                                            .Bind(entry => Result.OkIf(--currentCount == cacheWithDummyL2.Count, "Count does not tally after remove!")));
 
-        //    Assert.True(removeResult.IsSuccess);
-        //    Assert.Equal(0, dummyCache.L1StoreCount);
-        //}
+            Assert.True(removeResult.IsSuccess);
+            Assert.Equal(0, cacheWithDummyL2.Count);
+        }
 
         [Theory]
         [InlineData(1000, 100, 5, 20)]
