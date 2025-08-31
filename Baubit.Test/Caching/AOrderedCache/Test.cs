@@ -62,12 +62,39 @@ namespace Baubit.Test.Caching.AOrderedCache
 
             var cancellationTokenSource = new CancellationTokenSource();
 
-            Task.Run(async () => { await Task.Delay(500).ConfigureAwait(false); cancellationTokenSource.Cancel(); });            
+            var cancellationRunner = Task.Run(async () => { await Task.Delay(500).ConfigureAwait(false); cancellationTokenSource.Cancel(); });
 
             var getResult = await Result.Try(() => inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token));
 
             Assert.True(getResult.IsFailed);
             Assert.Contains(getResult.Errors, err => err is ExceptionalError expErr && expErr.Message == "A task was canceled.");
+        }
+
+        [Fact]
+        public async Task ReaderCancellationsAreIsolated()
+        {
+            var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
+
+            var cancellationTokenSource1 = new CancellationTokenSource();
+            var cancellationTokenSource2 = new CancellationTokenSource();
+
+            var res2 = inMemoryCache.GetNextAsync(null, cancellationTokenSource2.Token);
+
+            var cancellationRunner = Task.Run(async () => 
+            { 
+                await Task.Delay(500).ConfigureAwait(false);
+                cancellationTokenSource1.Cancel();
+                inMemoryCache.Add(1);
+            });
+
+            var getResult = await Result.Try(() => inMemoryCache.GetNextAsync(null, cancellationTokenSource1.Token));
+
+            Assert.True(getResult.IsFailed);
+            Assert.Contains(getResult.Errors, err => err is ExceptionalError expErr && expErr.Message == "A task was canceled.");
+
+            var getResult2 = await res2;
+            Assert.True(getResult2.IsSuccess);
+            Assert.Equal(1, getResult2.Value.Value);
         }
 
         [Theory]

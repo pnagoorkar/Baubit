@@ -1,52 +1,34 @@
 ﻿using Baubit.Collections;
 using Baubit.Tasks;
 using FluentResults;
+using System.Threading.Tasks;
 
 namespace Baubit.Caching
 {
     public class WaitingRoom<TValue> : IDisposable
     {
-        public bool HasGuests { get => taskCompletionSources.Count > 0; }
+        public bool HasGuests { get => _numOfGuests > 0; }
 
-        //private TaskCompletionSource<TValue> tcs = new TaskCompletionSource<TValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource<TValue> tcs = new TaskCompletionSource<TValue>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private IList<TaskCompletionSource<TValue>> taskCompletionSources = new ConcurrentList<TaskCompletionSource<TValue>>();
+        private volatile int _numOfGuests = 0;
+
         private bool disposedValue;
 
-        public Task<TValue> Join(CancellationToken cancellationToken = default)
+        public async Task<TValue> Join(CancellationToken cancellationToken = default)
         {
-            var taskCompletionSource = new TaskCompletionSource<TValue>(TaskCreationOptions.RunContinuationsAsynchronously);
-            taskCompletionSource.RegisterCancellationToken(cancellationToken);
-            taskCompletionSources.Add(taskCompletionSource);
-            cancellationToken.Register(HandleCancellation, taskCompletionSource);
-            return taskCompletionSource.Task;
+            Interlocked.Increment(ref _numOfGuests);
+            return await tcs.Task.WaitAsync(cancellationToken);
         }
 
         public Result TrySetResult(TValue value)
         {
-            return taskCompletionSources.ToArray()
-                                        .AsParallel()
-                                        .Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => Result.OkIf(next.TrySetResult(value), "<TBD>")))
-                                        .Bind(() => Result.Try(() => { taskCompletionSources.Clear(); }));
+            return Result.Try(() => tcs.TrySetResult(value)).Bind(success => Result.OkIf(success, "<TBD>"));
         }
 
-        public Result TrySetCanceled()
+        public Result TrySetCanceled(CancellationToken cancellationToken = default)
         {
-            return taskCompletionSources.ToArray()
-                                        .AsParallel()
-                                        .Aggregate(Result.Ok(), (seed, next) => seed.Bind(() => Result.OkIf(next.TrySetCanceled(), "<TBD>")))
-                                        .Bind(() => Result.Try(() => { taskCompletionSources.Clear(); }));
-        }
-
-        private void HandleCancellation(object? state, CancellationToken cancellationToken)
-        {
-            var taskCompletionSource = (TaskCompletionSource<TValue>)state;
-
-            if (!taskCompletionSources.Remove(taskCompletionSource))
-            {
-                // log critical
-            }
-            taskCompletionSource.TrySetCanceled(cancellationToken);
+            return Result.Try(() => tcs.TrySetCanceled(cancellationToken)).Bind(success => Result.OkIf(success, "<TBD>"));
         }
 
         protected virtual void Dispose(bool disposing)
