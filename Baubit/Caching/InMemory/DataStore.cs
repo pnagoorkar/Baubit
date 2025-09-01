@@ -65,7 +65,7 @@ namespace Baubit.Caching.InMemory
         {
             if (id == null)
             {
-                return Result.Ok(default(IEntry<TValue>)).WithReason(new IdIsNull());
+                return Result.Ok(default(IEntry<TValue>)).WithReason(IdIsNull.Instance);
             }
             else if (_data.TryGetValue(id.Value, out var val))
             {
