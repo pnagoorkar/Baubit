@@ -85,55 +85,52 @@ namespace Baubit.Test.Caching.Fast.OrderedCache
             Assert.Equal(1, entry.Value);
         }
 
-        //[Theory]
-        //[InlineData(1000)]
-        //public async Task UsesL1CacheForFastLookup(int numOfItems)
-        //{
-        //    var cacheWithDummyL2 = ComponentBuilder<IOrderedCache<int>>.Create()
-        //                                                               .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DummyL2.DI.Module<int>(new Setup.DummyL2.DI.Configuration { IncludeL1Caching = true, L1MaxCap = numOfItems, L1MinCap = numOfItems }, [], [])))
-        //                                                               .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
-        //                                                               .Bind(componentBuilder => componentBuilder.Build()).Value;
+        [Theory]
+        [InlineData(1000)]
+        public async Task UsesL1CacheForFastLookup(int numOfItems)
+        {
+            var cacheWithDummyL2 = ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                       .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DummyL2.DI.Module<int>(new Setup.DummyL2.DI.Configuration { IncludeL1Caching = true, L1MaxCap = numOfItems, L1MinCap = numOfItems }, [], [])))
+                                                                       .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
+                                                                       .Bind(componentBuilder => componentBuilder.Build()).Value;
 
-        //    ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
+            ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
 
-        //    var parallelLoopResult = Parallel.For(0, numOfItems, i =>
-        //    {
-        //        if (!(cacheWithDummyL2.Add(i, out var entry) && insertedValues.TryAdd(entry.Id, i)))
-        //        {
-        //            throw new Exception("Insert failed!");
-        //        }
-        //    });
+            var parallelLoopResult = Parallel.For(0, numOfItems, i =>
+            {
+                if (!(cacheWithDummyL2.Add(i, out var entry) && insertedValues.TryAdd(entry.Id, i)))
+                {
+                    throw new Exception("Insert failed!");
+                }
+            });
 
-        //    Assert.Null(parallelLoopResult.LowestBreakIteration);
+            Assert.Null(parallelLoopResult.LowestBreakIteration);
 
-        //    Assert.Equal(numOfItems, cacheWithDummyL2.Count);
+            Assert.Equal(numOfItems, cacheWithDummyL2.Count);
 
-        //    var parallelLoopResultRead = Parallel.ForEach(insertedValues, kvp => 
-        //    {
-        //        if(!(cacheWithDummyL2.GetEntryOrDefault(kvp.Key, out var entry) && kvp.Value == entry.Value))
-        //        {
-        //            throw new Exception("Value mismatch at get!");
-        //        }
-        //    });
+            var parallelLoopResultRead = Parallel.ForEach(insertedValues, kvp =>
+            {
+                if (!(cacheWithDummyL2.GetEntryOrDefault(kvp.Key, out var entry) && kvp.Value == entry.Value))
+                {
+                    throw new Exception("Value mismatch at get!");
+                }
+            });
 
-        //    Assert.Null(parallelLoopResultRead.LowestBreakIteration);
+            Assert.Null(parallelLoopResultRead.LowestBreakIteration);
 
-        //    Assert.Equal(numOfItems, cacheWithDummyL2.Count);
-        //    var currentCount = cacheWithDummyL2.Count;
+            Assert.Equal(numOfItems, cacheWithDummyL2.Count);
+            var currentCount = cacheWithDummyL2.Count;
 
-        //    var parallelLoopResultRemove = Parallel.ForEach(insertedValues.ToArray(), kvp => 
-        //    {
+            var parallelLoopResultRemove = Parallel.ForEach(insertedValues.ToArray(), kvp =>
+            {
+                if(!cacheWithDummyL2.Remove(kvp.Key, out var entry))
+                {
+                    throw new Exception("Remove failed!");
+                }
+            });
 
-        //    });
-
-        //    var removeResult = insertedValues.AsParallel()
-        //                                     .Aggregate(Result.Ok(),
-        //                                                (seed, next) => seed.Bind(() => cacheWithDummyL2.Remove(next.Key))
-        //                                                                    .Bind(entry => Result.OkIf(--currentCount == cacheWithDummyL2.Count, "Count does not tally after remove!")));
-
-        //    Assert.True(removeResult.IsSuccess);
-        //    Assert.Equal(0, cacheWithDummyL2.Count);
-        //}
+            Assert.Equal(0, cacheWithDummyL2.Count);
+        }
 
         [Theory]
         [InlineData(1000, 100, 5, 20)]
@@ -151,8 +148,6 @@ namespace Baubit.Test.Caching.Fast.OrderedCache
             SemaphoreSlim readSyncer = new SemaphoreSlim(1);
 
             ConcurrentList<Task<bool>> readerTasks = new ConcurrentList<Task<bool>>();
-
-            ConcurrentDictionary<long, double> deliveryTimes = new ConcurrentDictionary<long, double>();
 
             var reader = async (int i) =>
             {
@@ -215,11 +210,6 @@ namespace Baubit.Test.Caching.Fast.OrderedCache
 
             await Task.WhenAll(readerTasks);
             await deleter;
-
-            //var fastestDeliveryTime = deliveryTimes.Values.Min();
-            //var slowestDeliveryTime = deliveryTimes.Values.Max();
-            //var avgDeliveryTime = deliveryTimes.Values.Average();
-
         }
     }
 
