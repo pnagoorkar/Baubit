@@ -91,10 +91,6 @@ namespace Baubit.Caching.Fast
             try
             {
                 if (!_l2DataStore.Add(value, out entry)) return false;
-                if (entry.Id == 1000)
-                {
-
-                }
                 if (_l1DataStore?.HasCapacity == true)
                 {
                     if (!_l1DataStore.Add(entry)) return false;
@@ -102,11 +98,6 @@ namespace Baubit.Caching.Fast
                 if (!_metadata.AddTail(entry.Id)) return false;
                 if (!SignalAwaiters(entry)) return false;
                 return true;
-
-                //return _l2DataStore.Add(value, out entry) && 
-                //       _metadata.AddTail(entry.Id) && 
-                //       _l1DataStore == null ? true : _l1DataStore.Add(entry) &&
-                //       SignalAwaiters(entry);
             }
             finally { Locker.ExitWriteLock(); }
         }
@@ -211,7 +202,6 @@ namespace Baubit.Caching.Fast
                     mostRecentWaitingId = id;
                     return _waitingRoom.Join(cancellationToken);
                 }
-                    //return GetNextOrDefaultInternal(id, out var entry) && entry != null ? Task.FromResult(entry) : _waitingRoom.Join(cancellationToken);
             }
             finally { Locker.ExitReadLock(); }
         }
@@ -231,7 +221,6 @@ namespace Baubit.Caching.Fast
                 if (!ReplenishL1Store()) return false;
                 entry = l2Entry;
                 return true;
-                //return _l2DataStore.Remove(id, out entry) && _l1DataStore == null ? true : _l1DataStore.Remove(id, out entry) && _metadata.Remove(id) && ReplenishL1Store();
             }
             finally { Locker.ExitWriteLock(); }
         }
