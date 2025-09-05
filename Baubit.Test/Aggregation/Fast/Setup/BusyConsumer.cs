@@ -1,7 +1,7 @@
 ﻿using Baubit.Observation;
 using FluentResults;
 
-namespace Baubit.Test.Aggregation.Aggregator.Setup
+namespace Baubit.Test.Aggregation.Fast.Setup
 {
     public class BusyConsumer : EventConsumer
     {
@@ -9,13 +9,13 @@ namespace Baubit.Test.Aggregation.Aggregator.Setup
         public BusyConsumer(IPublisher<TestEvent> publisher) : base(publisher)
         {
         }
-        public override Result OnNext(TestEvent value)
+        public override bool OnNext(TestEvent value)
         {
             while (!_masterCancellationTokenSource.IsCancellationRequested)
             {
                 Thread.Sleep(100);
             }
-            return Result.Ok();
+            return true;
         }
         public override void Dispose()
         {

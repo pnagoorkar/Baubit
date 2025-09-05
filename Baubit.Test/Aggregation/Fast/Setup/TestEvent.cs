@@ -1,6 +1,6 @@
 ﻿using Baubit.Collections;
 
-namespace Baubit.Test.Aggregation.Aggregator.Setup
+namespace Baubit.Test.Aggregation.Fast.Setup
 {
     public record Receipt(int ConsumerId, DateTime ReceivedAt);
     public class TestEvent

@@ -4,6 +4,6 @@ namespace Baubit.Observation
 {
     public interface IPublisher<T>
     {
-        public Result<IDisposable> Subscribe(ISubscriber<T> subscriber);
+        public Task<bool> SubscribeAsync(ISubscriber<T> subscriber, CancellationToken cancellationToken = default);
     }
 }

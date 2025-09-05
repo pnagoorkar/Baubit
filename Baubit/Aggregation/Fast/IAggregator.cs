@@ -1,10 +1,10 @@
 ﻿using Baubit.Observation;
-using FluentResults;
 
-namespace Baubit.Aggregation
+namespace Baubit.Aggregation.Fast
 {
     public interface IAggregator<T> : IPublisher<T>, IDisposable
     {
-        Result Publish(T item);
+        public bool CanPublish { get; }
+        bool Publish(T item);
     }
 }

@@ -1,5 +1,4 @@
-﻿using Baubit.Caching.InMemory;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching.Fast.InMemory
 {

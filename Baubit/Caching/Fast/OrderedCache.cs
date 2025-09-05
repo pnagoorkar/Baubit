@@ -1,6 +1,7 @@
-﻿using FluentResults;
-using Microsoft.Extensions.Logging;
+﻿using Baubit.Caching.Fast.InMemory;
 using Baubit.Tasks;
+using FluentResults;
+using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching.Fast
 {
@@ -90,6 +91,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterWriteLock();
             try
             {
+                if (disposedValue) { entry = default; return false; }
                 if (!_l2DataStore.Add(value, out entry)) return false;
                 if (_l1DataStore?.HasCapacity == true)
                 {
@@ -116,6 +118,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterWriteLock();
             try
             {
+                if (disposedValue) { return false; }
                 return _l2DataStore.Update(id, value) && _l1DataStore == null ? true : _l1DataStore.Update(id, value);
             }
             finally { Locker.ExitWriteLock(); }
@@ -126,6 +129,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterReadLock();
             try
             {
+                if (disposedValue) { entry = default; return false; }
                 return GetEntryOrDefaultInternal(id, out entry);
             }
             finally { Locker.ExitReadLock(); }
@@ -154,6 +158,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterReadLock();
             try
             {
+                if (disposedValue) { entry = default; return false; }
                 return GetNextOrDefaultInternal(id, out entry);
             }
             finally { Locker.ExitReadLock(); }
@@ -171,6 +176,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterReadLock();
             try
             {
+                if (disposedValue) { entry = default; return false; }
                 entry = default;
                 return GetEntryOrDefaultInternal(_metadata.HeadId, out entry);
             }
@@ -182,6 +188,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterReadLock();
             try
             {
+                if (disposedValue) { entry = default; return false; }
                 entry = default;
                 return GetEntryOrDefaultInternal(_metadata.TailId, out entry);
             }
@@ -193,6 +200,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterReadLock();
             try
             {
+                if (disposedValue) { Task.FromCanceled(cancellationToken); }
                 if (GetNextOrDefaultInternal(id, out var entry) && entry != null)
                 {
                     return Task.FromResult(entry);
@@ -211,6 +219,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterWriteLock();
             try
             {
+                if (disposedValue) { entry = default; return false; }
                 entry = null;
                 if (!(_l2DataStore.Remove(id, out var l2Entry))) return false;
                 if (_l1DataStore?.GetEntryOrDefault(id, out var l1Entry) == true && entry != null)
@@ -236,6 +245,7 @@ namespace Baubit.Caching.Fast
             Locker.EnterWriteLock();
             try
             {
+                if (disposedValue) { return false; }
                 return _l2DataStore.Clear() && _l1DataStore == null ? true : _l1DataStore.Clear() && _metadata.Clear();
             }
             finally { Locker.ExitWriteLock(); }

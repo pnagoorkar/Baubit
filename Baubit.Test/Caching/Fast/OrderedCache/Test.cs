@@ -1,5 +1,4 @@
 ﻿using Baubit.Caching.Fast;
-using Baubit.Caching.InMemory;
 using Baubit.Collections;
 using Baubit.DI;
 using System.Collections.Concurrent;

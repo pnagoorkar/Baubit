@@ -1,45 +1,47 @@
 ﻿using Baubit.Observation;
 using FluentResults;
 
-namespace Baubit.Test.Aggregation.Aggregator.Setup
+namespace Baubit.Test.Aggregation.Fast.Setup
 {
     public class EventConsumer : ISubscriber<TestEvent>
     {
         public int Id { get; private init; }
 
         private static int idSeed = 1;
-        private IDisposable? subscription;
 
         public Task Completion { get; private init; }
 
         private TaskCompletionSource _taskCompletionSource;
+        CancellationTokenSource subsciptionCTS = new CancellationTokenSource();
         public EventConsumer(IPublisher<TestEvent> publisher)
         {
             Id = idSeed++;
-            subscription = publisher?.Subscribe(this).Value;
+            publisher.SubscribeAsync(this);
             _taskCompletionSource = new TaskCompletionSource();
             Completion = _taskCompletionSource.Task;
         }
 
-        public Result OnCompleted()
+        public bool OnCompleted()
         {
-            return Result.Try(() => _taskCompletionSource.SetResult());
+            _taskCompletionSource.SetResult();
+            return true;
         }
 
-        public Result OnError(Exception error)
+        public bool OnError(Exception error)
         {
-            return Result.Try(() => _taskCompletionSource.SetException(error));
+            _taskCompletionSource.SetException(error);
+            return true;
         }
 
-        public virtual Result OnNext(TestEvent value)
+        public virtual bool OnNext(TestEvent value)
         {
-            return Result.Try(() => value.Trace.Add(new Receipt(Id, DateTime.Now)));
+            value.Trace.Add(new Receipt(Id, DateTime.Now));
+            return true;
         }
 
         public virtual void Dispose()
         {
-            subscription?.Dispose();
-            subscription = null;
+            subsciptionCTS.Cancel();
         }
 
         public async Task OnNext(TestEvent value, CancellationToken cancellationToken)
