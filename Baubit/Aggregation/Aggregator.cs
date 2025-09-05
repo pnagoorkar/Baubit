@@ -29,17 +29,20 @@ namespace Baubit.Aggregation
         public async Task<bool> SubscribeAsync(ISubscriber<T> subscriber,
                                                CancellationToken cancellationToken = default)
         {
-
             if (!_cache.GetLastOrDefault(out var entry)) return false;
             var deliveryTracker = new DeliveryTracker(entry?.Id);
             deliveryTrackers.Add(deliveryTracker);
 
-            return await _cache.EnumerateEntriesAsync(entry?.Id, cancellationToken)
-                               .AggregateAsync(next => 
+            var retVal = await _cache.EnumerateEntriesAsync(entry?.Id, cancellationToken)
+                               .AggregateAsync(next =>
                                {
-                                   return DeliverNext(next, subscriber, deliveryTracker) && 
+                                   return DeliverNext(next, subscriber, deliveryTracker) &&
                                           TryEvict(next.Id);
                                });
+
+            deliveryTrackers.Remove(deliveryTracker);
+
+            return retVal;
         }
 
         private bool DeliverNext(IEntry<T> next, 
