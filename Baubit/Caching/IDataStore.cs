@@ -1,28 +1,28 @@
-﻿//using FluentResults;
+﻿using FluentResults;
 
-//namespace Baubit.Caching
-//{
-//    public interface IDataStore<TValue> : IDisposable
-//    {
-//        bool Uncapped { get; }
-//        long? CurrentCapacity { get; }
-//        bool HasCapacity { get; }
-//        long? MaxCapacity { get; init; }
-//        long? MinCapacity { get; init; }
-//        long? TargetCapacity { get; }
-//        long? HeadId { get; }
-//        long? TailId { get; }
+namespace Baubit.Caching
+{
+    public interface IDataStore<TValue> : IDisposable
+    {
+        bool Uncapped { get; }
+        long? CurrentCapacity { get; }
+        bool HasCapacity { get; }
+        long? MaxCapacity { get; init; }
+        long? MinCapacity { get; init; }
+        long? TargetCapacity { get; }
+        long? HeadId { get; }
+        long? TailId { get; }
 
-//        Result Add(IEntry<TValue> entry);
-//        Result<IEntry<TValue>> Add(TValue value);
-//        Result AddCapacity(int additionalCapacity);
-//        Result Clear();
-//        Result CutCapacity(int cap);
-//        Result<long> GetCount();
-//        Result<IEntry<TValue>?> GetEntryOrDefault(long? id);
-//        Result<TValue?> GetValueOrDefault(long? id);
-//        Result<IEntry<TValue>?> Remove(long id);
-//        Result<IEntry<TValue>> Update(IEntry<TValue> entry);
-//        Result<IEntry<TValue>> Update(long id, TValue value);
-//    }
-//}
+        bool Add(IEntry<TValue> entry);
+        bool Add(TValue value, out IEntry<TValue>? entry);
+        bool AddCapacity(int additionalCapacity);
+        bool Clear();
+        bool CutCapacity(int cap);
+        bool GetCount(out long count);
+        bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry);
+        bool GetValueOrDefault(long? id, out TValue? value);
+        bool Remove(long id, out IEntry<TValue>? entry);
+        bool Update(IEntry<TValue> entry);
+        bool Update(long id, TValue value);
+    }
+}

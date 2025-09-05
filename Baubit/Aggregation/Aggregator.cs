@@ -1,10 +1,9 @@
 ﻿using Baubit.Caching;
-using Baubit.Caching.Fast;
 using Baubit.Collections;
 using Baubit.Observation;
 using Microsoft.Extensions.Logging;
 
-namespace Baubit.Aggregation.Fast
+namespace Baubit.Aggregation
 {
     public class Aggregator<T> : IAggregator<T>
     {

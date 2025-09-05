@@ -1,17 +1,17 @@
-﻿//using FluentResults;
+﻿using FluentResults;
 
-//namespace Baubit.Caching
-//{
-//    public interface IMetadata
-//    {
-//        long Count { get; }
-//        long? HeadId { get; }
-//        long? TailId { get; }
+namespace Baubit.Caching
+{
+    public interface IMetadata
+    {
+        long Count { get; }
+        long? HeadId { get; }
+        long? TailId { get; }
 
-//        Result AddTail(long id);
-//        Result Clear();
-//        bool ContainsKey(long id);
-//        Result<long?> GetNextId(long? id);
-//        Result Remove(long id);
-//    }
-//}
+        bool AddTail(long id);
+        bool Clear();
+        bool ContainsKey(long id);
+        bool GetNextId(long? id, out long? nextId);
+        bool Remove(long id);
+    }
+}

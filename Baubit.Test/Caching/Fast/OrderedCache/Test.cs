@@ -1,4 +1,4 @@
-﻿using Baubit.Caching.Fast;
+﻿using Baubit.Caching;
 using Baubit.Collections;
 using Baubit.DI;
 using System.Collections.Concurrent;
@@ -10,12 +10,12 @@ namespace Baubit.Test.Caching.Fast.OrderedCache
     {
         static IFeature[] inMemoryCacheFeatures =
         [
-            new Baubit.Caching.Fast.InMemory.Features.F000<int>(),
+            new Baubit.Caching.InMemory.Features.F000<int>(),
             new Baubit.Logging.Features.F000()
         ];
         static IFeature[] inMemoryCacheWithAdaptiveResizingFeatures =
         [
-            new Baubit.Caching.Fast.InMemory.Features.F001<int>(),
+            new Baubit.Caching.InMemory.Features.F001<int>(),
             new Baubit.Logging.Features.F001()
         ];
 

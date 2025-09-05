@@ -1,5 +1,5 @@
-﻿using Baubit.Caching.Fast;
-using Baubit.Caching.Fast.InMemory;
+﻿using Baubit.Caching;
+using Baubit.Caching.InMemory;
 using Microsoft.Extensions.Logging;
 
 namespace Baubit.Test.Caching.Fast.Setup

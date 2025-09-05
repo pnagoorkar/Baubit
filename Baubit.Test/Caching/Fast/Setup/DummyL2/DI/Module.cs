@@ -1,5 +1,5 @@
-﻿using Baubit.Caching.Fast;
-using Baubit.Caching.Fast.DI;
+﻿using Baubit.Caching;
+using Baubit.Caching.DI;
 using Baubit.Configuration;
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
@@ -24,7 +24,7 @@ namespace Baubit.Test.Caching.Fast.Setup.DummyL2.DI
 
         protected override IDataStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.Fast.InMemory.DataStore<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new Baubit.Caching.InMemory.DataStore<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         protected override IDataStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
@@ -34,7 +34,7 @@ namespace Baubit.Test.Caching.Fast.Setup.DummyL2.DI
 
         protected override IMetadata BuildMetadata(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.Fast.InMemory.Metadata();
+            return new Baubit.Caching.InMemory.Metadata();
         }
     }
 }

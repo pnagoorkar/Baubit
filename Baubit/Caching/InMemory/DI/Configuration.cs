@@ -1,8 +1,8 @@
-﻿//using Baubit.Caching.DI;
+﻿using Baubit.Caching.DI;
 
-//namespace Baubit.Caching.InMemory.DI
-//{
-//    public class Configuration : AConfiguration
-//    {
-//    }
-//}
+namespace Baubit.Caching.InMemory.DI
+{
+    public class Configuration : AConfiguration
+    {
+    }
+}

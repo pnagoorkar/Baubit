@@ -1,4 +1,4 @@
-﻿using Baubit.Caching.Fast;
+﻿using Baubit.Caching;
 using Baubit.Configuration;
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 
-namespace Baubit.Aggregation.Fast.DI
+namespace Baubit.Aggregation.DI
 {
     public class Module<T> : AModule<Configuration>
     {
@@ -24,7 +24,7 @@ namespace Baubit.Aggregation.Fast.DI
 
         public override void Load(IServiceCollection services)
         {
-            services.AddSingleton<Aggregator<T>>(BuildAggregator);
+            services.AddSingleton(BuildAggregator);
             services.AddSingleton<IAggregator<T>>(serviceProvider => serviceProvider.GetRequiredService<Aggregator<T>>());
         }
 

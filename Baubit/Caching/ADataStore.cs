@@ -1,87 +1,102 @@
-﻿//using FluentResults;
-//using Microsoft.Extensions.Logging;
+﻿using FluentResults;
+using Microsoft.Extensions.Logging;
 
-//namespace Baubit.Caching
-//{
-//    public abstract class ADataStore<TValue> : IDataStore<TValue>
-//    {
-//        public bool Uncapped { get => !TargetCapacity.HasValue; }
-//        public long? MinCapacity { get; init; } = null;
-//        public long? MaxCapacity { get; init; } = null;
-//        public long? TargetCapacity { get; private set; } = null;
-//        public long? CurrentCapacity { get => Uncapped ? null : Math.Max(0, TargetCapacity!.Value - GetCount().Value); }
-//        public bool HasCapacity { get => CurrentCapacity > 0; }
+namespace Baubit.Caching
+{
+    public abstract class ADataStore<TValue> : IDataStore<TValue>
+    {
+        public bool Uncapped { get => !TargetCapacity.HasValue; }
+        public long? MinCapacity { get; init; } = null;
+        public long? MaxCapacity { get; init; } = null;
+        public long? TargetCapacity { get; private set; } = null;
+        public long? CurrentCapacity { get => Uncapped ? null : Math.Max(0, TargetCapacity!.Value - GetCount()!.Value); }
+        public bool HasCapacity { get => Uncapped || CurrentCapacity > 0; }
 
-//        public abstract long? HeadId { get; }
+        public abstract long? HeadId { get; }
 
-//        public abstract long? TailId { get; }
+        public abstract long? TailId { get; }
 
-//        private ILogger<ADataStore<TValue>> _logger;
-//        private bool disposedValue;
+        private ILogger<ADataStore<TValue>> _logger;
+        private bool disposedValue;
 
-//        public ADataStore(long? minCap,
-//                         long? maxCap,
-//                         ILoggerFactory loggerFactory)
-//        {
-//            TargetCapacity = MinCapacity = minCap;
-//            MaxCapacity = maxCap;
-//            _logger = loggerFactory.CreateLogger<ADataStore<TValue>>();
-//        }
+        public ADataStore(long? minCap,
+                         long? maxCap,
+                         ILoggerFactory loggerFactory)
+        {
+            TargetCapacity = MinCapacity = minCap;
+            MaxCapacity = maxCap;
+            _logger = loggerFactory.CreateLogger<ADataStore<TValue>>();
+        }
 
-//        public Result AddCapacity(int additionalCapacity)
-//        {
-//            if (Uncapped) return Result.Ok();
-//            return Result.Try(() =>
-//            {
-//                TargetCapacity = Math.Min(MaxCapacity!.Value, TargetCapacity!.Value + additionalCapacity);
-//            });
-//        }
+        public abstract bool Add(IEntry<TValue> entry);
 
-//        public Result CutCapacity(int cap)
-//        {
-//            if (Uncapped) return Result.Ok();
-//            return Result.Try(() =>
-//            {
-//                TargetCapacity = Math.Max(MinCapacity!.Value, TargetCapacity!.Value - cap);
-//            });
-//        }
+        public abstract bool Add(TValue value, out IEntry<TValue>? entry);
 
-//        public abstract Result Add(IEntry<TValue> entry);
+        public bool AddCapacity(int additionalCapacity)
+        {
+            try
+            {
+                if (Uncapped) return true;
+                TargetCapacity = Math.Min(MaxCapacity!.Value, TargetCapacity!.Value + additionalCapacity);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
-//        public abstract Result<IEntry<TValue>> Add(TValue value);
+        public abstract bool Clear();
 
-//        public abstract Result Clear();
+        public bool CutCapacity(int cap)
+        {
+            try
+            {
+                if (Uncapped) return true;
+                TargetCapacity = Math.Max(MinCapacity!.Value, TargetCapacity!.Value - cap);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
-//        public abstract Result<long> GetCount();
+        private long? GetCount()
+        {
+            return GetCount(out var count) ? count : null;
+        }
 
-//        public abstract Result<IEntry<TValue>?> GetEntryOrDefault(long? id);
+        public abstract bool GetCount(out long count);
 
-//        public abstract Result<TValue?> GetValueOrDefault(long? id);
+        public abstract bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry);
 
-//        public abstract Result<IEntry<TValue>?> Remove(long id);
+        public abstract bool GetValueOrDefault(long? id, out TValue? value);
 
-//        public abstract Result<IEntry<TValue>> Update(IEntry<TValue> entry);
+        public abstract bool Remove(long id, out IEntry<TValue>? entry);
 
-//        public abstract Result<IEntry<TValue>> Update(long id, TValue value);
+        public abstract bool Update(IEntry<TValue> entry);
 
-//        protected abstract void DisposeInternal();
+        public abstract bool Update(long id, TValue value);
 
-//        protected virtual void Dispose(bool disposing)
-//        {
-//            if (!disposedValue)
-//            {
-//                if (disposing)
-//                {
-//                    DisposeInternal();
-//                }
-//                disposedValue = true;
-//            }
-//        }
+        protected abstract void DisposeInternal();
 
-//        public void Dispose()
-//        {
-//            Dispose(disposing: true);
-//            GC.SuppressFinalize(this);
-//        }
-//    }
-//}
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    DisposeInternal();
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+    }
+}

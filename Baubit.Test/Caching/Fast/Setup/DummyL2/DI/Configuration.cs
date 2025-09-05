@@ -1,4 +1,4 @@
-﻿using Baubit.Caching.Fast.DI;
+﻿using Baubit.Caching.DI;
 
 namespace Baubit.Test.Caching.Fast.Setup.DummyL2.DI
 {

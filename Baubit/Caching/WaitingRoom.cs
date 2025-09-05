@@ -1,9 +1,4 @@
-﻿using Baubit.Collections;
-using Baubit.Tasks;
-using FluentResults;
-using System.Threading.Tasks;
-
-namespace Baubit.Caching
+﻿namespace Baubit.Caching
 {
     public class WaitingRoom<TValue> : IDisposable
     {
@@ -21,14 +16,14 @@ namespace Baubit.Caching
             return await tcs.Task.WaitAsync(cancellationToken);
         }
 
-        public Result TrySetResult(TValue value)
+        public bool TrySetResult(TValue value)
         {
-            return Result.Try(() => tcs.TrySetResult(value)).Bind(success => Result.OkIf(success, "<TBD>"));
+            return tcs.TrySetResult(value);
         }
 
-        public Result TrySetCanceled(CancellationToken cancellationToken = default)
+        public bool TrySetCanceled(CancellationToken cancellationToken = default)
         {
-            return Result.Try(() => tcs.TrySetCanceled(cancellationToken)).Bind(success => Result.OkIf(success, "<TBD>"));
+            return tcs.TrySetCanceled(cancellationToken);
         }
 
         protected virtual void Dispose(bool disposing)

@@ -1,6 +1,6 @@
 ﻿using Baubit.Observation;
 
-namespace Baubit.Aggregation.Fast
+namespace Baubit.Aggregation
 {
     public interface IAggregator<T> : IPublisher<T>, IDisposable
     {

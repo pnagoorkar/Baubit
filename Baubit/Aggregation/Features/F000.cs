@@ -1,13 +1,13 @@
 ﻿using Baubit.Configuration;
 using Baubit.DI;
 
-namespace Baubit.Aggregation.Fast.Features
+namespace Baubit.Aggregation.Features
 {
     public class F000<T> : IFeature
     {
         public IEnumerable<IModule> Modules => 
         [
-            new Baubit.Aggregation.Fast.DI.Module<T>(ConfigurationSource.Empty)
+            new Aggregation.DI.Module<T>(ConfigurationSource.Empty)
         ];
     }
 }

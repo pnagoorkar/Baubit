@@ -1,4 +1,4 @@
-﻿using Baubit.Aggregation.Fast;
+﻿using Baubit.Aggregation;
 using Baubit.DI;
 using Baubit.Test.Aggregation.Fast.Setup;
 
@@ -9,8 +9,8 @@ namespace Baubit.Test.Aggregation.Fast
         static IFeature[] AggregationFeatures =
         [
             new Baubit.Logging.Features.F001(),
-            new Baubit.Caching.Fast.InMemory.Features.F000<TestEvent>(),
-            new Baubit.Aggregation.Fast.Features.F000<TestEvent>()
+            new Baubit.Caching.InMemory.Features.F000<TestEvent>(),
+            new Baubit.Aggregation.Features.F000<TestEvent>()
         ];
         [Theory]
         [InlineData(1000, 100)]
