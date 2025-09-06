@@ -29,17 +29,30 @@ namespace Baubit.Test.Mediation.Mediator.Setup
         }
     }
 
-    public class Handler : IRequestHandler<Request, Response>
+    public class Handler : IRequestHandler<Request, Response>, IAsyncRequestHandler<Request, Response>
     {
         private Task<bool> mediationRunner;
         public Handler(IMediator mediator)
         {
+            mediator.RegisterHandler<Request, Response>(this);
             mediationRunner = mediator.RegisterHandlerAsync(this);
         }
-        public async Task<Response> HandleNextAsync(Request request)
+
+        public Response Handle(Request request)
+        {
+            return new Response(request);
+        }
+
+
+        public async Task<Response> HandleAsyncAsync(Request request)
         {
             await Task.Yield();
-            return new Response(request);
+            return Handle(request);
+        }
+
+        public async Task<Response> HandleSyncAsync(Request request, CancellationToken cancellationToken = default)
+        {
+            return await HandleAsyncAsync(request);
         }
     }
 }

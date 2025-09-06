@@ -21,13 +21,22 @@ namespace Baubit.Mediation
     }
     public interface IRequestHandler<TRequest, TResponse> : IRequestHandler where TRequest : IRequest where TResponse : IResponse
     {
-        Task<TResponse> HandleNextAsync(TRequest request);
+        TResponse Handle(TRequest request);
+        Task<TResponse> HandleSyncAsync(TRequest request, CancellationToken cancellationToken = default);
+    }
+    public interface IAsyncRequestHandler<TRequest, TResponse> : IRequestHandler where TRequest : IRequest where TResponse : IResponse
+    {
+        Task<TResponse> HandleAsyncAsync(TRequest request);
     }
 
     public interface IMediator
     {
-        Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse;
-        Task<TResponse> PublishAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
+        bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse;
+        TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest where TResponse : IResponse;
+
+        Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse;
+        Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
+        Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
     }
 
     public class HandlerNotRegisteredException : Exception { }
@@ -35,6 +44,7 @@ namespace Baubit.Mediation
     public class Mediator : IMediator
     {
         private IList<IRequestHandler> handlers = new ConcurrentList<IRequestHandler>();
+        private IList<IRequestHandler> asyncHandlers = new ConcurrentList<IRequestHandler>();
         private IServiceProvider serviceProvider;
 
         public Mediator(IServiceProvider serviceProvider, 
@@ -43,10 +53,34 @@ namespace Baubit.Mediation
             this.serviceProvider = serviceProvider;
         }
 
-        public async Task<TResponse> PublishAsync<TRequest, TResponse>(TRequest request, 
+        public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest
+                                                                                                              where TResponse : IResponse
+        {
+            if (handlers.Any(handler => handler is IRequestHandler<TRequest, TResponse>)) return false;
+            handlers.Add(requestHandler);
+            return true;
+        }
+
+        public TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest
+                                                                                                     where TResponse : IResponse
+        {
+            var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>);
+            if (handler == null) throw new HandlerNotRegisteredException();
+
+            return handler.Handle(request);
+        }
+
+        public async Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
+        {
+            var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>);
+            if (handler == null) throw new HandlerNotRegisteredException();
+            return await handler.HandleSyncAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request, 
                                                                        CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
-            if (!handlers.Any(handler => handler is IRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
+            if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
 
             var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
             var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
@@ -76,21 +110,21 @@ namespace Baubit.Mediation
             return response;
         }
 
-        public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse
+        public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse
         {
-            handlers.Add(requestHandler);
+            asyncHandlers.Add(requestHandler);
             var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
             var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
 
             await requestCache.EnumerateEntriesAsync()
                               .AggregateAsync(async entry =>
                               {
-                                  var response = await requestHandler.HandleNextAsync(entry.Value);
+                                  var response = await requestHandler.HandleAsyncAsync(entry.Value);
                                   return responseCache.Add(response, out _);
                               })
                               .ConfigureAwait(false);
 
-            return handlers.Remove(requestHandler);
+            return asyncHandlers.Remove(requestHandler);
         }
     }
 }
