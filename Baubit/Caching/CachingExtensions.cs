@@ -82,8 +82,20 @@ namespace Baubit.Caching
         {
             await foreach (var item in asyncEnumerable.ConfigureAwait(false))
             {
-                if(cancellationToken.IsCancellationRequested) return false;
-                if(!func(item)) throw new Exception("ka-boom!");
+                if (cancellationToken.IsCancellationRequested) return false;
+                if (!func(item)) throw new Exception("ka-boom!");
+            }
+            return true;
+        }
+
+        public static async Task<bool> AggregateAsync<T>(this IAsyncEnumerable<T> asyncEnumerable,
+                                                           Func<T, Task<bool>> func,
+                                                           CancellationToken cancellationToken = default)
+        {
+            await foreach (var item in asyncEnumerable.ConfigureAwait(false))
+            {
+                if (cancellationToken.IsCancellationRequested) return false;
+                if (!(await func(item))) throw new Exception("ka-boom!");
             }
             return true;
         }
