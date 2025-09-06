@@ -1,7 +1,7 @@
 ﻿using Baubit.Observation;
 using FluentResults;
 
-namespace Baubit.Test.Aggregation.Fast.Setup
+namespace Baubit.Test.Aggregation.Aggregator.Setup
 {
     public class EventConsumer : ISubscriber<TestEvent>
     {
