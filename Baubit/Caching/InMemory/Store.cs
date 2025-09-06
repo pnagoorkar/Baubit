@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching.InMemory
 {
-    public class DataStore<TValue> : ADataStore<TValue>
+    public class Store<TValue> : AStore<TValue>
     {
         public override long? HeadId { get => _data.Count > 0 ? _data.Keys.Min() : null; }
         public override long? TailId { get => _data.Count > 0 ? _data.Keys.Max() : null; }
@@ -11,16 +11,16 @@ namespace Baubit.Caching.InMemory
         private long _seq;
         private readonly Dictionary<long, IEntry<TValue>> _data = new();
 
-        private ILogger<DataStore<TValue>> _logger;
+        private ILogger<Store<TValue>> _logger;
 
-        public DataStore(long? minCap,
-                         long? maxCap,
-                         ILoggerFactory loggerFactory) : base(minCap, maxCap, loggerFactory)
+        public Store(long? minCap,
+                     long? maxCap,
+                     ILoggerFactory loggerFactory) : base(minCap, maxCap, loggerFactory)
         {
-            _logger = loggerFactory.CreateLogger<DataStore<TValue>>();
+            _logger = loggerFactory.CreateLogger<Store<TValue>>();
         }
 
-        public DataStore(ILoggerFactory loggerFactory) : this(null, null, loggerFactory)
+        public Store(ILoggerFactory loggerFactory) : this(null, null, loggerFactory)
         {
 
         }

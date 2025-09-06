@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching
 {
-    public abstract class ADataStore<TValue> : IDataStore<TValue>
+    public abstract class AStore<TValue> : IStore<TValue>
     {
         public bool Uncapped { get => !TargetCapacity.HasValue; }
         public long? MinCapacity { get; init; } = null;
@@ -16,16 +16,16 @@ namespace Baubit.Caching
 
         public abstract long? TailId { get; }
 
-        private ILogger<ADataStore<TValue>> _logger;
+        private ILogger<AStore<TValue>> _logger;
         private bool disposedValue;
 
-        public ADataStore(long? minCap,
+        public AStore(long? minCap,
                          long? maxCap,
                          ILoggerFactory loggerFactory)
         {
             TargetCapacity = MinCapacity = minCap;
             MaxCapacity = maxCap;
-            _logger = loggerFactory.CreateLogger<ADataStore<TValue>>();
+            _logger = loggerFactory.CreateLogger<AStore<TValue>>();
         }
 
         public abstract bool Add(IEntry<TValue> entry);
@@ -34,32 +34,18 @@ namespace Baubit.Caching
 
         public bool AddCapacity(int additionalCapacity)
         {
-            try
-            {
-                if (Uncapped) return true;
-                TargetCapacity = Math.Min(MaxCapacity!.Value, TargetCapacity!.Value + additionalCapacity);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            if (Uncapped) return true;
+            TargetCapacity = Math.Min(MaxCapacity!.Value, TargetCapacity!.Value + additionalCapacity);
+            return true;
         }
 
         public abstract bool Clear();
 
         public bool CutCapacity(int cap)
         {
-            try
-            {
-                if (Uncapped) return true;
-                TargetCapacity = Math.Max(MinCapacity!.Value, TargetCapacity!.Value - cap);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            if (Uncapped) return true;
+            TargetCapacity = Math.Max(MinCapacity!.Value, TargetCapacity!.Value - cap);
+            return true;
         }
 
         private long? GetCount()

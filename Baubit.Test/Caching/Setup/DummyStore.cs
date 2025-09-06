@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Baubit.Test.Caching.Setup
 {
-    public class DummyStore<TValue> : ADataStore<TValue>
+    public class DummyStore<TValue> : AStore<TValue>
     {
         public override long? HeadId => null;
 

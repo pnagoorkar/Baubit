@@ -2,7 +2,7 @@
 
 namespace Baubit.Caching
 {
-    public interface IDataStore<TValue> : IDisposable
+    public interface IStore<TValue> : IDisposable
     {
         bool Uncapped { get; }
         long? CurrentCapacity { get; }

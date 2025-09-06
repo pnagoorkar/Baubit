@@ -23,22 +23,22 @@ namespace Baubit.Caching
         private CancellationTokenSource? adaptionCTS;
         private readonly ILogger<OrderedCache<TValue>> _logger;
 
-        private IDataStore<TValue>? _l1DataStore;
-        private IDataStore<TValue> _l2DataStore;
+        private IStore<TValue>? _l1Store;
+        private IStore<TValue> _l2Store;
         #endregion
 
         public OrderedCache(Configuration cacheConfiguration,
-                            IDataStore<TValue>? l1DataStore,
-                            IDataStore<TValue> l2DataStore,
+                            IStore<TValue>? l1Store,
+                            IStore<TValue> l2Store,
                             IMetadata metadata,
                             ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<OrderedCache<TValue>>();
             Configuration = cacheConfiguration;
-            _l1DataStore = l1DataStore;
-            _l2DataStore = l2DataStore;
+            _l1Store = l1Store;
+            _l2Store = l2Store;
             _metadata = metadata;
-            if (_l1DataStore != null && !_l1DataStore.Uncapped && Configuration?.RunAdaptiveResizing == true)
+            if (_l1Store != null && !_l1Store.Uncapped && Configuration?.RunAdaptiveResizing == true)
             {
                 adaptionCTS = new CancellationTokenSource();
                 adaptionRunner = RunAdaptiveResizing(adaptionCTS.Token);
@@ -61,13 +61,13 @@ namespace Baubit.Caching
 
                     if (roomRate > Configuration.RoomRateUpperLimit)
                     {
-                        _l1DataStore?.AddCapacity(Configuration.GrowStep);
-                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore?.TargetCapacity}");
+                        _l1Store?.AddCapacity(Configuration.GrowStep);
+                        _logger.LogTrace($"Resized L1Store. New size: {_l1Store?.TargetCapacity}");
                     }
                     else if (roomRate < Configuration.RoomRateLowerLimit)
                     {
-                        _l1DataStore?.CutCapacity(Configuration.ShrinkStep);
-                        _logger.LogTrace($"Resized L1Store. New size: {_l1DataStore?.TargetCapacity}");
+                        _l1Store?.CutCapacity(Configuration.ShrinkStep);
+                        _logger.LogTrace($"Resized L1Store. New size: {_l1Store?.TargetCapacity}");
                     }
                     Locker.EnterWriteLock();
                     try { ReplenishL1Store(); }
@@ -85,6 +85,7 @@ namespace Baubit.Caching
                 throw;
             }
         }
+        #endregion
 
         public bool Add(TValue value, out IEntry<TValue> entry)
         {
@@ -92,10 +93,10 @@ namespace Baubit.Caching
             try
             {
                 if (disposedValue) { entry = default; return false; }
-                if (!_l2DataStore.Add(value, out entry)) return false;
-                if (_l1DataStore?.HasCapacity == true)
+                if (!_l2Store.Add(value, out entry)) return false;
+                if (_l1Store?.HasCapacity == true)
                 {
-                    if (!_l1DataStore.Add(entry)) return false;
+                    if (!_l1Store.Add(entry)) return false;
                 }
                 if (!_metadata.AddTail(entry.Id)) return false;
                 if (!SignalAwaiters(entry)) return false;
@@ -119,7 +120,7 @@ namespace Baubit.Caching
             try
             {
                 if (disposedValue) { return false; }
-                return _l2DataStore.Update(id, value) && _l1DataStore == null ? true : _l1DataStore.Update(id, value);
+                return _l2Store.Update(id, value) && _l1Store == null ? true : _l1Store.Update(id, value);
             }
             finally { Locker.ExitWriteLock(); }
         }
@@ -140,11 +141,11 @@ namespace Baubit.Caching
             entry = default;
             if (id.HasValue && _metadata.ContainsKey(id.Value))
             {
-                if (_l1DataStore?.GetEntryOrDefault(id, out entry) == true)
+                if (_l1Store?.GetEntryOrDefault(id, out entry) == true)
                 {
                     return true;
                 }
-                else if (_l2DataStore.GetEntryOrDefault(id, out entry))
+                else if (_l2Store.GetEntryOrDefault(id, out entry))
                 {
                     return true;
                 }
@@ -221,10 +222,10 @@ namespace Baubit.Caching
             {
                 if (disposedValue) { entry = default; return false; }
                 entry = null;
-                if (!_l2DataStore.Remove(id, out var l2Entry)) return false;
-                if (_l1DataStore?.GetEntryOrDefault(id, out var l1Entry) == true && entry != null)
+                if (!_l2Store.Remove(id, out var l2Entry)) return false;
+                if (_l1Store?.GetEntryOrDefault(id, out var l1Entry) == true && entry != null)
                 {
-                    if (!_l1DataStore.Remove(id, out l1Entry)) return false;
+                    if (!_l1Store.Remove(id, out l1Entry)) return false;
                 }
                 if (!_metadata.Remove(id)) return false;
                 if (!ReplenishL1Store()) return false;
@@ -236,7 +237,7 @@ namespace Baubit.Caching
 
         private bool ReplenishL1Store()
         {
-            while (_l1DataStore?.CurrentCapacity > 0 && _metadata.GetNextId(_l1DataStore.TailId, out var nextId) && _l2DataStore.GetEntryOrDefault(nextId, out var nextEntry) && nextEntry != null && _l1DataStore.Add(nextEntry)) ;
+            while (_l1Store?.CurrentCapacity > 0 && _metadata.GetNextId(_l1Store.TailId, out var nextId) && _l2Store.GetEntryOrDefault(nextId, out var nextEntry) && nextEntry != null && _l1Store.Add(nextEntry)) ;
             return true;
         }
 
@@ -246,7 +247,7 @@ namespace Baubit.Caching
             try
             {
                 if (disposedValue) { return false; }
-                return _l2DataStore.Clear() && _l1DataStore == null ? true : _l1DataStore.Clear() && _metadata.Clear();
+                return _l2Store.Clear() && _l1Store == null ? true : _l1Store.Clear() && _metadata.Clear();
             }
             finally { Locker.ExitWriteLock(); }
         }
@@ -263,10 +264,10 @@ namespace Baubit.Caching
                     {
                         adaptionCTS?.Cancel();
                         adaptionRunner?.Wait(true);
-                        _ = _l2DataStore.Clear() && _l1DataStore == null ? true : _l1DataStore.Clear() && _metadata.Clear();
+                        _ = _l2Store.Clear() && _l1Store == null ? true : _l1Store.Clear() && _metadata.Clear();
                         _waitingRoom.TrySetCanceled();
-                        _l1DataStore?.Dispose();
-                        _l2DataStore?.Dispose();
+                        _l1Store?.Dispose();
+                        _l2Store?.Dispose();
                     }
                     finally { Locker.ExitWriteLock(); }
                     Locker.Dispose();
@@ -281,7 +282,6 @@ namespace Baubit.Caching
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
     }
 }

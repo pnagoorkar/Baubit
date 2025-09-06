@@ -22,12 +22,12 @@ namespace Baubit.Test.Caching.Setup.DummyL2.DI
         {
         }
 
-        protected override IDataStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
+        protected override IStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.InMemory.DataStore<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new Baubit.Caching.InMemory.Store<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
-        protected override IDataStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
+        protected override IStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
             return new DummyStore<TValue>(serviceProvider.GetRequiredService<ILoggerFactory>());
         }

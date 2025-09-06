@@ -21,14 +21,14 @@ namespace Baubit.Caching.InMemory.DI
         {
         }
 
-        protected override IDataStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
+        protected override IStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new DataStore<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new Store<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
-        protected override IDataStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
+        protected override IStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new DataStore<TValue>(serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new Store<TValue>(serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         protected override IMetadata BuildMetadata(IServiceProvider serviceProvider)

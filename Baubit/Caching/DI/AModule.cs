@@ -44,9 +44,9 @@ namespace Baubit.Caching.DI
                                             serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
-        protected abstract IDataStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider);
+        protected abstract IStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider);
 
-        protected abstract IDataStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider);
+        protected abstract IStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider);
 
         protected abstract IMetadata BuildMetadata(IServiceProvider serviceProvider);
     }
