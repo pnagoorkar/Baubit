@@ -2,9 +2,8 @@
 using Baubit.Collections;
 using Baubit.DI;
 using System.Collections.Concurrent;
-using static System.Net.Mime.MediaTypeNames;
 
-namespace Baubit.Test.Caching.Fast.OrderedCache
+namespace Baubit.Test.Caching.OrderedCache
 {
     public class Test
     {
@@ -24,7 +23,7 @@ namespace Baubit.Test.Caching.Fast.OrderedCache
         {
             var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
 
-            Baubit.Caching.IEntry<int> nextEntry = null;
+            IEntry<int> nextEntry = null;
             var autoResetEvent = new AutoResetEvent(false);
 
             Parallel.Invoke(async () =>

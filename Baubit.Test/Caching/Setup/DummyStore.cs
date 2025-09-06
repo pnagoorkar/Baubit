@@ -2,7 +2,7 @@
 using Baubit.Caching.InMemory;
 using Microsoft.Extensions.Logging;
 
-namespace Baubit.Test.Caching.Fast.Setup
+namespace Baubit.Test.Caching.Setup
 {
     public class DummyStore<TValue> : ADataStore<TValue>
     {
@@ -21,9 +21,9 @@ namespace Baubit.Test.Caching.Fast.Setup
 
         }
 
-        public override bool Add(Baubit.Caching.IEntry<TValue> entry) => true;
+        public override bool Add(IEntry<TValue> entry) => true;
 
-        public override bool Add(TValue value, out Baubit.Caching.IEntry<TValue>? entry)
+        public override bool Add(TValue value, out IEntry<TValue>? entry)
         {
             entry = new Entry<TValue>(++idSeed, value);
             return Add(entry);
@@ -37,7 +37,7 @@ namespace Baubit.Test.Caching.Fast.Setup
             return true;
         }
 
-        public override bool GetEntryOrDefault(long? id, out Baubit.Caching.IEntry<TValue>? entry)
+        public override bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry)
         {
             entry = null;
             return true;
@@ -49,13 +49,13 @@ namespace Baubit.Test.Caching.Fast.Setup
             return true;
         }
 
-        public override bool Remove(long id, out Baubit.Caching.IEntry<TValue>? entry)
+        public override bool Remove(long id, out IEntry<TValue>? entry)
         {
             entry = new Entry<TValue>(id, default);
             return true;
         }
 
-        public override bool Update(Baubit.Caching.IEntry<TValue> entry) => true;
+        public override bool Update(IEntry<TValue> entry) => true;
 
         public override bool Update(long id, TValue value) => true;
 

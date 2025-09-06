@@ -1,6 +1,8 @@
-﻿//namespace Baubit.Test.Caching.Setup.DummyL2.DI
-//{
-//    public class Configuration : Baubit.Caching.DI.AConfiguration
-//    {
-//    }
-//}
+﻿using Baubit.Caching.DI;
+
+namespace Baubit.Test.Caching.Setup.DummyL2.DI
+{
+    public class Configuration : AConfiguration
+    {
+    }
+}
