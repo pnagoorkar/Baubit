@@ -49,11 +49,12 @@ namespace Baubit.Mediation
         private IList<IRequestHandler> handlers = new ConcurrentList<IRequestHandler>();
         private IList<IRequestHandler> asyncHandlers = new ConcurrentList<IRequestHandler>();
         private IServiceProvider serviceProvider;
-
+        private readonly ResolverCache _resolverCache;
         public Mediator(IServiceProvider serviceProvider,
                         ILoggerFactory loggerFactory)
         {
             this.serviceProvider = serviceProvider;
+            _resolverCache = new ResolverCache(serviceProvider);
         }
 
         public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler,
@@ -88,10 +89,10 @@ namespace Baubit.Mediation
         {
             if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
 
-            var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
-            var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
+            var requestCache = _resolverCache.Cache<TRequest>();
+            var responseCache = _resolverCache.Cache<TResponse>();
 
-            var lookup = serviceProvider.GetRequiredService<ResponseLookup<TResponse>>();
+            var lookup = _resolverCache.Lookup<TResponse>();
 
             requestCache.Add(request, out var requestEntry);
 
@@ -104,6 +105,28 @@ namespace Baubit.Mediation
                 requestCache.Remove(requestEntry.Id, out _);
             }
         }
+
+        //public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
+        //                                                                    CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
+        //{
+        //    if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
+
+        //    var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
+        //    var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
+
+        //    var lookup = serviceProvider.GetRequiredService<ResponseLookup<TResponse>>();
+
+        //    requestCache.Add(request, out var requestEntry);
+
+        //    try
+        //    {
+        //        return await lookup.GetResponseAsync(request.Id, cancellationToken);
+        //    }
+        //    finally
+        //    {
+        //        requestCache.Remove(requestEntry.Id, out _);
+        //    }
+        //}
 
         public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
                                                                           CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
@@ -121,6 +144,35 @@ namespace Baubit.Mediation
                               .ConfigureAwait(false);
 
             return asyncHandlers.Remove(requestHandler);
+        }
+        sealed class ResolverCache
+        {
+            private readonly IServiceProvider _serviceProvider;
+            private readonly ConcurrentDictionary<(Type open, Type arg), object> _map = new();
+
+            public ResolverCache(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
+
+            public IOrderedCache<T> Cache<T>() => (IOrderedCache<T>)Get(typeof(IOrderedCache<>), typeof(T));
+
+            public ResponseLookup<TResponse> Lookup<TResponse>() where TResponse : IResponse
+            {
+                return (ResponseLookup<TResponse>)Get(typeof(ResponseLookup<>), typeof(TResponse));
+            }
+
+            private object Get(Type openGeneric, Type arg)
+            {
+                if (!openGeneric.IsGenericTypeDefinition)
+                {
+                    throw new ArgumentException("Must be an open generic type definition.", nameof(openGeneric));
+                }
+
+                return _map.GetOrAdd((openGeneric, arg), key =>
+                {
+                    var closed = key.open.MakeGenericType(key.arg);
+                    return ActivatorUtilities.GetServiceOrCreateInstance(_serviceProvider, closed);
+                });
+            }
+
         }
     }
 
