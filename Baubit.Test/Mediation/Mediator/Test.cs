@@ -3,6 +3,7 @@ using Baubit.Configuration;
 using Baubit.DI;
 using Baubit.Mediation;
 using Baubit.Test.Mediation.Mediator.Setup;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Test.Mediation.Mediator
 {
@@ -15,6 +16,7 @@ namespace Baubit.Test.Mediation.Mediator
             var mediatorBuildResult = ComponentBuilder<IMediator>.Create()
                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001(), new Baubit.Caching.InMemory.Features.F000<Request>(), new Baubit.Caching.InMemory.Features.F000<Response>()]))
                                                                  .Bind(componentBuilder => componentBuilder.WithModules(new Baubit.Mediation.DI.Module(ConfigurationSource.Empty)))
+                                                                 .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<ResponseLookup<Response>>()))
                                                                  .Bind(componentBuilder => componentBuilder.Build());
 
             Assert.True(mediatorBuildResult.IsSuccess);
@@ -42,6 +44,7 @@ namespace Baubit.Test.Mediation.Mediator
             var mediatorBuildResult = ComponentBuilder<IMediator>.Create()
                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001(), new Baubit.Caching.InMemory.Features.F000<Request>(), new Baubit.Caching.InMemory.Features.F000<Response>()]))
                                                                  .Bind(componentBuilder => componentBuilder.WithModules(new Baubit.Mediation.DI.Module(ConfigurationSource.Empty)))
+                                                                 .Bind(componentBuilder => componentBuilder.WithRegistrationHandler(services => services.AddSingleton<ResponseLookup<Response>>()))
                                                                  .Bind(componentBuilder => componentBuilder.Build());
 
             Assert.True(mediatorBuildResult.IsSuccess);

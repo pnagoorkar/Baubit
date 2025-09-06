@@ -1,7 +1,10 @@
 ﻿using Baubit.Caching;
+using Baubit.Caching.InMemory;
 using Baubit.Collections;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Threading;
 
 namespace Baubit.Mediation
 {
@@ -47,13 +50,13 @@ namespace Baubit.Mediation
         private IList<IRequestHandler> asyncHandlers = new ConcurrentList<IRequestHandler>();
         private IServiceProvider serviceProvider;
 
-        public Mediator(IServiceProvider serviceProvider, 
+        public Mediator(IServiceProvider serviceProvider,
                         ILoggerFactory loggerFactory)
         {
             this.serviceProvider = serviceProvider;
         }
 
-        public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler, 
+        public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler,
                                                          CancellationToken cancellationToken = default) where TRequest : IRequest
                                                                                                         where TResponse : IResponse
         {
@@ -80,40 +83,29 @@ namespace Baubit.Mediation
             return await handler.HandleSyncAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request, 
-                                                                       CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
+        public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
+                                                                            CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
             if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
 
             var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
             var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
 
-            var response = default(TResponse);
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-            var responseProcessor = responseCache.EnumerateEntriesAsync(null, cts.Token)
-                                                 .AggregateAsync(entry => 
-                                                 {
-                                                     if (entry.Value.ForRequest == request.Id)
-                                                     {
-                                                         response = entry.Value;
-                                                         responseCache.Remove(entry.Id, out _);
-                                                         cts.Cancel();
-                                                     }
-                                                     return true;
-                                                 }, cts.Token);
+            var lookup = serviceProvider.GetRequiredService<ResponseLookup<TResponse>>();
 
             requestCache.Add(request, out var requestEntry);
 
-            await responseProcessor.ConfigureAwait(false);
-
-            requestCache.Remove(requestEntry.Id, out _);
-
-            return response;
+            try
+            {
+                return await lookup.GetResponseAsync(request.Id, cancellationToken);
+            }
+            finally
+            {
+                requestCache.Remove(requestEntry.Id, out _);
+            }
         }
 
-        public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler, 
+        public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
                                                                           CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
             asyncHandlers.Add(requestHandler);
@@ -129,6 +121,43 @@ namespace Baubit.Mediation
                               .ConfigureAwait(false);
 
             return asyncHandlers.Remove(requestHandler);
+        }
+    }
+
+    public class ResponseLookup<TResponse> : IDisposable where TResponse : IResponse
+    {
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        private ConcurrentDictionary<long, TaskCompletionSource<TResponse>> awaiters = new ConcurrentDictionary<long, TaskCompletionSource<TResponse>>();
+        private Task<bool> cacheReader;
+
+        public ResponseLookup(IOrderedCache<TResponse> cache,
+                              ILoggerFactory loggerFactory)
+        {
+            cacheReader = cache.EnumerateEntriesAsync(null, cancellationTokenSource.Token)
+                               .AggregateAsync(async entry =>
+                               {
+                                   await Task.Yield();
+                                   awaiters.GetOrAdd(entry.Value.ForRequest, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously))
+                                           .SetResult(entry.Value);
+                                   cache.Remove(entry.Id, out _);
+                                   return true;
+                               }, cancellationTokenSource.Token);
+        }
+
+        public async Task<TResponse> GetResponseAsync(long forRequestId, CancellationToken cancellationToken = default)
+        {
+            if(!awaiters.TryGetValue(forRequestId, out var awaiter))
+            {
+                awaiter = awaiters.GetOrAdd(forRequestId, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            var response = await awaiter.Task.WaitAsync(cancellationToken);
+            awaiters.Remove(forRequestId, out _);
+            return response;
+        }
+
+        public void Dispose()
+        {
+            cancellationTokenSource.Cancel();
         }
     }
 }
