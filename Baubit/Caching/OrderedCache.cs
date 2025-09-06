@@ -5,19 +5,33 @@ using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching
 {
+    /// <summary>
+    /// Default <see cref="IOrderedCache{TValue}"/> implementation that composes an optional bounded L1 store
+    /// and a required L2 store, with metadata to maintain ordering. Supports adaptive resizing of the L1 store.
+    /// </summary>
+    /// <typeparam name="TValue">The element type held in the cache.</typeparam>
     public class OrderedCache<TValue> : IOrderedCache<TValue>
     {
+        /// <summary>
+        /// Gets the runtime configuration for this cache instance.
+        /// </summary>
         public Configuration Configuration { get; init; }
 
+        /// <inheritdoc/>
         public long Count { get => _metadata.Count; }
 
+        /// <summary>
+        /// A reader/writer lock guarding mutations and multi-field reads.
+        /// </summary>
         protected readonly ReaderWriterLockSlim Locker = new();
+
         #region PrivateMembers
         private bool disposedValue;
 
         private long _roomCount;
         private IMetadata _metadata;
 
+        // Coordinates awaiters for the next entry produced.
         private WaitingRoom<IEntry<TValue>> _waitingRoom = new WaitingRoom<IEntry<TValue>>();
         private Task<bool>? adaptionRunner;
         private CancellationTokenSource? adaptionCTS;
@@ -27,6 +41,14 @@ namespace Baubit.Caching
         private IStore<TValue> _l2Store;
         #endregion
 
+        /// <summary>
+        /// Creates a new <see cref="OrderedCache{TValue}"/>.
+        /// </summary>
+        /// <param name="cacheConfiguration">The cache configuration.</param>
+        /// <param name="l1Store">Optional bounded L1 store (e.g., in-memory) for hot entries.</param>
+        /// <param name="l2Store">Backing L2 store that must persist every entry.</param>
+        /// <param name="metadata">Metadata that tracks head/tail ids and next-id lookups.</param>
+        /// <param name="loggerFactory">Factory to create a logger for diagnostics and tracing.</param>
         public OrderedCache(Configuration cacheConfiguration,
                             IStore<TValue>? l1Store,
                             IStore<TValue> l2Store,
@@ -40,11 +62,18 @@ namespace Baubit.Caching
             _metadata = metadata;
             if (_l1Store != null && !_l1Store.Uncapped && Configuration?.RunAdaptiveResizing == true)
             {
+                // Start a background loop that adjusts L1 capacity based on production rate.
                 adaptionCTS = new CancellationTokenSource();
                 adaptionRunner = RunAdaptiveResizing(adaptionCTS.Token);
             }
         }
+
         #region AdaptiveResizing
+        /// <summary>
+        /// Periodically adjusts the L1 capacity by measuring the rate at which new entries are produced.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token to terminate the loop.</param>
+        /// <returns><c>true</c> if the loop exits normally or is canceled; otherwise throws.</returns>
         private async Task<bool> RunAdaptiveResizing(CancellationToken cancellationToken = default)
         {
             try
@@ -87,6 +116,7 @@ namespace Baubit.Caching
         }
         #endregion
 
+        /// <inheritdoc/>
         public bool Add(TValue value, out IEntry<TValue> entry)
         {
             Locker.EnterWriteLock();
@@ -105,6 +135,12 @@ namespace Baubit.Caching
             finally { Locker.ExitWriteLock(); }
         }
 
+        /// <summary>
+        /// Notifies any waiters created by <see cref="GetNextAsync(long?, CancellationToken)"/> that a new entry is available.
+        /// Also feeds the adaptive-resizing counters when enabled.
+        /// </summary>
+        /// <param name="entry">The entry that was just appended.</param>
+        /// <returns><c>true</c> if signals were delivered successfully; otherwise <c>false</c>.</returns>
         private bool SignalAwaiters(IEntry<TValue> entry)
         {
             if (!_waitingRoom.HasGuests) return true;
@@ -114,6 +150,7 @@ namespace Baubit.Caching
             return prevRoom.TrySetResult(entry);
         }
 
+        /// <inheritdoc/>
         public bool Update(long id, TValue value)
         {
             Locker.EnterWriteLock();
@@ -125,6 +162,7 @@ namespace Baubit.Caching
             finally { Locker.ExitWriteLock(); }
         }
 
+        /// <inheritdoc/>
         public bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
@@ -151,9 +189,9 @@ namespace Baubit.Caching
                 }
             }
             return true;
-            //return id.HasValue && _metadata.ContainsKey(id.Value) && (_l1DataStore?.GetEntryOrDefault(id, out entry) == true || _l2DataStore.GetEntryOrDefault(id, out entry));
         }
 
+        /// <inheritdoc/>
         public bool GetNextOrDefault(long? id, out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
@@ -172,6 +210,7 @@ namespace Baubit.Caching
 
         }
 
+        /// <inheritdoc/>
         public bool GetFirstOrDefault(out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
@@ -184,6 +223,7 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
+        /// <inheritdoc/>
         public bool GetLastOrDefault(out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
@@ -195,7 +235,10 @@ namespace Baubit.Caching
             }
             finally { Locker.ExitReadLock(); }
         }
+
         private long? mostRecentWaitingId;
+
+        /// <inheritdoc/>
         public Task<IEntry<TValue>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default)
         {
             Locker.EnterReadLock();
@@ -215,6 +258,7 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
+        /// <inheritdoc/>
         public bool Remove(long id, out IEntry<TValue>? entry)
         {
             Locker.EnterWriteLock();
@@ -235,12 +279,21 @@ namespace Baubit.Caching
             finally { Locker.ExitWriteLock(); }
         }
 
+        /// <summary>
+        /// Fills the L1 store from L2 until either L1 reaches its capacity or there are no more
+        /// entries between the L1 tail and the global tail.
+        /// </summary>
+        /// <returns><c>true</c> always; the method is best‑effort.</returns>
         private bool ReplenishL1Store()
         {
-            while (_l1Store?.CurrentCapacity > 0 && _metadata.GetNextId(_l1Store.TailId, out var nextId) && _l2Store.GetEntryOrDefault(nextId, out var nextEntry) && nextEntry != null && _l1Store.Add(nextEntry)) ;
+            while (_l1Store?.CurrentCapacity > 0 && 
+                   _metadata.GetNextId(_l1Store.TailId, out var nextId) && 
+                   _l2Store.GetEntryOrDefault(nextId, out var nextEntry) && 
+                   nextEntry != null && _l1Store.Add(nextEntry)) ;
             return true;
         }
 
+        /// <inheritdoc/>
         public bool Clear()
         {
             Locker.EnterWriteLock();
@@ -252,7 +305,10 @@ namespace Baubit.Caching
             finally { Locker.ExitWriteLock(); }
         }
 
-
+        /// <summary>
+        /// Releases managed and unmanaged resources.
+        /// </summary>
+        /// <param name="disposing">When <c>true</c>, called from <see cref="Dispose()"/>; otherwise from the finalizer.</param>
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -282,6 +338,5 @@ namespace Baubit.Caching
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-
     }
 }
