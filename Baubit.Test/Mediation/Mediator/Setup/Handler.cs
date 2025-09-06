@@ -31,11 +31,17 @@ namespace Baubit.Test.Mediation.Mediator.Setup
 
     public class Handler : IRequestHandler<Request, Response>, IAsyncRequestHandler<Request, Response>
     {
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         private Task<bool> mediationRunner;
         public Handler(IMediator mediator)
         {
-            mediator.RegisterHandler<Request, Response>(this);
-            mediationRunner = mediator.RegisterHandlerAsync(this);
+            mediator.RegisterHandler<Request, Response>(this, cancellationTokenSource.Token);
+            mediationRunner = mediator.RegisterHandlerAsync(this, cancellationTokenSource.Token);
+        }
+
+        public void Dispose()
+        {
+            cancellationTokenSource.Cancel();
         }
 
         public Response Handle(Request request)

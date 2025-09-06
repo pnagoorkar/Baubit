@@ -15,7 +15,7 @@ namespace Baubit.Mediation
 
         public long ForRequest { get; }
     }
-    public interface IRequestHandler
+    public interface IRequestHandler : IDisposable
     {
 
     }
@@ -31,10 +31,10 @@ namespace Baubit.Mediation
 
     public interface IMediator
     {
-        bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse;
+        bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
         TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest where TResponse : IResponse;
 
-        Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse;
+        Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
         Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
         Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse;
     }
@@ -53,11 +53,14 @@ namespace Baubit.Mediation
             this.serviceProvider = serviceProvider;
         }
 
-        public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest
-                                                                                                              where TResponse : IResponse
+        public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler, 
+                                                         CancellationToken cancellationToken = default) where TRequest : IRequest
+                                                                                                        where TResponse : IResponse
         {
             if (handlers.Any(handler => handler is IRequestHandler<TRequest, TResponse>)) return false;
             handlers.Add(requestHandler);
+            CancellationTokenRegistration registration = default;
+            registration = cancellationToken.Register(() => { handlers.Remove(requestHandler); registration.Dispose(); });
             return true;
         }
 
@@ -99,7 +102,7 @@ namespace Baubit.Mediation
                                                          cts.Cancel();
                                                      }
                                                      return true;
-                                                 });
+                                                 }, cts.Token);
 
             requestCache.Add(request, out var requestEntry);
 
@@ -110,18 +113,19 @@ namespace Baubit.Mediation
             return response;
         }
 
-        public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler) where TRequest : IRequest where TResponse : IResponse
+        public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler, 
+                                                                          CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
             asyncHandlers.Add(requestHandler);
             var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
             var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
 
-            await requestCache.EnumerateEntriesAsync()
+            await requestCache.EnumerateEntriesAsync(null, cancellationToken)
                               .AggregateAsync(async entry =>
                               {
                                   var response = await requestHandler.HandleAsyncAsync(entry.Value);
                                   return responseCache.Add(response, out _);
-                              })
+                              }, cancellationToken)
                               .ConfigureAwait(false);
 
             return asyncHandlers.Remove(requestHandler);
