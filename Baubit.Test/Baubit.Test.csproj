@@ -73,7 +73,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Aggregation\Fast\" />
     <Folder Include="DI\ComponentBuilder\Setup\" />
   </ItemGroup>
 
