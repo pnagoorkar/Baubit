@@ -7,12 +7,22 @@ using System.Collections.Concurrent;
 
 namespace Baubit.Mediation
 {
+    /// <summary>
+    /// Default implementation of <see cref="IMediator"/> that supports both synchronous
+    /// request/response handling and an asynchronous pipeline backed by ordered caches.
+    /// </summary>
     public class Mediator : IMediator
     {
         private IList<IRequestHandler> handlers = new ConcurrentList<IRequestHandler>();
         private IList<IRequestHandler> asyncHandlers = new ConcurrentList<IRequestHandler>();
         private IServiceProvider serviceProvider;
         private readonly ResolverCache _resolverCache;
+
+        /// <summary>
+        /// Creates a new mediator instance.
+        /// </summary>
+        /// <param name="serviceProvider">The application service provider used to resolve caches and lookups.</param>
+        /// <param name="loggerFactory">Factory for creating loggers (reserved for future diagnostics).</param>
         public Mediator(IServiceProvider serviceProvider,
                         ILoggerFactory loggerFactory)
         {
@@ -20,6 +30,11 @@ namespace Baubit.Mediation
             _resolverCache = new ResolverCache(serviceProvider);
         }
 
+        /// <summary>
+        /// Registers a synchronous handler instance for <typeparamref name="TRequest"/>/<typeparamref name="TResponse"/>.
+        /// The handler is automatically unregistered when <paramref name="cancellationToken"/> is canceled.
+        /// </summary>
+        /// <inheritdoc/>
         public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler,
                                                          CancellationToken cancellationToken = default) where TRequest : IRequest
                                                                                                         where TResponse : IResponse
@@ -31,6 +46,11 @@ namespace Baubit.Mediation
             return true;
         }
 
+        /// <summary>
+        /// Publishes a request to a synchronous handler and returns its response.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <exception cref="HandlerNotRegisteredException">Thrown when no matching handler is registered.</exception>
         public TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest
                                                                         where TResponse : IResponse
         {
@@ -40,6 +60,11 @@ namespace Baubit.Mediation
             return handler.Handle(request);
         }
 
+        /// <summary>
+        /// Publishes a request to a synchronous handler and awaits the response.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <exception cref="HandlerNotRegisteredException">Thrown when no matching handler is registered.</exception>
         public async Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
             var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>)!;
@@ -47,6 +72,13 @@ namespace Baubit.Mediation
             return await handler.HandleSyncAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Publishes a request into the asynchronous pipeline and awaits the matching response.
+        /// The request is added to the request cache, then the method waits for a matching
+        /// response to appear in the response cache (via <see cref="ResponseLookup{TResponse}"/>).
+        /// </summary>
+        /// <inheritdoc/>
+        /// <exception cref="HandlerNotRegisteredException">Thrown when no async handler is registered.</exception>
         public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
                                                                             CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
@@ -69,6 +101,12 @@ namespace Baubit.Mediation
             }
         }
 
+        /// <summary>
+        /// Registers an asynchronous pipeline handler that listens on the request cache,
+        /// transforms requests into responses, and writes responses to the response cache
+        /// until <paramref name="cancellationToken"/> is canceled.
+        /// </summary>
+        /// <inheritdoc/>
         public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
                                                                           CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
@@ -86,15 +124,29 @@ namespace Baubit.Mediation
 
             return asyncHandlers.Remove(requestHandler);
         }
+
+        /// <summary>
+        /// Local cache that resolves typed services (caches and lookups) and memoizes them.
+        /// </summary>
         sealed class ResolverCache
         {
             private readonly IServiceProvider _serviceProvider;
             private readonly ConcurrentDictionary<(Type open, Type arg), object> _map = new();
 
+            /// <summary>
+            /// Initializes a new instance of the resolver cache.
+            /// </summary>
+            /// <param name="serviceProvider">The root service provider.</param>
             public ResolverCache(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
 
+            /// <summary>
+            /// Gets the typed ordered cache for <typeparamref name="T"/> from DI.
+            /// </summary>
             public IOrderedCache<T> Cache<T>() => (IOrderedCache<T>)Get(typeof(IOrderedCache<>), typeof(T));
 
+            /// <summary>
+            /// Gets the typed <see cref="ResponseLookup{TResponse}"/> from DI.
+            /// </summary>
             public ResponseLookup<TResponse> Lookup<TResponse>() where TResponse : IResponse
             {
                 return (ResponseLookup<TResponse>)Get(typeof(ResponseLookup<>), typeof(TResponse));
