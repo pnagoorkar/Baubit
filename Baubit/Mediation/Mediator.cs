@@ -7,8 +7,6 @@ using System.Collections.Concurrent;
 
 namespace Baubit.Mediation
 {
-
-
     public class Mediator : IMediator
     {
         private IList<IRequestHandler> handlers = new ConcurrentList<IRequestHandler>();
@@ -36,7 +34,7 @@ namespace Baubit.Mediation
         public TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest
                                                                         where TResponse : IResponse
         {
-            var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>);
+            var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>)!;
             if (handler == null) throw new HandlerNotRegisteredException();
 
             return handler.Handle(request);
@@ -44,7 +42,7 @@ namespace Baubit.Mediation
 
         public async Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
         {
-            var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>);
+            var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>)!;
             if (handler == null) throw new HandlerNotRegisteredException();
             return await handler.HandleSyncAsync(request, cancellationToken).ConfigureAwait(false);
         }
