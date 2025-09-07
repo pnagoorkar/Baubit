@@ -16,8 +16,8 @@ namespace Baubit.Mediation
             cacheReader = cache.EnumerateEntriesAsync(null, cancellationTokenSource.Token)
                                .AggregateAsync(entry =>
                                {
-                                   awaiters.GetOrAdd(entry.Value.ForRequest, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously))
-                                           .SetResult(entry.Value);
+                                   var awaiter = awaiters.GetOrAdd(entry.Value.ForRequest, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
+                                   awaiter.SetResult(entry.Value);
                                    cache.Remove(entry.Id, out _);
                                    return true;
                                }, cancellationTokenSource.Token);
@@ -25,10 +25,7 @@ namespace Baubit.Mediation
 
         public async Task<TResponse> GetResponseAsync(long forRequestId, CancellationToken cancellationToken = default)
         {
-            if (!awaiters.TryGetValue(forRequestId, out var awaiter))
-            {
-                awaiter = awaiters.GetOrAdd(forRequestId, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
-            }
+            var awaiter = awaiters.GetOrAdd(forRequestId, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
             var response = await awaiter.Task.WaitAsync(cancellationToken);
             awaiters.Remove(forRequestId, out _);
             return response;

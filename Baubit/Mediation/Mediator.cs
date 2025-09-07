@@ -34,7 +34,7 @@ namespace Baubit.Mediation
         }
 
         public TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest
-                                                                                                     where TResponse : IResponse
+                                                                        where TResponse : IResponse
         {
             var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>);
             if (handler == null) throw new HandlerNotRegisteredException();
