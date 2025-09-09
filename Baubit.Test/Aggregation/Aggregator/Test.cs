@@ -22,7 +22,7 @@ namespace Baubit.Test.Aggregation.Aggregator
             var consumers = Enumerable.Range(0, numOfConsumers).Select(i => new EventConsumer(aggregator)).ToList();
             var events = Enumerable.Range(0, numOfEvents).Select(i => new TestEvent()).ToList();
 
-            var parallelLoopResult = Parallel.ForEach(events, @event => { if (!aggregator.Publish(@event)) throw new Exception("<TBD>"); });
+            var parallelLoopResult = Parallel.ForEach(events, @event => { if (!aggregator.Publish(@event, out _)) throw new Exception("<TBD>"); });
             Assert.Null(parallelLoopResult.LowestBreakIteration);
 
             var expectedNumOfReceipts = numOfEvents * numOfConsumers;
