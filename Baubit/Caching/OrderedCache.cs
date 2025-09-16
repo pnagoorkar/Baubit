@@ -267,7 +267,7 @@ namespace Baubit.Caching
                 if (disposedValue) { entry = default; return false; }
                 entry = null;
                 if (!_l2Store.Remove(id, out var l2Entry)) return false;
-                if (_l1Store?.GetEntryOrDefault(id, out var l1Entry) == true && entry != null)
+                if (_l1Store?.GetEntryOrDefault(id, out var l1Entry) == true && l1Entry != null)
                 {
                     if (!_l1Store.Remove(id, out l1Entry)) return false;
                 }
