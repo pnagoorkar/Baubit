@@ -7,7 +7,7 @@ namespace Baubit.Caching.InMemory.Features
     {
         public IEnumerable<IModule> Modules =>
         [
-            new Module<TValue>(new InMemory.DI.Configuration { IncludeL1Caching = true, L1MinCap = 0, L1MaxCap = 8192, CacheConfiguration = new Configuration{ RunAdaptiveResizing = true } }, [], [])
+            new Module<TValue>(InMemory.DI.Configuration.C003, [], [])
         ];
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Baubit.Test.DI.AModule.Setup
 {
-    public class Configuration : AConfiguration
+    public record Configuration : AConfiguration
     {
     }
 }

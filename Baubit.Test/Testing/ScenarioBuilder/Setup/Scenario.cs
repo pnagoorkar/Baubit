@@ -19,7 +19,7 @@ namespace Baubit.Test.Testing.ScenarioBuilder.Setup
 
         public override Task<Result> RunAsync() => Task.FromResult(Result.Ok());
 
-        public class Configuration : Baubit.Testing.AConfiguration
+        public record Configuration : Baubit.Testing.AConfiguration
         {
 
         }

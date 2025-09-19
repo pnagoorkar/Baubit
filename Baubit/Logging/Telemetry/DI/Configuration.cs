@@ -1,6 +1,6 @@
 ﻿namespace Baubit.Logging.Telemetry.DI
 {
-    public class Configuration : AConfiguration
+    public record Configuration : AConfiguration
     {
     }
 }

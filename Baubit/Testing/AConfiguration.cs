@@ -1,6 +1,6 @@
 ﻿namespace Baubit.Testing
 {
-    public abstract class AConfiguration : Baubit.Configuration.AConfiguration
+    public abstract record AConfiguration : Baubit.Configuration.AConfiguration
     {
     }
 }

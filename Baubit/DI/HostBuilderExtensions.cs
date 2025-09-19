@@ -8,12 +8,13 @@ namespace Baubit.DI
     {
         public static THostApplicationBuilder UseConfiguredServiceProviderFactory<THostApplicationBuilder>(this THostApplicationBuilder hostApplicationBuilder,
                                                                                                            IConfiguration configuration = null,
+                                                                                                           Func<IEnumerable<IFeature>> withFeatures = null,
                                                                                                            Action<THostApplicationBuilder, IResultBase> onFailure = null) where THostApplicationBuilder : IHostApplicationBuilder
         {
             if (onFailure == null) onFailure = Exit;
             if (configuration != null) hostApplicationBuilder.Configuration.AddConfiguration(configuration);
 
-            var registrationResult = RootModuleFactory.Create(hostApplicationBuilder.Configuration)
+            var registrationResult = RootModuleFactory.Create(hostApplicationBuilder.Configuration, withFeatures?.Invoke()?.ToArray() ?? [])
                                                       .Bind(rootModule => rootModule.UseConfiguredServiceProviderFactory(hostApplicationBuilder));
 
             if (registrationResult.IsFailed)

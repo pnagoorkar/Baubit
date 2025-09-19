@@ -2,7 +2,7 @@
 
 namespace Baubit.Collections.DI.ObservableConcurrentList
 {
-    public class Configuration : AConfiguration
+    public record Configuration : AConfiguration
     {
     }
 }

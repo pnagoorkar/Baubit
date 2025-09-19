@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace Baubit.Logging.Telemetry.DI
 {
-    public abstract class AConfiguration : Logging.DI.AConfiguration
+    public abstract record AConfiguration : Logging.DI.AConfiguration
     {
         public LoggerConfig Logger { get; init; }
         public MetricsConfig Metrics { get; init; }

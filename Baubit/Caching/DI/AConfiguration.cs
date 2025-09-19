@@ -2,7 +2,7 @@
 
 namespace Baubit.Caching.DI
 {
-    public abstract class AConfiguration : Baubit.DI.AConfiguration
+    public abstract record AConfiguration : Baubit.DI.AConfiguration
     {
         public bool IncludeL1Caching { get; init; }
         public int L1MinCap { get; init; } = 128;

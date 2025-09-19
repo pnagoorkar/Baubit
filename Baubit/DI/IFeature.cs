@@ -1,4 +1,7 @@
-﻿namespace Baubit.DI
+﻿using Baubit.Configuration;
+using Microsoft.Extensions.Configuration;
+
+namespace Baubit.DI
 {
     public interface IFeature
     {

@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 
 namespace Baubit.Configuration
 {
-    public abstract class AConfiguration : IValidatable
+    public abstract record AConfiguration : IValidatable
     {
         public List<string> ValidatorKeys { get; init; } = new List<string>();
 

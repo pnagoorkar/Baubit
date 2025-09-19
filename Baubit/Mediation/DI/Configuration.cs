@@ -2,7 +2,7 @@
 
 namespace Baubit.Mediation.DI
 {
-    public class Configuration : AConfiguration
+    public record Configuration : AConfiguration
     {
     }
 }

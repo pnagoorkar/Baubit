@@ -8,7 +8,7 @@ namespace Baubit.Logging.Features
     {
         public IEnumerable<IModule> Modules =>
         [
-            new Module(new Logging.DI.Default.Configuration{AddConsole = true }, [],[])
+            new Module(Logging.DI.Default.Configuration.C001, [],[])
         ];
     }
 }

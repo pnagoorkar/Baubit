@@ -2,7 +2,7 @@
 
 namespace Baubit.Logging.DI
 {
-    public abstract class AConfiguration : Baubit.DI.AConfiguration
+    public abstract record AConfiguration : Baubit.DI.AConfiguration
     {
         public bool AddConsole { get; init; }
         public bool AddDebug { get; init; }

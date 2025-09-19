@@ -1,6 +1,6 @@
 ﻿namespace Baubit.DI
 {
-    public abstract class ARootModuleConfiguration : AConfiguration
+    public abstract record ARootModuleConfiguration : AConfiguration
     {
 
     }

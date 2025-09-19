@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Baubit.DI
 {
-    public abstract class AConfiguration : Configuration.AConfiguration
+    public abstract record AConfiguration : Configuration.AConfiguration
     {
         public List<string> ModuleValidatorKeys { get; init; } = new List<string>();
 

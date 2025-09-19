@@ -32,7 +32,7 @@ namespace Baubit.Test.DI.RootModuleFactory.Setup
         protected override IEnumerable<Expression<Func<Module, Result>>> GetRules() => Enumerable.Empty<Expression<Func<Module, Result>>>();
     }
 
-    public class AnotherModuleConfiguration : Baubit.DI.AConfiguration
+    public record AnotherModuleConfiguration : Baubit.DI.AConfiguration
     {
 
     }

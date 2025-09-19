@@ -12,7 +12,7 @@ namespace Baubit.Logging.Features
     {
         public IEnumerable<IModule> Modules =>
         [
-            new Module(new Logging.DI.Default.Configuration{AddConsole = true, AddDebug = true, ConsoleLogLevel = Microsoft.Extensions.Logging.LogLevel.Trace, DebugLogLevel = Microsoft.Extensions.Logging.LogLevel.Trace }, [],[])
+            new Module(Logging.DI.Default.Configuration.C003, [],[])
         ];
     }
 }
