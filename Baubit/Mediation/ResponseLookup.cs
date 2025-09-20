@@ -43,7 +43,7 @@ namespace Baubit.Mediation
         public async Task<TResponse> GetResponseAsync(long forRequestId, CancellationToken cancellationToken = default)
         {
             var awaiter = awaiters.GetOrAdd(forRequestId, static _ => new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
-            var response = await awaiter.Task.WaitAsync(cancellationToken);
+            var response = await awaiter.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             awaiters.Remove(forRequestId, out _);
             return response;
         }

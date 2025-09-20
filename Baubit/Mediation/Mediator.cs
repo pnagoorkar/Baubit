@@ -93,7 +93,7 @@ namespace Baubit.Mediation
 
             try
             {
-                return await lookup.GetResponseAsync(request.Id, cancellationToken);
+                return await lookup.GetResponseAsync(request.Id, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -117,7 +117,7 @@ namespace Baubit.Mediation
             await requestCache.EnumerateEntriesAsync(null, cancellationToken)
                               .AggregateAsync(async entry =>
                               {
-                                  var response = await requestHandler.HandleAsyncAsync(entry.Value);
+                                  var response = await requestHandler.HandleAsyncAsync(entry.Value).ConfigureAwait(false);
                                   return responseCache.Add(response, out _);
                               }, cancellationToken)
                               .ConfigureAwait(false);

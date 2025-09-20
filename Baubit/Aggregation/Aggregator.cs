@@ -44,7 +44,7 @@ namespace Baubit.Aggregation
             {
                 taskCompletionSource = deliveryAwaiters.GetOrAdd(trackingId, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
             }
-            return await taskCompletionSource.Task.WaitAsync(cancellationToken);
+            return await taskCompletionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<bool> SubscribeAsync(ISubscriber<T> subscriber,

@@ -13,7 +13,7 @@
         public async Task<TValue> Join(CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _numOfGuests);
-            return await tcs.Task.WaitAsync(cancellationToken);
+            return await tcs.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public bool TrySetResult(TValue value)
