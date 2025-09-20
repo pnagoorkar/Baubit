@@ -3,6 +3,7 @@ using Baubit.DI;
 using Baubit.DI.Constraints.Reasons;
 using Baubit.Traceability;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace Baubit.Test.DI.AModule
@@ -71,6 +72,17 @@ namespace Baubit.Test.DI.AModule
             Assert.Single(rootModule.NestedModules);
             Assert.IsType<Baubit.Test.DI.AModule.Setup.Module>(rootModule.NestedModules.First());
 
+        }
+
+        [Fact]
+        public void CanAddBaubit()
+        {
+            var emptyServiceProvider = new ServiceCollection().BuildServiceProvider();
+            Assert.Null(emptyServiceProvider.GetService<ILoggerFactory>());
+
+            var serviceProvider = new ServiceCollection().AddBaubit(null, new Baubit.Logging.Features.F000()).BuildServiceProvider();
+
+            Assert.NotNull(serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

@@ -1,5 +1,7 @@
-﻿using FluentResults;
+﻿using Baubit.Traceability;
+using FluentResults;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Baubit.DI
@@ -30,6 +32,22 @@ namespace Baubit.DI
         {
             Console.WriteLine(result.ToString());
             Environment.Exit(-1);
+        }
+
+        public static IServiceCollection AddBaubit(this IServiceCollection services,
+                                                   IConfiguration configuration,
+                                                   params IFeature[] features)
+        {
+            features.SelectMany(feature => feature.Modules)
+                    .SerializeAsJsonObject(default)
+                    .Bind(modules => Baubit.Configuration.ConfigurationBuilder.CreateNew()
+                                           .Bind(configurationBuilder => configurationBuilder.WithAdditionalConfigurations(configuration))
+                                           .Bind(configurationBuilder => configurationBuilder.WithRawJsonStrings(modules))
+                                           .Bind(configurationBuilder => configurationBuilder.Build()))
+                    .Bind(config => RootModuleFactory.Create(config))
+                    .Bind(rootModule => Result.Try(() => rootModule.Load(services)))
+                    .ThrowIfFailed();
+            return services;
         }
     }
 }
