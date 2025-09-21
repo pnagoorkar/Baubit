@@ -47,8 +47,8 @@ namespace Baubit.Aggregation
             return await taskCompletionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<bool> SubscribeAsync(ISubscriber<T> subscriber,
-                                               CancellationToken cancellationToken = default)
+        public async Task<bool> SubscribeAsync<TItem>(ISubscriber<TItem> subscriber,
+                                                       CancellationToken cancellationToken = default) where TItem : T
         {
             var deliveryTracker = new DeliveryTracker();
             deliveryTrackers.Add(deliveryTracker);
@@ -58,8 +58,11 @@ namespace Baubit.Aggregation
             var retVal = await _cache.EnumerateEntriesAsync(entry?.Id, cancellationToken)
                                      .AggregateAsync(next =>
                                      {
-                                         return DeliverNext(next, subscriber, deliveryTracker) &&
-                                                TryEvict(next.Id);
+                                         if (next.Value is TItem)
+                                         {
+                                             if (!DeliverNext(next, subscriber, deliveryTracker)) return false;
+                                         }
+                                         return TryEvict(next.Id);
                                      })
                                      .ConfigureAwait(false);
 
@@ -67,11 +70,11 @@ namespace Baubit.Aggregation
             return retVal;
         }
 
-        private bool DeliverNext(IEntry<T> next, 
-                                 ISubscriber<T> subscriber, 
-                                 DeliveryTracker deliveryTracker)
+        private bool DeliverNext<TItem>(IEntry<T> next,
+                                        ISubscriber<TItem> subscriber,
+                                        DeliveryTracker deliveryTracker) where TItem : T
         {
-            var res = subscriber.OnNextOrError(next.Value);
+            var res = subscriber.OnNextOrError((TItem)next.Value);
             deliveryTracker.RecordComplete(next.Id);
             return res;
         }

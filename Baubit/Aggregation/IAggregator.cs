@@ -8,4 +8,9 @@ namespace Baubit.Aggregation
         bool Publish(T item, out long? trackingId);
         Task<bool> AwaitDeliveryAsync(long trackingId, CancellationToken cancellationToken = default);
     }
+
+    public interface IAggregator : IAggregator<object>
+    {
+
+    }
 }

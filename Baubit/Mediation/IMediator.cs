@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using Baubit.Aggregation;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Baubit.Mediation
@@ -7,7 +8,7 @@ namespace Baubit.Mediation
     /// Coordinates request/response messaging by routing requests to registered handlers
     /// and returning responses. Supports synchronous handlers and asynchronous pipeline handlers.
     /// </summary>
-    public interface IMediator
+    public interface IMediator : IAggregator
     {
         /// <summary>
         /// Registers a synchronous handler for the given request/response types.

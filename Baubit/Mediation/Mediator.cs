@@ -1,4 +1,5 @@
-﻿using Baubit.Caching;
+﻿using Baubit.Aggregation;
+using Baubit.Caching;
 using Baubit.Collections;
 using Baubit.Mediation.Exceptions;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +12,7 @@ namespace Baubit.Mediation
     /// Default implementation of <see cref="IMediator"/> that supports both synchronous
     /// request/response handling and an asynchronous pipeline backed by ordered caches.
     /// </summary>
-    public class Mediator : IMediator
+    public class Mediator : Aggregator<object>, IMediator
     {
         private IList<IRequestHandler> handlers = new ConcurrentList<IRequestHandler>();
         private IList<IRequestHandler> asyncHandlers = new ConcurrentList<IRequestHandler>();
@@ -23,8 +24,9 @@ namespace Baubit.Mediation
         /// </summary>
         /// <param name="serviceProvider">The application service provider used to resolve caches and lookups.</param>
         /// <param name="loggerFactory">Factory for creating loggers (reserved for future diagnostics).</param>
-        public Mediator(IServiceProvider serviceProvider,
-                        ILoggerFactory loggerFactory)
+        public Mediator(IServiceProvider serviceProvider, 
+                        IOrderedCache<object> cache,
+                        ILoggerFactory loggerFactory) : base(cache, loggerFactory)
         {
             this.serviceProvider = serviceProvider;
             _resolverCache = new ResolverCache(serviceProvider);

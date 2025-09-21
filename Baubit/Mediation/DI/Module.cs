@@ -1,4 +1,5 @@
-﻿using Baubit.Configuration;
+﻿using Baubit.Aggregation;
+using Baubit.Configuration;
 using Baubit.DI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ namespace Baubit.Mediation.DI
         {
             services.AddSingleton<Mediator>();
             services.AddSingleton<IMediator>(serviceProvider => serviceProvider.GetRequiredService<Mediator>());
+            services.AddSingleton<IAggregator>(serviceProvider => serviceProvider.GetRequiredService<IMediator>());
         }
     }
 }
