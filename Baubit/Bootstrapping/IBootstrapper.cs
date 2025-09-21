@@ -4,5 +4,6 @@ namespace Baubit.Bootstrapping
 {
     public interface IBootstrapper : IHostedService
     {
+        void Bootstrap();
     }
 }
