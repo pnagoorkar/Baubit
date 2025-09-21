@@ -1,6 +1,7 @@
 ﻿using Baubit.Caching;
 using Baubit.Configuration;
 using Baubit.DI;
+using Baubit.Observation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ namespace Baubit.Aggregation.DI
         {
             services.AddSingleton(BuildAggregator);
             services.AddSingleton<IAggregator<T>>(serviceProvider => serviceProvider.GetRequiredService<Aggregator<T>>());
+            services.AddSingleton<IPublisher<T>>(serviceProvider => serviceProvider.GetRequiredService<IAggregator<T>>());
         }
 
         private Aggregator<T> BuildAggregator(IServiceProvider serviceProvider)
