@@ -17,5 +17,10 @@ namespace Baubit.Bootstrapping
         {
             return Task.CompletedTask;
         }
+
+        public virtual void Bootstrap()
+        {
+
+        }
     }
 }

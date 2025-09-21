@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Baubit.Bootstrapping.DI
 {
-    public class Module : AModule<Configuration>
+    public class Module<TBootstrapper> : AModule<Configuration> where TBootstrapper : Bootstrapper
     {
         public Module(ConfigurationSource configurationSource) : base(configurationSource)
         {
@@ -21,7 +21,8 @@ namespace Baubit.Bootstrapping.DI
 
         public override void Load(IServiceCollection services)
         {
-            services.AddHostedService<Bootstrapper>();
+            services.AddSingleton<TBootstrapper>();
+            services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<TBootstrapper>());
         }
     }
 }
