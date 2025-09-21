@@ -2,7 +2,7 @@
 
 namespace Baubit.Test.Mediation.Mediator.Setup
 {
-    public class Request : IRequest
+    public class Request : IRequest<Response>
     {
         public long Id { get; init; }
 
@@ -22,7 +22,7 @@ namespace Baubit.Test.Mediation.Mediator.Setup
 
         private static long idSeed = 0;
 
-        public Response(IRequest forRequest)
+        public Response(IRequest<Response> forRequest)
         {
             Id = Interlocked.Increment(ref idSeed);
             ForRequest = forRequest.Id;

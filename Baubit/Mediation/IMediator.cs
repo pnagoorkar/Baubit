@@ -23,7 +23,7 @@ namespace Baubit.Mediation
         /// </returns>
         bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler,
                                                   CancellationToken cancellationToken = default)
-            where TRequest : IRequest
+            where TRequest : IRequest<TResponse>
             where TResponse : IResponse;
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace Baubit.Mediation
         /// </returns>
         Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
                                                              CancellationToken cancellationToken = default)
-            where TRequest : IRequest
+            where TRequest : IRequest<TResponse>
             where TResponse : IResponse;
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Baubit.Mediation
         /// Thrown if no handler is registered for <typeparamref name="TRequest"/>/<typeparamref name="TResponse"/>.
         /// </exception>
         TResponse Publish<TRequest, TResponse>(TRequest request)
-            where TRequest : IRequest
+            where TRequest : IRequest<TResponse>
             where TResponse : IResponse;
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace Baubit.Mediation
         /// </exception>
         Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request,
                                                               CancellationToken cancellationToken = default)
-            where TRequest : IRequest
+            where TRequest : IRequest<TResponse>
             where TResponse : IResponse;
 
         /// <summary>
@@ -92,7 +92,7 @@ namespace Baubit.Mediation
         /// </exception>
         Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
                                                                CancellationToken cancellationToken = default)
-            where TRequest : IRequest
+            where TRequest : IRequest<TResponse>
             where TResponse : IResponse;
     }
 }

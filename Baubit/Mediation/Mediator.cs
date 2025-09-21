@@ -36,7 +36,7 @@ namespace Baubit.Mediation
         /// </summary>
         /// <inheritdoc/>
         public bool RegisterHandler<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler,
-                                                         CancellationToken cancellationToken = default) where TRequest : IRequest
+                                                         CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse>
                                                                                                         where TResponse : IResponse
         {
             if (handlers.Any(handler => handler is IRequestHandler<TRequest, TResponse>)) return false;
@@ -51,7 +51,7 @@ namespace Baubit.Mediation
         /// </summary>
         /// <inheritdoc/>
         /// <exception cref="HandlerNotRegisteredException">Thrown when no matching handler is registered.</exception>
-        public TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest
+        public TResponse Publish<TRequest, TResponse>(TRequest request) where TRequest : IRequest<TResponse>
                                                                         where TResponse : IResponse
         {
             var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>)!;
@@ -65,7 +65,7 @@ namespace Baubit.Mediation
         /// </summary>
         /// <inheritdoc/>
         /// <exception cref="HandlerNotRegisteredException">Thrown when no matching handler is registered.</exception>
-        public async Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
+        public async Task<TResponse> PublishSyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
         {
             var handler = (IRequestHandler<TRequest, TResponse>)handlers.FirstOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>)!;
             if (handler == null) throw new HandlerNotRegisteredException();
@@ -80,7 +80,7 @@ namespace Baubit.Mediation
         /// <inheritdoc/>
         /// <exception cref="HandlerNotRegisteredException">Thrown when no async handler is registered.</exception>
         public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
-                                                                            CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
+                                                                            CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
         {
             if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
 
@@ -108,7 +108,7 @@ namespace Baubit.Mediation
         /// </summary>
         /// <inheritdoc/>
         public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
-                                                                          CancellationToken cancellationToken = default) where TRequest : IRequest where TResponse : IResponse
+                                                                          CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
         {
             asyncHandlers.Add(requestHandler);
             var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();

@@ -18,7 +18,7 @@ namespace Baubit.Mediation
     /// <typeparam name="TRequest">The request type to handle.</typeparam>
     /// <typeparam name="TResponse">The response type to return.</typeparam>
     public interface IRequestHandler<TRequest, TResponse> : IRequestHandler
-        where TRequest : IRequest
+        where TRequest : IRequest<TResponse>
         where TResponse : IResponse
     {
         /// <summary>
