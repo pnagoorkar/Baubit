@@ -2,7 +2,7 @@
 
 namespace Baubit.Bootstrapping
 {
-    public class Bootstrapper : IHostedService
+    public class Bootstrapper : IBootstrapper
     {
         public Bootstrapper(IEnumerable<IBootstrap> bootstraps)
         {
