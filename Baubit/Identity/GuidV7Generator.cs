@@ -110,4 +110,16 @@ namespace Baubit.Identity
             return true;
         }
     }
+
+    public static class GuidV7Extensions
+    {
+        public static long? ExtractTimestampMs(this Guid guid)
+        {
+            if (GuidV7Generator.TryGetUnixMs(guid, out var ms))
+            {
+                return ms;
+            }
+            return null;
+        }
+    }
 }

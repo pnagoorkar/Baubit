@@ -82,47 +82,46 @@ namespace Baubit.Test.Identity.GuidV7Generator
         public void IdsAreMonotonicallyUnique(int numOfIds)
         {
             var guidV7Generator = Baubit.Identity.GuidV7Generator.CreateNew();
+            var at = DateTimeOffset.Now;
+            var ids = new ConcurrentList<Guid>();
             var monotonicIds = new ConcurrentList<Guid>();
 
             var parallelLoopResult = Parallel.For(0, numOfIds, _ =>
             {
-                monotonicIds.Add(guidV7Generator.GetNext());
+                ids.Add(Guid.CreateVersion7(at));
+                monotonicIds.Add(guidV7Generator.GetNext(at));
             });
 
             Assert.Null(parallelLoopResult.LowestBreakIteration);
             Assert.Equal(numOfIds, monotonicIds.Count);
-            var timeStamps = new ConcurrentList<long>();
-            foreach (var monotonicId in monotonicIds)
-            {
-                Baubit.Identity.GuidV7Generator.TryGetUnixMs(monotonicId, out var ms);
-                timeStamps.Add(ms);
-            }
-            Assert.Equal(numOfIds, timeStamps.Distinct().Count());
+
+            var distinctIdCount = ids.DistinctBy(id => id.ExtractTimestampMs()).Count();
+            Assert.Equal(1, distinctIdCount); // By default, V7 guids all get the same timestamp if created at the same ms.
+
+            var distinctMonotonicIdCount = monotonicIds.DistinctBy(id => id.ExtractTimestampMs()).Count();
+            Assert.Equal(numOfIds, distinctMonotonicIdCount); // guids generated from GuidV7Generator have a distinct time stamp, even when generated at the same ms
         }
         [Theory]
         [InlineData(100000)]
         public void IdsAreMonotonicallyUniqueEvenWhenCreatedWithReferenceOfAnother(int numOfIds)
         {
             var monotonicIds = new ConcurrentList<Guid>();
-            var dateTimeOffset = DateTimeOffset.UtcNow;
-            var reference = Guid.CreateVersion7(dateTimeOffset);
+            var at = DateTimeOffset.UtcNow;
+            var reference = Guid.CreateVersion7(at);
             var guidV7Generator = Baubit.Identity.GuidV7Generator.CreateNew(reference);
             var parallelLoopResult = Parallel.For(0, numOfIds, _ =>
             {
-                monotonicIds.Add(guidV7Generator.GetNext());
+                monotonicIds.Add(guidV7Generator.GetNext(at));
             });
 
             Assert.Null(parallelLoopResult.LowestBreakIteration);
             Assert.Equal(numOfIds, monotonicIds.Count);
-            var timeStamps = new ConcurrentList<long>();
-            foreach (var monotonicId in monotonicIds)
-            {
-                Baubit.Identity.GuidV7Generator.TryGetUnixMs(monotonicId, out var ms);
-                timeStamps.Add(ms);
-            }
-            Assert.Equal(numOfIds, timeStamps.Distinct().Count());
-            Baubit.Identity.GuidV7Generator.TryGetUnixMs(reference, out var refTimestamp);
-            Assert.True(timeStamps.Min() > refTimestamp); // the earliest generated guid is still - in time - later than the reference
+
+            var distinctIdCount = monotonicIds.DistinctBy(id => id.ExtractTimestampMs()).Count();
+
+            Assert.Equal(numOfIds, distinctIdCount);
+            var refTimestamp = reference.ExtractTimestampMs();
+            Assert.True(monotonicIds.Select(id => id.ExtractTimestampMs()).Min() > refTimestamp); // the earliest generated guid is still - in time - later than the reference
         }
     }
 }
