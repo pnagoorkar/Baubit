@@ -125,6 +125,16 @@ namespace Baubit.Caching
             } while (!cancellationToken.IsCancellationRequested);
         }
 
+        public static async IAsyncEnumerable<IEntry<TValue>> EnumerateFutureEntriesAsync<TValue>(this IOrderedCache<TValue> cache,
+                                                                                                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var firstFutureEntry = await cache.GetFutureFirstOrDefaultAsync(cancellationToken);
+            await foreach (var item in cache.EnumerateEntriesAsync(firstFutureEntry.Id, cancellationToken).ConfigureAwait(false))
+            {
+                yield return item;
+            }
+        }
+
         /// <summary>
         /// Applies a synchronous accumulator to each element of an async sequence, short‑circuiting
         /// when <paramref name="func"/> returns <c>false</c> or when <paramref name="cancellationToken"/> is signaled.
@@ -136,8 +146,8 @@ namespace Baubit.Caching
         /// <returns><c>true</c> if the aggregation ran to completion; otherwise <c>false</c>.</returns>
         /// <exception cref="Exception">Thrown when <paramref name="func"/> throws; message is <c>"ka-boom!"</c>.</exception>
         public static async Task<bool> AggregateAsync<T>(this IAsyncEnumerable<T> asyncEnumerable,
-                                                           Func<T, bool> func,
-                                                           CancellationToken cancellationToken = default)
+                                                         Func<T, bool> func,
+                                                         CancellationToken cancellationToken = default)
         {
             await foreach (var item in asyncEnumerable.ConfigureAwait(false))
             {

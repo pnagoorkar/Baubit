@@ -55,11 +55,25 @@ namespace Baubit.Caching
         bool GetFirstOrDefault(out IEntry<TValue>? entry);
 
         /// <summary>
+        /// Returns the id of the first (tail) entry.
+        /// </summary>
+        /// <param name="id">On success, id of the first entry; otherwise <c>null</c></param>
+        /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
+        bool GetFirstIdOrDefault(out long? id);
+
+        /// <summary>
         /// Tries to retrieve the last (tail) entry.
         /// </summary>
         /// <param name="entry">On success, the last entry; otherwise <c>null</c>.</param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
         bool GetLastOrDefault(out IEntry<TValue>? entry);
+
+        /// <summary>
+        /// Returns the id of the last (tail) entry.
+        /// </summary>
+        /// <param name="id">On success, id of the last entry; otherwise <c>null</c></param>
+        /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
+        bool GetLastIdOrDefault(out long? id);
 
         /// <summary>
         /// Asynchronously waits for and returns the next entry after <paramref name="id"/>.
@@ -70,6 +84,13 @@ namespace Baubit.Caching
         /// <param name="cancellationToken">A token to cancel the wait.</param>
         /// <returns>A task that completes with the next entry.</returns>
         Task<IEntry<TValue>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Asynchronously waits for and returns the first entry (immediately) after the call
+        /// </summary>
+        /// <param name="cancellationToken">A token to cancel the wait.</param>
+        /// <returns>A task that completes with the first future entry.</returns>
+        Task<IEntry<TValue>> GetFutureFirstOrDefaultAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Removes the entry with the specified identifier.

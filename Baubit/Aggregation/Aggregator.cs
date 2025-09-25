@@ -8,11 +8,11 @@ namespace Baubit.Aggregation
 {
     public class Aggregator<T> : IAggregator<T>
     {
-        public bool CanPublish { get => deliveryTrackers.Count > 0; }
+        public bool CanPublish { get => trackedIndices.Count > 0; }
         private bool disposedValue;
-        private IOrderedCache<T> _cache;
+        protected IOrderedCache<T> _cache;
 
-        ConcurrentList<DeliveryTracker> deliveryTrackers = new ConcurrentList<DeliveryTracker>();
+        ConcurrentList<TrackedIndex> trackedIndices = new ConcurrentList<TrackedIndex>();
         private ILogger<Aggregator<T>> _logger;
 
         public Aggregator(IOrderedCache<T> cache, 
@@ -48,49 +48,66 @@ namespace Baubit.Aggregation
         }
 
         public async Task<bool> SubscribeAsync<TItem>(ISubscriber<TItem> subscriber,
-                                                       CancellationToken cancellationToken = default) where TItem : T
+                                                      CancellationToken cancellationToken = default) where TItem : T
         {
-            var deliveryTracker = new DeliveryTracker();
-            deliveryTrackers.Add(deliveryTracker);
+            var trackedIndex = StartTracking();
 
-            if (!_cache.GetLastOrDefault(out var entry)) return false;
-
-            var retVal = await _cache.EnumerateEntriesAsync(entry?.Id, cancellationToken)
+            var retVal = await _cache.EnumerateFutureEntriesAsync(cancellationToken)
                                      .AggregateAsync(next =>
                                      {
-                                         if (next.Value is TItem)
+                                         try
                                          {
-                                             if (!DeliverNext(next, subscriber, deliveryTracker)) return false;
+                                             if (next.Value is TItem item)
+                                             {
+                                                 if (!subscriber.OnNextOrError(item)) return false;
+                                             }
+                                             return true;
                                          }
-                                         return TryEvict(next.Id);
-                                     })
-                                     .ConfigureAwait(false);
+                                         finally
+                                         {
+                                             RecordRead(trackedIndex, next.Id);
+                                         }
+                                     }).ConfigureAwait(false);
 
-            deliveryTrackers.Remove(deliveryTracker);
+            StopTracking(trackedIndex);
             return retVal;
         }
 
-        private bool DeliverNext<TItem>(IEntry<T> next,
-                                        ISubscriber<TItem> subscriber,
-                                        DeliveryTracker deliveryTracker) where TItem : T
+        protected TrackedIndex StartTracking()
         {
-            var res = subscriber.OnNextOrError((TItem)next.Value);
-            deliveryTracker.RecordComplete(next.Id);
-            return res;
+            var trackedIndex = new TrackedIndex();
+            trackedIndices.Add(trackedIndex);
+            return trackedIndex;
         }
 
-        private bool TryEvict(long id)
+        protected bool StopTracking(TrackedIndex trackedIndex)
         {
-            if (deliveryTrackers.All(tracker => tracker.IsComplete(id)))
+            return trackedIndices.Remove(trackedIndex);
+        }
+
+        protected bool RecordRead(TrackedIndex trackedIndex, 
+                                  long readId)
+        {
+            trackedIndex.RecordRead(readId);
+            return TryEvict(readId);
+        }
+
+        protected bool TryEvict(long id)
+        {
+            if (!CanEvict(id)) return true;
+
+            if (!_cache.Remove(id, out _)) return true;
+
+            if (!deliveryAwaiters.TryGetValue(id, out var taskCompletionSource))
             {
-                _cache.Remove(id, out _);
-                if (!deliveryAwaiters.TryGetValue(id, out var taskCompletionSource))
-                {
-                    taskCompletionSource = deliveryAwaiters.GetOrAdd(id, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
-                }
-                taskCompletionSource.TrySetResult(true);
+                taskCompletionSource = deliveryAwaiters.GetOrAdd(id, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
             }
-            return true;
+            return taskCompletionSource.TrySetResult(true);
+        }
+
+        private bool CanEvict(long id)
+        {
+            return trackedIndices.All(index => index.IsRead(id));
         }
 
         #region Dispose
@@ -101,7 +118,7 @@ namespace Baubit.Aggregation
                 if (disposing)
                 {
                     _cache.Dispose();
-                    deliveryTrackers.Clear();
+                    trackedIndices.Clear();
                 }
                 disposedValue = true;
             }
@@ -114,21 +131,21 @@ namespace Baubit.Aggregation
         }
         #endregion
 
-        private class DeliveryTracker
+        protected class TrackedIndex
         {
             public int Id { get; init; }
-            public long? LastCompletedId { get; private set; }
+            public long? LastReadId { get; private set; }
 
             private int idSeed = 0;
 
-            public void RecordComplete(long id)
+            public void RecordRead(long id)
             {
-                LastCompletedId = id;
+                LastReadId = id;
             }
 
-            public bool IsComplete(long id)
+            public bool IsRead(long id)
             {
-                return id <= LastCompletedId;
+                return id <= LastReadId;
             }
         }
     }

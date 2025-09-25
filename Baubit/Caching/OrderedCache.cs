@@ -224,6 +224,19 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
+        public bool GetFirstIdOrDefault(out long? id)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                if (disposedValue) { id = default; return false; }
+                id = _metadata.HeadId;
+                return true;
+            }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        /// <inheritdoc/>
         public bool GetLastOrDefault(out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
@@ -232,6 +245,19 @@ namespace Baubit.Caching
                 if (disposedValue) { entry = default; return false; }
                 entry = default;
                 return GetEntryOrDefaultInternal(_metadata.TailId, out entry);
+            }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        /// <inheritdoc/>
+        public bool GetLastIdOrDefault(out long? id)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                if (disposedValue) { id = default; return false; }
+                id = _metadata.TailId;
+                return true;
             }
             finally { Locker.ExitReadLock(); }
         }
@@ -251,11 +277,27 @@ namespace Baubit.Caching
                 }
                 else
                 {
-                    mostRecentWaitingId = id;
-                    return _waitingRoom.Join(cancellationToken);
+                    return GetFutureFirstOrDefaultAsyncInternal(cancellationToken);
                 }
             }
             finally { Locker.ExitReadLock(); }
+        }
+
+        /// <inheritdoc/>
+        public Task<IEntry<TValue>> GetFutureFirstOrDefaultAsync(CancellationToken cancellationToken = default)
+        {
+            Locker.EnterReadLock();
+            try
+            {
+                return GetFutureFirstOrDefaultAsyncInternal(cancellationToken);
+            }
+            finally { Locker.ExitReadLock(); }
+        }
+
+        private Task<IEntry<TValue>> GetFutureFirstOrDefaultAsyncInternal(CancellationToken cancellationToken = default)
+        {
+            mostRecentWaitingId = _metadata.TailId;
+            return _waitingRoom.Join(cancellationToken);
         }
 
         /// <inheritdoc/>
