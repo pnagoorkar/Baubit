@@ -16,20 +16,14 @@ namespace Baubit.Mediation
     {
         private IList<IRequestHandler> handlers = new ConcurrentList<IRequestHandler>();
         private IList<IRequestHandler> asyncHandlers = new ConcurrentList<IRequestHandler>();
-        private IServiceProvider serviceProvider;
-        private readonly ResolverCache _resolverCache;
 
         /// <summary>
         /// Creates a new mediator instance.
         /// </summary>
-        /// <param name="serviceProvider">The application service provider used to resolve caches and lookups.</param>
         /// <param name="loggerFactory">Factory for creating loggers (reserved for future diagnostics).</param>
-        public Mediator(IServiceProvider serviceProvider, 
-                        IOrderedCache<object> cache,
+        public Mediator(IOrderedCache<object> cache,
                         ILoggerFactory loggerFactory) : base(cache, loggerFactory)
         {
-            this.serviceProvider = serviceProvider;
-            _resolverCache = new ResolverCache(serviceProvider);
         }
 
         /// <summary>
@@ -74,35 +68,6 @@ namespace Baubit.Mediation
             return await handler.HandleSyncAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
-        ///// <summary>
-        ///// Publishes a request into the asynchronous pipeline and awaits the matching response.
-        ///// The request is added to the request cache, then the method waits for a matching
-        ///// response to appear in the response cache (via <see cref="ResponseLookup{TResponse}"/>).
-        ///// </summary>
-        ///// <inheritdoc/>
-        ///// <exception cref="HandlerNotRegisteredException">Thrown when no async handler is registered.</exception>
-        //public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
-        //                                                                    CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
-        //{
-        //    if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
-
-        //    var requestCache = _resolverCache.Cache<TRequest>();
-        //    var responseCache = _resolverCache.Cache<TResponse>();
-
-        //    var lookup = _resolverCache.Lookup<TResponse>();
-
-        //    requestCache.Add(request, out var requestEntry);
-
-        //    try
-        //    {
-        //        return await lookup.GetResponseAsync(request.Id, cancellationToken).ConfigureAwait(false);
-        //    }
-        //    finally
-        //    {
-        //        requestCache.Remove(requestEntry.Id, out _);
-        //    }
-        //}
-
         public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
                                                                             CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
         {
@@ -110,7 +75,7 @@ namespace Baubit.Mediation
 
             _cache.Add(request, out var entry);
 
-            var resultTCS = new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var retVal = default(TResponse);
 
             var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -121,9 +86,8 @@ namespace Baubit.Mediation
                             {
                                 if (next.Value is TResponse response && response.ForRequest == request.Id)
                                 {
-                                    var res = resultTCS.TrySetResult(response);
+                                    retVal = response;
                                     linkedCTS.Cancel();
-                                    return res;
                                 }
                                 return true;
                             }
@@ -135,32 +99,8 @@ namespace Baubit.Mediation
 
             StopTracking(trackedIndex);
 
-            return await resultTCS.Task.WaitAsync(cancellationToken);
+            return retVal!;
         }
-
-        ///// <summary>
-        ///// Registers an asynchronous pipeline handler that listens on the request cache,
-        ///// transforms requests into responses, and writes responses to the response cache
-        ///// until <paramref name="cancellationToken"/> is canceled.
-        ///// </summary>
-        ///// <inheritdoc/>
-        //public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
-        //                                                                  CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
-        //{
-        //    asyncHandlers.Add(requestHandler);
-        //    var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
-        //    var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
-
-        //    await requestCache.EnumerateEntriesAsync(null, cancellationToken)
-        //                      .AggregateAsync(async entry =>
-        //                      {
-        //                          var response = await requestHandler.HandleAsyncAsync(entry.Value).ConfigureAwait(false);
-        //                          return responseCache.Add(response, out _);
-        //                      }, cancellationToken)
-        //                      .ConfigureAwait(false);
-
-        //    return asyncHandlers.Remove(requestHandler);
-        //}
 
         public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
                                                                           CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
@@ -175,7 +115,7 @@ namespace Baubit.Mediation
                             {
                                 if (next.Value is TRequest request)
                                 {
-                                    var response = await requestHandler.HandleAsyncAsync(request);
+                                    var response = await requestHandler.HandleAsyncAsync(request).ConfigureAwait(false);
                                     _cache.Add(response, out _);
                                 }
                                 return true;
@@ -191,49 +131,6 @@ namespace Baubit.Mediation
             StopTracking(trackedIndex);
 
             return asyncHandlers.Remove(requestHandler);
-        }
-
-        /// <summary>
-        /// Local cache that resolves typed services (caches and lookups) and memoizes them.
-        /// </summary>
-        sealed class ResolverCache
-        {
-            private readonly IServiceProvider _serviceProvider;
-            private readonly ConcurrentDictionary<(Type open, Type arg), object> _map = new();
-
-            /// <summary>
-            /// Initializes a new instance of the resolver cache.
-            /// </summary>
-            /// <param name="serviceProvider">The root service provider.</param>
-            public ResolverCache(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
-
-            /// <summary>
-            /// Gets the typed ordered cache for <typeparamref name="T"/> from DI.
-            /// </summary>
-            public IOrderedCache<T> Cache<T>() => (IOrderedCache<T>)Get(typeof(IOrderedCache<>), typeof(T));
-
-            /// <summary>
-            /// Gets the typed <see cref="ResponseLookup{TResponse}"/> from DI.
-            /// </summary>
-            public ResponseLookup<TResponse> Lookup<TResponse>() where TResponse : IResponse
-            {
-                return (ResponseLookup<TResponse>)Get(typeof(ResponseLookup<>), typeof(TResponse));
-            }
-
-            private object Get(Type openGeneric, Type arg)
-            {
-                if (!openGeneric.IsGenericTypeDefinition)
-                {
-                    throw new ArgumentException("Must be an open generic type definition.", nameof(openGeneric));
-                }
-
-                return _map.GetOrAdd((openGeneric, arg), key =>
-                {
-                    var closed = key.open.MakeGenericType(key.arg);
-                    return ActivatorUtilities.GetServiceOrCreateInstance(_serviceProvider, closed);
-                });
-            }
-
         }
     }
 }

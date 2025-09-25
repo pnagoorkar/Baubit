@@ -38,13 +38,23 @@ namespace Baubit.Aggregation
 
         private ConcurrentDictionary<long, TaskCompletionSource<bool>> deliveryAwaiters = new ConcurrentDictionary<long, TaskCompletionSource<bool>>();
 
+        private ReaderWriterLockSlim deliveryAwaiterSyncer = new ReaderWriterLockSlim();
         public async Task<bool> AwaitDeliveryAsync(long trackingId, CancellationToken cancellationToken = default)
         {
-            if (!deliveryAwaiters.TryGetValue(trackingId, out var taskCompletionSource))
+            deliveryAwaiterSyncer.EnterWriteLock();
+            try
             {
-                taskCompletionSource = deliveryAwaiters.GetOrAdd(trackingId, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+                if (_cache.GetFirstIdOrDefault(out var headId) && headId > trackingId) return true;
+                if (!deliveryAwaiters.TryGetValue(trackingId, out var taskCompletionSource))
+                {
+                    taskCompletionSource = deliveryAwaiters.GetOrAdd(trackingId, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+                }
+                return await taskCompletionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
-            return await taskCompletionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            finally
+            {
+                deliveryAwaiterSyncer.ExitWriteLock();
+            }
         }
 
         public async Task<bool> SubscribeAsync<TItem>(ISubscriber<TItem> subscriber,
@@ -95,14 +105,21 @@ namespace Baubit.Aggregation
         protected bool TryEvict(long id)
         {
             if (!CanEvict(id)) return true;
-
-            if (!_cache.Remove(id, out _)) return true;
-
-            if (!deliveryAwaiters.TryGetValue(id, out var taskCompletionSource))
+            deliveryAwaiterSyncer.EnterReadLock();
+            try
             {
-                taskCompletionSource = deliveryAwaiters.GetOrAdd(id, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+                if (!_cache.Remove(id, out _)) return true;
+                if (deliveryAwaiters.TryGetValue(id, out var taskCompletionSource))
+                {
+                    taskCompletionSource.TrySetResult(true);
+                    deliveryAwaiters.TryRemove(id, out _);
+                }
             }
-            return taskCompletionSource.TrySetResult(true);
+            finally
+            {
+                deliveryAwaiterSyncer.ExitReadLock();
+            }
+            return true;
         }
 
         private bool CanEvict(long id)

@@ -55,7 +55,7 @@ namespace Baubit.Caching
         bool GetFirstOrDefault(out IEntry<TValue>? entry);
 
         /// <summary>
-        /// Returns the id of the first (tail) entry.
+        /// Returns the id of the first (head) entry.
         /// </summary>
         /// <param name="id">On success, id of the first entry; otherwise <c>null</c></param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
