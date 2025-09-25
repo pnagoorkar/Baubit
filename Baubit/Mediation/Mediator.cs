@@ -74,55 +74,121 @@ namespace Baubit.Mediation
             return await handler.HandleSyncAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Publishes a request into the asynchronous pipeline and awaits the matching response.
-        /// The request is added to the request cache, then the method waits for a matching
-        /// response to appear in the response cache (via <see cref="ResponseLookup{TResponse}"/>).
-        /// </summary>
-        /// <inheritdoc/>
-        /// <exception cref="HandlerNotRegisteredException">Thrown when no async handler is registered.</exception>
+        ///// <summary>
+        ///// Publishes a request into the asynchronous pipeline and awaits the matching response.
+        ///// The request is added to the request cache, then the method waits for a matching
+        ///// response to appear in the response cache (via <see cref="ResponseLookup{TResponse}"/>).
+        ///// </summary>
+        ///// <inheritdoc/>
+        ///// <exception cref="HandlerNotRegisteredException">Thrown when no async handler is registered.</exception>
+        //public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
+        //                                                                    CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
+        //{
+        //    if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
+
+        //    var requestCache = _resolverCache.Cache<TRequest>();
+        //    var responseCache = _resolverCache.Cache<TResponse>();
+
+        //    var lookup = _resolverCache.Lookup<TResponse>();
+
+        //    requestCache.Add(request, out var requestEntry);
+
+        //    try
+        //    {
+        //        return await lookup.GetResponseAsync(request.Id, cancellationToken).ConfigureAwait(false);
+        //    }
+        //    finally
+        //    {
+        //        requestCache.Remove(requestEntry.Id, out _);
+        //    }
+        //}
+
         public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request,
                                                                             CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
         {
-            if (!asyncHandlers.Any(handler => handler is IAsyncRequestHandler<TRequest, TResponse>)) throw new HandlerNotRegisteredException();
+            var trackedIndex = StartTracking();
 
-            var requestCache = _resolverCache.Cache<TRequest>();
-            var responseCache = _resolverCache.Cache<TResponse>();
+            _cache.Add(request, out var entry);
 
-            var lookup = _resolverCache.Lookup<TResponse>();
+            var resultTCS = new TaskCompletionSource<TResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            requestCache.Add(request, out var requestEntry);
+            var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            try
-            {
-                return await lookup.GetResponseAsync(request.Id, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                requestCache.Remove(requestEntry.Id, out _);
-            }
+            await _cache.EnumerateEntriesAsync(entry.Id, linkedCTS.Token)
+                        .AggregateAsync(next =>
+                        {
+                            try
+                            {
+                                if (next.Value is TResponse response && response.ForRequest == request.Id)
+                                {
+                                    var res = resultTCS.TrySetResult(response);
+                                    linkedCTS.Cancel();
+                                    return res;
+                                }
+                                return true;
+                            }
+                            finally
+                            {
+                                RecordRead(trackedIndex, next.Id);
+                            }
+                        }).ConfigureAwait(false);
+
+            StopTracking(trackedIndex);
+
+            return await resultTCS.Task.WaitAsync(cancellationToken);
         }
 
-        /// <summary>
-        /// Registers an asynchronous pipeline handler that listens on the request cache,
-        /// transforms requests into responses, and writes responses to the response cache
-        /// until <paramref name="cancellationToken"/> is canceled.
-        /// </summary>
-        /// <inheritdoc/>
+        ///// <summary>
+        ///// Registers an asynchronous pipeline handler that listens on the request cache,
+        ///// transforms requests into responses, and writes responses to the response cache
+        ///// until <paramref name="cancellationToken"/> is canceled.
+        ///// </summary>
+        ///// <inheritdoc/>
+        //public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
+        //                                                                  CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
+        //{
+        //    asyncHandlers.Add(requestHandler);
+        //    var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
+        //    var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
+
+        //    await requestCache.EnumerateEntriesAsync(null, cancellationToken)
+        //                      .AggregateAsync(async entry =>
+        //                      {
+        //                          var response = await requestHandler.HandleAsyncAsync(entry.Value).ConfigureAwait(false);
+        //                          return responseCache.Add(response, out _);
+        //                      }, cancellationToken)
+        //                      .ConfigureAwait(false);
+
+        //    return asyncHandlers.Remove(requestHandler);
+        //}
+
         public async Task<bool> RegisterHandlerAsync<TRequest, TResponse>(IAsyncRequestHandler<TRequest, TResponse> requestHandler,
                                                                           CancellationToken cancellationToken = default) where TRequest : IRequest<TResponse> where TResponse : IResponse
         {
             asyncHandlers.Add(requestHandler);
-            var requestCache = serviceProvider.GetRequiredService<IOrderedCache<TRequest>>();
-            var responseCache = serviceProvider.GetRequiredService<IOrderedCache<TResponse>>();
+            var trackedIndex = StartTracking();
 
-            await requestCache.EnumerateEntriesAsync(null, cancellationToken)
-                              .AggregateAsync(async entry =>
-                              {
-                                  var response = await requestHandler.HandleAsyncAsync(entry.Value).ConfigureAwait(false);
-                                  return responseCache.Add(response, out _);
-                              }, cancellationToken)
-                              .ConfigureAwait(false);
+            await _cache.EnumerateFutureEntriesAsync(cancellationToken)
+                        .AggregateAsync(async next =>
+                        {
+                            try
+                            {
+                                if (next.Value is TRequest request)
+                                {
+                                    var response = await requestHandler.HandleAsyncAsync(request);
+                                    _cache.Add(response, out _);
+                                }
+                                return true;
+                            }
+                            finally
+                            {
+                                RecordRead(trackedIndex, next.Id);
+                            }
+
+                        }).ConfigureAwait(false);
+
+
+            StopTracking(trackedIndex);
 
             return asyncHandlers.Remove(requestHandler);
         }
