@@ -14,6 +14,8 @@ namespace Baubit.Test.Mediation.Mediator
         [InlineData(1000)]
         public async Task CanMediate(int numOfRequests)
         {
+            Request.ResetSeed();
+            Response.ResetSeed();
             var mediatorBuildResult = ComponentBuilder<IMediator>.Create()
                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001(), new Baubit.Caching.InMemory.Features.F000<object>(), new Baubit.Caching.InMemory.Features.F000<Request>(), new Baubit.Caching.InMemory.Features.F000<Response>()]))
                                                                  .Bind(componentBuilder => componentBuilder.WithModules(new Baubit.Mediation.DI.Module(ConfigurationSource.Empty)))
@@ -42,6 +44,8 @@ namespace Baubit.Test.Mediation.Mediator
         [InlineData(1000)]
         public async Task CanMediateAsync(int numOfRequests)
         {
+            Request.ResetSeed();
+            Response.ResetSeed();
             var mediatorBuildResult = ComponentBuilder<IMediator>.Create()
                                                                  .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001(), new Baubit.Caching.InMemory.Features.F000<object>(), new Baubit.Caching.InMemory.Features.F000<Request>(), new Baubit.Caching.InMemory.Features.F000<Response>()]))
                                                                  .Bind(componentBuilder => componentBuilder.WithModules(new Baubit.Mediation.DI.Module(ConfigurationSource.Empty)))
@@ -71,6 +75,8 @@ namespace Baubit.Test.Mediation.Mediator
         [InlineData(1000, 100)]
         public async Task MediatorCanAggregate(int numOfEvents, int numOfConsumers)
         {
+            Request.ResetSeed();
+            Response.ResetSeed();
             var buildResult = ComponentBuilder<IAggregator>.Create()
                                                            .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001(), 
                                                                                                                     new Baubit.Caching.InMemory.Features.F000<object>(), 

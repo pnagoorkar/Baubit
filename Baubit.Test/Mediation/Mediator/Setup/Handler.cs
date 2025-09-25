@@ -12,6 +12,11 @@ namespace Baubit.Test.Mediation.Mediator.Setup
         {
             Id = Interlocked.Increment(ref idSeed);
         }
+
+        public static void ResetSeed()
+        {
+            idSeed = 0;
+        }
     }
 
     public class Response : IResponse
@@ -26,6 +31,11 @@ namespace Baubit.Test.Mediation.Mediator.Setup
         {
             Id = Interlocked.Increment(ref idSeed);
             ForRequest = forRequest.Id;
+        }
+
+        public static void ResetSeed()
+        {
+            idSeed = 0;
         }
     }
 
