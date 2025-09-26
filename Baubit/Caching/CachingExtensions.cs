@@ -109,6 +109,7 @@ namespace Baubit.Caching
             var id = startingId;
             do
             {
+                if (cancellationToken.IsCancellationRequested) yield break;
                 var nextEntry = default(IEntry<TValue>);
                 try
                 {

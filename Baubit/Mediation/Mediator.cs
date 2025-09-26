@@ -95,7 +95,7 @@ namespace Baubit.Mediation
                             {
                                 RecordRead(trackedIndex, next.Id);
                             }
-                        }).ConfigureAwait(false);
+                        }, linkedCTS.Token).ConfigureAwait(false);
 
             StopTracking(trackedIndex);
 
@@ -125,7 +125,7 @@ namespace Baubit.Mediation
                                 RecordRead(trackedIndex, next.Id);
                             }
 
-                        }).ConfigureAwait(false);
+                        }, cancellationToken).ConfigureAwait(false);
 
 
             StopTracking(trackedIndex);

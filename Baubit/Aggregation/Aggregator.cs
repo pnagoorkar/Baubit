@@ -3,6 +3,7 @@ using Baubit.Collections;
 using Baubit.Observation;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Baubit.Aggregation
 {
@@ -42,19 +43,20 @@ namespace Baubit.Aggregation
         public async Task<bool> AwaitDeliveryAsync(long trackingId, CancellationToken cancellationToken = default)
         {
             deliveryAwaiterSyncer.EnterWriteLock();
+            var taskCompletionSource = default(TaskCompletionSource<bool>);
             try
             {
                 if (_cache.GetFirstIdOrDefault(out var headId) && headId > trackingId) return true;
-                if (!deliveryAwaiters.TryGetValue(trackingId, out var taskCompletionSource))
+                if (!deliveryAwaiters.TryGetValue(trackingId, out taskCompletionSource))
                 {
                     taskCompletionSource = deliveryAwaiters.GetOrAdd(trackingId, static _ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
                 }
-                return await taskCompletionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 deliveryAwaiterSyncer.ExitWriteLock();
             }
+            return await taskCompletionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<bool> SubscribeAsync<TItem>(ISubscriber<TItem> subscriber,
@@ -77,7 +79,7 @@ namespace Baubit.Aggregation
                                          {
                                              RecordRead(trackedIndex, next.Id);
                                          }
-                                     }).ConfigureAwait(false);
+                                     }, cancellationToken).ConfigureAwait(false);
 
             StopTracking(trackedIndex);
             return retVal;

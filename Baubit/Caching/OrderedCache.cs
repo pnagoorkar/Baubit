@@ -270,7 +270,7 @@ namespace Baubit.Caching
             Locker.EnterReadLock();
             try
             {
-                if (disposedValue) { Task.FromCanceled(cancellationToken); }
+                if (disposedValue) { Task.FromCanceled<IEntry<TValue>>(cancellationToken); }
                 if (GetNextOrDefaultInternal(id, out var entry) && entry != null)
                 {
                     return Task.FromResult(entry);
@@ -296,6 +296,7 @@ namespace Baubit.Caching
 
         private Task<IEntry<TValue>> GetFutureFirstOrDefaultAsyncInternal(CancellationToken cancellationToken = default)
         {
+            if (cancellationToken.IsCancellationRequested) { Task.FromCanceled<IEntry<TValue>>(cancellationToken); }
             mostRecentWaitingId = _metadata.TailId;
             return _waitingRoom.Join(cancellationToken);
         }
