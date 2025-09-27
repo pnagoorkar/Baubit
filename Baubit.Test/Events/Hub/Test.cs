@@ -2,7 +2,6 @@
 using Baubit.Configuration;
 using Baubit.DI;
 using Baubit.Events;
-using Baubit.Mediation;
 using Baubit.Test.Events.Hub.Setup;
 using System.Threading.Tasks;
 

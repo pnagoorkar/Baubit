@@ -1,5 +1,4 @@
 ﻿using Baubit.Events;
-using Baubit.Test.Mediation.Mediator.Setup;
 
 namespace Baubit.Test.Events.Hub.Setup
 {
