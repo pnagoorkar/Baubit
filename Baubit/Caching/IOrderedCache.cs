@@ -8,7 +8,7 @@ namespace Baubit.Caching
     /// Implementations are expected to be thread-safe for concurrent readers and writers.
     /// </summary>
     /// <typeparam name="TValue">The type of values held in the cache.</typeparam>
-    public interface IOrderedCache<TValue> : IDisposable
+    public interface IOrderedCache<TValue> : IAsyncEnumerable<IEntry<TValue>>, IFutureAsyncEnumerable<IEntry<TValue>>, IDisposable
     {
         /// <summary>
         /// The number of entries currently present.

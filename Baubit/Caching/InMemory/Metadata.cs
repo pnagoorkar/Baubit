@@ -36,6 +36,43 @@
             return true;
         }
 
+        public bool GetIdsThrough(long id, out IEnumerable<long> ids)
+        {
+            // (Empty store || if id preceeds the head) = do nothing
+            if (CurrentOrder.Count == 0 || id < HeadId)
+            {
+                ids = [];
+                return false;
+            }
+
+            // If id is at/after the tail -> whole list
+            if (id >= TailId)
+            {
+                ids = Enumerate(CurrentOrder.First!, CurrentOrder.Last!);
+                return true;
+            }
+
+            if(!IdNodeMap.TryGetValue(id, out var end))
+            {
+                // this method is intended to be called from the ordered cache and it is assumed that the cache will ALWAYS send an id that IS present in the IdNodeMap.
+                // if this method ever gets executed, the above assumption must not longer be true.
+                ids = [];
+                return false;
+            }
+
+            ids = Enumerate(CurrentOrder.First!, end);
+            return true;
+
+            static IEnumerable<long> Enumerate(LinkedListNode<long> start, LinkedListNode<long> endInclusive)
+            {
+                for (var n = start; n != null; n = n.Next)
+                {
+                    yield return n.Value;
+                    if (ReferenceEquals(n, endInclusive)) yield break;
+                }
+            }
+        }
+
         private bool IsIdSmallerThanHeadId(long? id) => id.HasValue && HeadId.HasValue && id < HeadId;
 
         private bool IsIdTailId(long? id) => id.HasValue && TailId.HasValue && id == TailId;

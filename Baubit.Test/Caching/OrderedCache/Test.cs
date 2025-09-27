@@ -1,6 +1,8 @@
 ﻿using Baubit.Caching;
+using Baubit.Caching.InMemory.DI;
 using Baubit.Collections;
 using Baubit.DI;
+using System;
 using System.Collections.Concurrent;
 
 namespace Baubit.Test.Caching.OrderedCache
@@ -208,6 +210,40 @@ namespace Baubit.Test.Caching.OrderedCache
 
             await Task.WhenAll(readerTasks);
             await deleter;
+        }
+
+        [Theory]
+        [InlineData(1)]
+        public async Task CanEvictAfterEveryX(int x)
+        {
+            var configuration = Baubit.Caching.InMemory.DI.Configuration.C001 with { CacheConfiguration = new Baubit.Caching.Configuration { EvictAfterEveryX = x } };
+            var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules(new Module<int>(configuration, [], [])))
+                                                                    .Bind(componentBuilder => componentBuilder.Build()).Value;
+
+            var enumerator = inMemoryCache.GetAsyncEnumerator();
+
+            inMemoryCache.Add(Random.Shared.Next(), out var entry);
+            Assert.Equal(inMemoryCache.Count, 1);
+
+            Assert.Null(enumerator.Current);
+
+            await enumerator.MoveNextAsync();
+            Assert.Equal(entry.Value, enumerator.Current.Value);
+
+            inMemoryCache.Add(Random.Shared.Next(), out entry);
+            Assert.Equal(inMemoryCache.Count, 1);
+
+            await enumerator.MoveNextAsync();
+            Assert.Equal(entry.Value, enumerator.Current.Value);
+
+            inMemoryCache.Add(Random.Shared.Next(), out entry);
+            Assert.Equal(inMemoryCache.Count, 1);
+
+            await enumerator.MoveNextAsync();
+            Assert.Equal(entry.Value, enumerator.Current.Value);
+
         }
     }
 

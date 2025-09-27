@@ -12,6 +12,7 @@ namespace Baubit.Caching
         bool Clear();
         bool ContainsKey(long id);
         bool GetNextId(long? id, out long? nextId);
+        bool GetIdsThrough(long id, out IEnumerable<long> ids);
         bool Remove(long id);
     }
 }

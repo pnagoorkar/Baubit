@@ -8,5 +8,6 @@
         public int ShrinkStep { get; init; } = 32;
         public double RoomRateLowerLimit { get; init; } = 1;
         public double RoomRateUpperLimit { get; init; } = 5;
+        public int EvictAfterEveryX { get; init; } = 100;
     }
 }

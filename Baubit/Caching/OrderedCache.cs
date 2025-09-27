@@ -1,4 +1,5 @@
 ﻿using Baubit.Caching.InMemory;
+using Baubit.Collections;
 using Baubit.Tasks;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -39,6 +40,8 @@ namespace Baubit.Caching
 
         private IStore<TValue>? _l1Store;
         private IStore<TValue> _l2Store;
+        private readonly IList<ICacheEnumerator<IEntry<TValue>>> _activeEnumerators = new ConcurrentList<ICacheEnumerator<IEntry<TValue>>>();
+        private int additionsSinceLastEviction = 0;
         #endregion
 
         /// <summary>
@@ -130,6 +133,7 @@ namespace Baubit.Caching
                 }
                 if (!_metadata.AddTail(entry.Id)) return false;
                 if (!SignalAwaiters(entry)) return false;
+                if (!TryEvict()) return false;
                 return true;
             }
             finally { Locker.ExitWriteLock(); }
@@ -148,6 +152,22 @@ namespace Baubit.Caching
             var prevRoom = _waitingRoom;
             _waitingRoom = new WaitingRoom<IEntry<TValue>>();
             return prevRoom.TrySetResult(entry);
+        }
+
+        private bool TryEvict()
+        {
+            if (Configuration != null && ++additionsSinceLastEviction >= Configuration.EvictAfterEveryX)
+            {
+                var lowestId = _activeEnumerators.Min(e => e.CurrentId);
+                if (lowestId == null) return true; // there is at least 1 enumerator that hasnt read even the head. respect the reader and short circuit
+                _metadata.GetIdsThrough(lowestId!.Value, out var ids);
+                foreach (var id in ids)
+                {
+                    RemoveInternal(id, out _);
+                }
+                additionsSinceLastEviction = 0;
+            }
+            return true;
         }
 
         /// <inheritdoc/>
@@ -307,19 +327,24 @@ namespace Baubit.Caching
             Locker.EnterWriteLock();
             try
             {
-                if (disposedValue) { entry = default; return false; }
-                entry = null;
-                if (!_l2Store.Remove(id, out var l2Entry)) return false;
-                if (_l1Store?.GetEntryOrDefault(id, out var l1Entry) == true && l1Entry != null)
-                {
-                    if (!_l1Store.Remove(id, out l1Entry)) return false;
-                }
-                if (!_metadata.Remove(id)) return false;
-                if (!ReplenishL1Store()) return false;
-                entry = l2Entry;
-                return true;
+                return RemoveInternal(id, out entry);
             }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        private bool RemoveInternal(long id, out IEntry<TValue>? entry)
+        {
+            if (disposedValue) { entry = default; return false; }
+            entry = null;
+            if (!_l2Store.Remove(id, out var l2Entry)) return false;
+            if (_l1Store?.GetEntryOrDefault(id, out var l1Entry) == true && l1Entry != null)
+            {
+                if (!_l1Store.Remove(id, out l1Entry)) return false;
+            }
+            if (!_metadata.Remove(id)) return false;
+            if (!ReplenishL1Store()) return false;
+            entry = l2Entry;
+            return true;
         }
 
         /// <summary>
@@ -373,6 +398,20 @@ namespace Baubit.Caching
                 }
                 disposedValue = true;
             }
+        }
+
+        public IAsyncEnumerator<IEntry<TValue>> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            var retVal = new CacheAsyncEnumerator<TValue>(this, e => _activeEnumerators.Remove(e), cancellationToken);
+            _activeEnumerators.Add(retVal);
+            return retVal;
+        }
+
+        public IAsyncEnumerator<IEntry<TValue>> GetFutureAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            var retVal = new CacheFutureAsyncEnumerator<TValue>(this, e => _activeEnumerators.Remove(e), cancellationToken);
+            _activeEnumerators.Add(retVal);
+            return retVal;
         }
 
         /// <inheritdoc/>
