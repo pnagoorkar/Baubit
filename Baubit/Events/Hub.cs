@@ -111,7 +111,7 @@ namespace Baubit.Events
             }
             finally
             {
-                _syncHandlers.Remove(requestHandler);
+                _asyncHandlers.Remove(requestHandler);
             }
             return true;
         }
