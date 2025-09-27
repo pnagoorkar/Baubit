@@ -38,6 +38,15 @@ namespace Baubit.Events
             where TRequest : IRequest<TResponse>
             where TResponse : IResponse
         {
+            var handler = _syncHandlers.SingleOrDefault(handler => handler is IRequestHandler<TRequest, TResponse>);
+            if (handler == null) throw new InvalidOperationException("No handler registered!");
+            return await ((IRequestHandler<TRequest, TResponse>)handler).HandleSyncAsync(request);
+        }
+
+        public async Task<TResponse> PublishAsyncAsync<TRequest, TResponse>(TRequest request, CancellationToken cancellationToken = default)
+            where TRequest : IRequest<TResponse>
+            where TResponse : IResponse
+        {
             var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var enumerator = _cache.GetFutureAsyncEnumerator(linkedCTS.Token);
             if (!_cache.Add(request, out _)) throw new Exception("<TBD>");
@@ -113,7 +122,9 @@ namespace Baubit.Events
             {
                 if (disposing)
                 {
-
+                    _cache.Dispose();
+                    _syncHandlers.Clear();
+                    _asyncHandlers.Clear();
                 }
                 disposedValue = true;
             }

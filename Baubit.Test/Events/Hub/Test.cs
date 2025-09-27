@@ -101,7 +101,7 @@ namespace Baubit.Test.Events.Hub
 
             await Parallel.ForEachAsync(requests, cts.Token, async (request, canToken) =>
             {
-                var response = await hub.PublishAsync<Request, Response>(request, canToken);
+                var response = await hub.PublishAsyncAsync<Request, Response>(request, canToken);
 
                 responses.Add(response);
             });
