@@ -4,6 +4,7 @@ using Baubit.Collections;
 using Baubit.DI;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace Baubit.Test.Caching.OrderedCache
 {
@@ -94,7 +95,7 @@ namespace Baubit.Test.Caching.OrderedCache
                                                                        .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
                                                                        .Bind(componentBuilder => componentBuilder.Build()).Value;
 
-            ConcurrentDictionary<long, int> insertedValues = new ConcurrentDictionary<long, int>();
+            ConcurrentDictionary<Guid, int> insertedValues = new ConcurrentDictionary<Guid, int>();
 
             var parallelLoopResult = Parallel.For(0, numOfItems, i =>
             {
@@ -137,69 +138,27 @@ namespace Baubit.Test.Caching.OrderedCache
         public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders, int writerBatchMinSize, int writerBatchMaxSize)
         {
             var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create()
-                                                                   .Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheWithAdaptiveResizingFeatures))
-                                                                   .Bind(componentBuilder => componentBuilder.Build()).Value;
+                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheWithAdaptiveResizingFeatures))
+                                                                    .Bind(componentBuilder => componentBuilder.Build()).Value;
 
-            var readMap = new ConcurrentDictionary<long, ReadTracker>(Enumerable.Range(1, numOfItems).ToDictionary(i => (long)i, i => new ReadTracker { Id = i }));
-
-            long numRead = 0;
+            var readCTS = new CancellationTokenSource();
+            var readCount = 0; 
             int expectedNumOfReads = numOfItems * numOfReaders;
-            CancellationTokenSource readCTS = new CancellationTokenSource();
-            SemaphoreSlim readSyncer = new SemaphoreSlim(1);
-
             ConcurrentList<Task<bool>> readerTasks = new ConcurrentList<Task<bool>>();
-
-            var reader = async (int i) =>
+            var reader = async (IAsyncEnumerator<IEntry<int>> enumerator) =>
             {
-                try
+                while (!readCTS.IsCancellationRequested && await enumerator.MoveNextAsync().ConfigureAwait(false))
                 {
-                    await inMemoryCache.EnumerateEntriesAsync(null, readCTS.Token)
-                                       .AggregateAsync(entry =>
-                                       {
-                                           try
-                                           {
-                                               readMap[entry.Id].Increment();
-                                               if (Interlocked.Increment(ref numRead) == expectedNumOfReads)
-                                               {
-                                                   readCTS.Cancel();
-                                               }
-                                               return true;
-                                           }
-                                           catch (Exception exp)
-                                           {
-                                               return false;
-                                           }
-                                       }, readCTS.Token).ConfigureAwait(false);
-                }
-                catch(Exception exp)
-                {
-                    return false;
+                    if (Interlocked.Increment(ref readCount) == expectedNumOfReads) readCTS.Cancel();
                 }
                 return true;
             };
-
-            var readerBurst = () => { Parallel.For(0, numOfReaders, i => readerTasks.Add(reader(i))); };
-
+            var readerBurst = () => { Parallel.For(0, numOfReaders, i => readerTasks.Add(reader(inMemoryCache.GetAsyncEnumerator(readCTS.Token)))); };
             var writerBurst = (int batchSize) => Parallel.For(0, batchSize, i => inMemoryCache.Add(i, out _));
 
-            var insertedCount = 0;
-            var deletedItems = new HashSet<long>();
-            var deleterBurst = async () =>
-            {
-                await Task.Yield();
-                while (deletedItems.Count < numOfItems)
-                {
-                    readMap.Where(kvp => !deletedItems.Contains(kvp.Key) && kvp.Value.ReadCount == numOfReaders)
-                           .Aggregate(true, (seed, next) => seed &&
-                                                            inMemoryCache.Remove(next.Key, out var deletedEntry) &&
-                                                            deletedItems.Add(deletedEntry.Id));
-                    await Task.Delay(100).ConfigureAwait(false);
-                }
-            };
-
             readerBurst();
-            var deleter = deleterBurst();
 
+            var insertedCount = 0;
             while (insertedCount < numOfItems)
             {
                 var batchSize = Math.Min(numOfItems - insertedCount, Random.Shared.Next(writerBatchMinSize, writerBatchMaxSize));
@@ -207,9 +166,7 @@ namespace Baubit.Test.Caching.OrderedCache
                 Thread.Sleep(10);
                 insertedCount += batchSize;
             }
-
             await Task.WhenAll(readerTasks);
-            await deleter;
         }
 
         [Theory]

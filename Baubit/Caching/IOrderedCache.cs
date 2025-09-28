@@ -29,7 +29,7 @@ namespace Baubit.Caching
         /// <param name="id">The entry identifier.</param>
         /// <param name="value">The updated value.</param>
         /// <returns><c>true</c> if the entry was updated; otherwise <c>false</c>.</returns>
-        bool Update(long id, TValue value);
+        bool Update(Guid id, TValue value);
 
         /// <summary>
         /// Gets the entry with the specified identifier if it exists.
@@ -37,7 +37,7 @@ namespace Baubit.Caching
         /// <param name="id">The identifier to look up.</param>
         /// <param name="entry">On success, the located entry; otherwise <c>null</c>.</param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
-        bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry);
+        bool GetEntryOrDefault(Guid? id, out IEntry<TValue>? entry);
 
         /// <summary>
         /// Gets the next entry after <paramref name="id"/>, or the head entry when <paramref name="id"/> is <c>null</c>.
@@ -45,7 +45,7 @@ namespace Baubit.Caching
         /// <param name="id">The current id, or <c>null</c> to start from the head.</param>
         /// <param name="entry">On success, the next entry; otherwise <c>null</c>.</param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
-        bool GetNextOrDefault(long? id, out IEntry<TValue>? entry);
+        bool GetNextOrDefault(Guid? id, out IEntry<TValue>? entry);
 
         /// <summary>
         /// Tries to retrieve the first (head) entry.
@@ -59,7 +59,7 @@ namespace Baubit.Caching
         /// </summary>
         /// <param name="id">On success, id of the first entry; otherwise <c>null</c></param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
-        bool GetFirstIdOrDefault(out long? id);
+        bool GetFirstIdOrDefault(out Guid? id);
 
         /// <summary>
         /// Tries to retrieve the last (tail) entry.
@@ -73,7 +73,7 @@ namespace Baubit.Caching
         /// </summary>
         /// <param name="id">On success, id of the last entry; otherwise <c>null</c></param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
-        bool GetLastIdOrDefault(out long? id);
+        bool GetLastIdOrDefault(out Guid? id);
 
         /// <summary>
         /// Asynchronously waits for and returns the next entry after <paramref name="id"/>.
@@ -83,7 +83,7 @@ namespace Baubit.Caching
         /// <param name="id">The id to advance from, or <c>null</c> to start from the head.</param>
         /// <param name="cancellationToken">A token to cancel the wait.</param>
         /// <returns>A task that completes with the next entry.</returns>
-        Task<IEntry<TValue>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default);
+        Task<IEntry<TValue>> GetNextAsync(Guid? id = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Asynchronously waits for and returns the first entry (immediately) after the call
@@ -98,7 +98,7 @@ namespace Baubit.Caching
         /// <param name="id">The identifier to remove.</param>
         /// <param name="entry">On success, the removed entry.</param>
         /// <returns><c>true</c> if an entry was removed; otherwise <c>false</c>.</returns>
-        bool Remove(long id, out IEntry<TValue>? entry);
+        bool Remove(Guid id, out IEntry<TValue>? entry);
 
         /// <summary>
         /// Removes all entries from the cache.

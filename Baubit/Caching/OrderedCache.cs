@@ -171,7 +171,7 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
-        public bool Update(long id, TValue value)
+        public bool Update(Guid id, TValue value)
         {
             Locker.EnterWriteLock();
             try
@@ -183,7 +183,7 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
-        public bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry)
+        public bool GetEntryOrDefault(Guid? id, out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
             try
@@ -194,7 +194,7 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
-        private bool GetEntryOrDefaultInternal(long? id, out IEntry<TValue>? entry)
+        private bool GetEntryOrDefaultInternal(Guid? id, out IEntry<TValue>? entry)
         {
             entry = default;
             if (id.HasValue && _metadata.ContainsKey(id.Value))
@@ -212,7 +212,7 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
-        public bool GetNextOrDefault(long? id, out IEntry<TValue>? entry)
+        public bool GetNextOrDefault(Guid? id, out IEntry<TValue>? entry)
         {
             Locker.EnterReadLock();
             try
@@ -223,7 +223,7 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
-        private bool GetNextOrDefaultInternal(long? id, out IEntry<TValue>? entry)
+        private bool GetNextOrDefaultInternal(Guid? id, out IEntry<TValue>? entry)
         {
             entry = default;
             return _metadata.GetNextId(id, out var nextId) && GetEntryOrDefaultInternal(nextId, out entry);
@@ -244,7 +244,7 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
-        public bool GetFirstIdOrDefault(out long? id)
+        public bool GetFirstIdOrDefault(out Guid? id)
         {
             Locker.EnterReadLock();
             try
@@ -270,7 +270,7 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
-        public bool GetLastIdOrDefault(out long? id)
+        public bool GetLastIdOrDefault(out Guid? id)
         {
             Locker.EnterReadLock();
             try
@@ -282,10 +282,10 @@ namespace Baubit.Caching
             finally { Locker.ExitReadLock(); }
         }
 
-        private long? mostRecentWaitingId;
+        private Guid? mostRecentWaitingId;
 
         /// <inheritdoc/>
-        public Task<IEntry<TValue>> GetNextAsync(long? id = null, CancellationToken cancellationToken = default)
+        public Task<IEntry<TValue>> GetNextAsync(Guid? id = null, CancellationToken cancellationToken = default)
         {
             Locker.EnterReadLock();
             try
@@ -322,7 +322,7 @@ namespace Baubit.Caching
         }
 
         /// <inheritdoc/>
-        public bool Remove(long id, out IEntry<TValue>? entry)
+        public bool Remove(Guid id, out IEntry<TValue>? entry)
         {
             Locker.EnterWriteLock();
             try
@@ -332,7 +332,7 @@ namespace Baubit.Caching
             finally { Locker.ExitWriteLock(); }
         }
 
-        private bool RemoveInternal(long id, out IEntry<TValue>? entry)
+        private bool RemoveInternal(Guid id, out IEntry<TValue>? entry)
         {
             if (disposedValue) { entry = default; return false; }
             entry = null;

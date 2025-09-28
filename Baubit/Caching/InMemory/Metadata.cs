@@ -2,15 +2,15 @@
 {
     public class Metadata : IMetadata
     {
-        public LinkedList<long> CurrentOrder { get; init; } = new LinkedList<long>();
-        public Dictionary<long, LinkedListNode<long>> IdNodeMap { get; init; } = new Dictionary<long, LinkedListNode<long>>();
+        public LinkedList<Guid> CurrentOrder { get; init; } = new LinkedList<Guid>();
+        public Dictionary<Guid, LinkedListNode<Guid>> IdNodeMap { get; init; } = new Dictionary<Guid, LinkedListNode<Guid>>();
 
         public long Count { get => IdNodeMap.Count; }
 
-        public long? HeadId { get => CurrentOrder?.First?.Value; }
-        public long? TailId { get => CurrentOrder?.Last?.Value; }
+        public Guid? HeadId { get => CurrentOrder?.First?.Value; }
+        public Guid? TailId { get => CurrentOrder?.Last?.Value; }
 
-        public bool AddTail(long id)
+        public bool AddTail(Guid id)
         {
             IdNodeMap.Add(id, CurrentOrder.AddLast(id));
             return true;
@@ -23,9 +23,9 @@
             return true;
         }
 
-        public bool ContainsKey(long id) => IdNodeMap.ContainsKey(id);
+        public bool ContainsKey(Guid id) => IdNodeMap.ContainsKey(id);
 
-        public bool GetNextId(long? id, out long? nextId)
+        public bool GetNextId(Guid? id, out Guid? nextId)
         {
             if (id == null) nextId = HeadId;
             else if (HeadId == null) nextId = null; // if id is not null but HeadId is null means id is the tail that was deleted just before the call arrived here. Return null so the caller can get the next arriving item
@@ -36,7 +36,7 @@
             return true;
         }
 
-        public bool GetIdsThrough(long id, out IEnumerable<long> ids)
+        public bool GetIdsThrough(Guid id, out IEnumerable<Guid> ids)
         {
             // (Empty store || if id preceeds the head) = do nothing
             if (CurrentOrder.Count == 0 || id < HeadId)
@@ -63,7 +63,7 @@
             ids = Enumerate(CurrentOrder.First!, end);
             return true;
 
-            static IEnumerable<long> Enumerate(LinkedListNode<long> start, LinkedListNode<long> endInclusive)
+            static IEnumerable<Guid> Enumerate(LinkedListNode<Guid> start, LinkedListNode<Guid> endInclusive)
             {
                 for (var n = start; n != null; n = n.Next)
                 {
@@ -73,11 +73,11 @@
             }
         }
 
-        private bool IsIdSmallerThanHeadId(long? id) => id.HasValue && HeadId.HasValue && id < HeadId;
+        private bool IsIdSmallerThanHeadId(Guid? id) => id.HasValue && HeadId.HasValue && id < HeadId;
 
-        private bool IsIdTailId(long? id) => id.HasValue && TailId.HasValue && id == TailId;
+        private bool IsIdTailId(Guid? id) => id.HasValue && TailId.HasValue && id == TailId;
 
-        public bool Remove(long id)
+        public bool Remove(Guid id)
         {
             if (IdNodeMap.Remove(id, out var node))
             {

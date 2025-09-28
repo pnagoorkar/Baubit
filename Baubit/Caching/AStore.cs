@@ -12,16 +12,16 @@ namespace Baubit.Caching
         public long? CurrentCapacity { get => Uncapped ? null : Math.Max(0, TargetCapacity!.Value - GetCount()!.Value); }
         public bool HasCapacity { get => Uncapped || CurrentCapacity > 0; }
 
-        public abstract long? HeadId { get; }
+        public abstract Guid? HeadId { get; }
 
-        public abstract long? TailId { get; }
+        public abstract Guid? TailId { get; }
 
         private ILogger<AStore<TValue>> _logger;
         private bool disposedValue;
 
         public AStore(long? minCap,
-                         long? maxCap,
-                         ILoggerFactory loggerFactory)
+                      long? maxCap,
+                      ILoggerFactory loggerFactory)
         {
             TargetCapacity = MinCapacity = minCap;
             MaxCapacity = maxCap;
@@ -55,15 +55,15 @@ namespace Baubit.Caching
 
         public abstract bool GetCount(out long count);
 
-        public abstract bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry);
+        public abstract bool GetEntryOrDefault(Guid? id, out IEntry<TValue>? entry);
 
-        public abstract bool GetValueOrDefault(long? id, out TValue? value);
+        public abstract bool GetValueOrDefault(Guid? id, out TValue? value);
 
-        public abstract bool Remove(long id, out IEntry<TValue>? entry);
+        public abstract bool Remove(Guid id, out IEntry<TValue>? entry);
 
         public abstract bool Update(IEntry<TValue> entry);
 
-        public abstract bool Update(long id, TValue value);
+        public abstract bool Update(Guid id, TValue value);
 
         protected abstract void DisposeInternal();
 

@@ -1,15 +1,16 @@
 ﻿using Baubit.Caching.InMemory;
+using Baubit.Identity;
 using Microsoft.Extensions.Logging;
 
 namespace Baubit.Caching.InMemory
 {
     public class Store<TValue> : AStore<TValue>
     {
-        public override long? HeadId { get => _data.Count > 0 ? _data.Keys.Min() : null; }
-        public override long? TailId { get => _data.Count > 0 ? _data.Keys.Max() : null; }
+        public override Guid? HeadId { get => _data.Count > 0 ? _data.Keys.Min() : null; }
+        public override Guid? TailId { get => _data.Count > 0 ? _data.Keys.Max() : null; }
 
-        private long _seq;
-        private readonly Dictionary<long, IEntry<TValue>> _data = new();
+        private GuidV7Generator idGenerator;
+        private readonly Dictionary<Guid, IEntry<TValue>> _data = new();
 
         private ILogger<Store<TValue>> _logger;
 
@@ -18,6 +19,7 @@ namespace Baubit.Caching.InMemory
                      ILoggerFactory loggerFactory) : base(minCap, maxCap, loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<Store<TValue>>();
+            idGenerator = GuidV7Generator.CreateNew();
         }
 
         public Store(ILoggerFactory loggerFactory) : this(null, null, loggerFactory)
@@ -32,7 +34,7 @@ namespace Baubit.Caching.InMemory
 
         public override bool Add(TValue value, out IEntry<TValue>? entry)
         {
-            entry = new Entry<TValue>(Interlocked.Increment(ref _seq), value);
+            entry = new Entry<TValue>(idGenerator.GetNext(), value);
             return Add(entry);
         }
 
@@ -48,13 +50,13 @@ namespace Baubit.Caching.InMemory
             return true;
         }
 
-        public override bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry)
+        public override bool GetEntryOrDefault(Guid? id, out IEntry<TValue>? entry)
         {
             entry = null;
             return id.HasValue && _data.TryGetValue(id.Value, out entry);
         }
 
-        public override bool GetValueOrDefault(long? id, out TValue? value)
+        public override bool GetValueOrDefault(Guid? id, out TValue? value)
         {
             value = default;
             if (!GetEntryOrDefault(id, out var entry)) return false;
@@ -62,7 +64,7 @@ namespace Baubit.Caching.InMemory
             return true;
         }
 
-        public override bool Remove(long id, out IEntry<TValue>? entry)
+        public override bool Remove(Guid id, out IEntry<TValue>? entry)
         {
             return _data.Remove(id, out entry);
         }
@@ -74,7 +76,7 @@ namespace Baubit.Caching.InMemory
             return true;
         }
 
-        public override bool Update(long id, TValue value)
+        public override bool Update(Guid id, TValue value)
         {
             return Update(new Entry<TValue>(id, value));
         }

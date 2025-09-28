@@ -46,12 +46,12 @@ namespace Baubit.Caching
         /// <summary>
         /// The identifier of the first (head/oldest) entry present in this store, if available.
         /// </summary>
-        long? HeadId { get; }
+        Guid? HeadId { get; }
 
         /// <summary>
         /// The identifier of the last (tail/newest) entry present in this store, if available.
         /// </summary>
-        long? TailId { get; }
+        Guid? TailId { get; }
 
         /// <summary>
         /// Adds an existing entry instance to the store (e.g., promoting from another layer).
@@ -101,7 +101,7 @@ namespace Baubit.Caching
         /// <param name="id">The entry identifier.</param>
         /// <param name="entry">On success, the located entry; otherwise <c>null</c>.</param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
-        bool GetEntryOrDefault(long? id, out IEntry<TValue>? entry);
+        bool GetEntryOrDefault(Guid? id, out IEntry<TValue>? entry);
 
         /// <summary>
         /// Gets a value by identifier, or a default value if not present.
@@ -109,7 +109,7 @@ namespace Baubit.Caching
         /// <param name="id">The entry identifier.</param>
         /// <param name="value">On success, the located value; otherwise default.</param>
         /// <returns><c>true</c> if the lookup succeeded (even when not found); otherwise <c>false</c>.</returns>
-        bool GetValueOrDefault(long? id, out TValue? value);
+        bool GetValueOrDefault(Guid? id, out TValue? value);
 
         /// <summary>
         /// Removes an entry by identifier.
@@ -117,7 +117,7 @@ namespace Baubit.Caching
         /// <param name="id">The entry identifier.</param>
         /// <param name="entry">On success, the removed entry.</param>
         /// <returns><c>true</c> if an entry was removed; otherwise <c>false</c>.</returns>
-        bool Remove(long id, out IEntry<TValue>? entry);
+        bool Remove(Guid id, out IEntry<TValue>? entry);
 
         /// <summary>
         /// Updates an entry in-place.
@@ -132,6 +132,6 @@ namespace Baubit.Caching
         /// <param name="id">The entry identifier.</param>
         /// <param name="value">The new value.</param>
         /// <returns><c>true</c> if the value was updated; otherwise <c>false</c>.</returns>
-        bool Update(long id, TValue value);
+        bool Update(Guid id, TValue value);
     }
 }

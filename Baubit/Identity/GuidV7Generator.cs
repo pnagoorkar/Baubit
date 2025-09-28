@@ -1,8 +1,4 @@
-﻿using System.Buffers.Binary;
-using System.Text;
-using System.Text.Unicode;
-
-namespace Baubit.Identity
+﻿namespace Baubit.Identity
 {
     public sealed class GuidV7Generator
     {
