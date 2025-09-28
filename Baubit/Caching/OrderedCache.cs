@@ -1,5 +1,6 @@
 ﻿using Baubit.Caching.InMemory;
 using Baubit.Collections;
+using Baubit.Identity;
 using Baubit.Tasks;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -42,6 +43,7 @@ namespace Baubit.Caching
         private IStore<TValue> _l2Store;
         private readonly IList<ICacheEnumerator<IEntry<TValue>>> _activeEnumerators = new ConcurrentList<ICacheEnumerator<IEntry<TValue>>>();
         private int additionsSinceLastEviction = 0;
+        private GuidV7Generator idGenerator;
         #endregion
 
         /// <summary>
@@ -63,6 +65,8 @@ namespace Baubit.Caching
             _l1Store = l1Store;
             _l2Store = l2Store;
             _metadata = metadata;
+            idGenerator = GuidV7Generator.CreateNew();
+            if (_l2Store.TailId.HasValue) idGenerator.InitializeFrom(_l2Store.TailId.Value);
             if (_l1Store != null && !_l1Store.Uncapped && Configuration?.RunAdaptiveResizing == true)
             {
                 // Start a background loop that adjusts L1 capacity based on production rate.
@@ -126,7 +130,7 @@ namespace Baubit.Caching
             try
             {
                 if (disposedValue) { entry = default; return false; }
-                if (!_l2Store.Add(value, out entry)) return false;
+                if (!_l2Store.Add(idGenerator.GetNext(), value, out entry)) return false;
                 if (_l1Store?.HasCapacity == true)
                 {
                     if (!_l1Store.Add(entry)) return false;

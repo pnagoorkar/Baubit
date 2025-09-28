@@ -11,7 +11,7 @@
         /// <summary>If true and drift cap is exceeded, throw instead of clamping.</summary>
         public bool ThrowOnDriftCap { get; init; }
 
-        public GuidV7Generator(long? maxDriftMs = null, bool throwOnDriftCap = false)
+        private GuidV7Generator(long? maxDriftMs = null, bool throwOnDriftCap = false)
         {
             MaxDriftMs = maxDriftMs;
             ThrowOnDriftCap = throwOnDriftCap;

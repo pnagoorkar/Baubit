@@ -6,9 +6,5 @@
     /// </summary>
     public interface IRequest<TResponse> where TResponse : IResponse
     {
-        /// <summary>
-        /// Gets the unique identifier for this request.
-        /// </summary>
-        long Id { get; }
     }
 }

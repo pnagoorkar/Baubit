@@ -1,5 +1,6 @@
 ﻿using Baubit.Caching;
 using Baubit.Collections;
+using Baubit.Identity;
 using Baubit.Observation;
 using Microsoft.Extensions.Logging;
 
@@ -12,12 +13,14 @@ namespace Baubit.Events
         private IList<IRequestHandler> _asyncHandlers = new ConcurrentList<IRequestHandler>();
         private IOrderedCache<object> _cache;
         private ILogger<Hub> _logger;
+        private GuidV7Generator _idGenerator;
 
-        public Hub(IOrderedCache<object> cache, 
+        public Hub(IOrderedCache<object> cache,
                    ILoggerFactory loggerFactory)
         {
             _cache = cache;
             _logger = loggerFactory.CreateLogger<Hub>();
+            _idGenerator = GuidV7Generator.CreateNew();
         }
 
         public bool Publish(object notification)
@@ -49,14 +52,15 @@ namespace Baubit.Events
         {
             var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var enumerator = _cache.GetFutureAsyncEnumerator(linkedCTS.Token);
-            if (!_cache.Add(request, out _)) throw new Exception("<TBD>");
+            var trackedRequest = new TrackedRequest<TRequest, TResponse>(_idGenerator.GetNext(), request);
+            if (!_cache.Add(trackedRequest, out _)) throw new Exception("<TBD>");
             try
             {
                 while (await enumerator.MoveNextAsync().ConfigureAwait(false))
                 {
-                    if (enumerator.Current.Value is TResponse response && request.Id == response.ForRequest)
+                    if (enumerator.Current.Value is TrackedResponse<TResponse> trackedResponse && trackedRequest.Id == trackedResponse.ForRequest)
                     {
-                        return response;
+                        return trackedResponse.Response;
                     }
                 }
             }
@@ -102,10 +106,11 @@ namespace Baubit.Events
 
                 while (await enumerator.MoveNextAsync().ConfigureAwait(false))
                 {
-                    if (enumerator.Current.Value is TRequest request)
+                    if (enumerator.Current.Value is TrackedRequest<TRequest, TResponse> trackedRequest)
                     {
-                        var response = await requestHandler.HandleAsyncAsync(request).ConfigureAwait(false);
-                        _cache.Add(response, out _);
+                        var response = await requestHandler.HandleAsyncAsync(trackedRequest.Request).ConfigureAwait(false);
+                        var trackedResponse = new TrackedResponse<TResponse>(trackedRequest.Id, response);
+                        _cache.Add(trackedResponse, out _);
                     }
                 }
             }

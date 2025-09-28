@@ -9,7 +9,6 @@ namespace Baubit.Caching.InMemory
         public override Guid? HeadId { get => _data.Count > 0 ? _data.Keys.Min() : null; }
         public override Guid? TailId { get => _data.Count > 0 ? _data.Keys.Max() : null; }
 
-        private GuidV7Generator idGenerator;
         private readonly Dictionary<Guid, IEntry<TValue>> _data = new();
 
         private ILogger<Store<TValue>> _logger;
@@ -19,7 +18,6 @@ namespace Baubit.Caching.InMemory
                      ILoggerFactory loggerFactory) : base(minCap, maxCap, loggerFactory)
         {
             _logger = loggerFactory.CreateLogger<Store<TValue>>();
-            idGenerator = GuidV7Generator.CreateNew();
         }
 
         public Store(ILoggerFactory loggerFactory) : this(null, null, loggerFactory)
@@ -32,9 +30,9 @@ namespace Baubit.Caching.InMemory
             return HasCapacity && _data.TryAdd(entry.Id, entry);
         }
 
-        public override bool Add(TValue value, out IEntry<TValue>? entry)
+        public override bool Add(Guid id, TValue value, out IEntry<TValue>? entry)
         {
-            entry = new Entry<TValue>(idGenerator.GetNext(), value);
+            entry = new Entry<TValue>(id, value);
             return Add(entry);
         }
 

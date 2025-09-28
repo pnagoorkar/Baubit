@@ -11,11 +11,8 @@ namespace Baubit.Test.Caching.Setup
 
         public override Guid? TailId => null;
 
-        GuidV7Generator idGenerator;
-
         public DummyStore(long? minCap, long? maxCap, ILoggerFactory loggerFactory) : base(minCap, maxCap, loggerFactory)
         {
-            idGenerator = GuidV7Generator.CreateNew();
         }
 
         public DummyStore(ILoggerFactory loggerFactory) : this(null, null, loggerFactory)
@@ -25,9 +22,9 @@ namespace Baubit.Test.Caching.Setup
 
         public override bool Add(IEntry<TValue> entry) => true;
 
-        public override bool Add(TValue value, out IEntry<TValue>? entry)
+        public override bool Add(Guid id, TValue value, out IEntry<TValue>? entry)
         {
-            entry = new Entry<TValue>(idGenerator.GetNext(), value);
+            entry = new Entry<TValue>(id, value);
             return Add(entry);
         }
 
