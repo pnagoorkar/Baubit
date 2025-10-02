@@ -1,4 +1,7 @@
-﻿namespace Baubit.Caching.InMemory
+﻿using Baubit.Caching.Redis;
+using Baubit.Identity;
+
+namespace Baubit.Caching.InMemory
 {
     public class Metadata : IMetadata
     {
@@ -10,17 +13,35 @@
         public Guid? HeadId { get => CurrentOrder?.First?.Value; }
         public Guid? TailId { get => CurrentOrder?.Last?.Value; }
 
+        /// <summary>
+        /// Gets the runtime configuration for this cache instance.
+        /// </summary>
+        public Configuration Configuration { get; init; }
+
+        private long _roomCount;
+
+        // Coordinates awaiters for the next id produced.
+        private WaitingRoom<Guid> _waitingRoom = new WaitingRoom<Guid>();
+
+        private GuidV7Generator idGenerator = GuidV7Generator.CreateNew();
+        public long ResetRoomCount()
+        {
+            return Interlocked.Exchange(ref _roomCount, 0);
+        }
+
         public bool AddTail(Guid id)
         {
             IdNodeMap.Add(id, CurrentOrder.AddLast(id));
-            return true;
+            return SignalAwaiters(id);
         }
 
-        public bool Clear()
+        private bool SignalAwaiters(Guid id)
         {
-            CurrentOrder.Clear();
-            IdNodeMap.Clear();
-            return true;
+            if (!_waitingRoom.HasGuests) return true;
+            if (Configuration?.RunAdaptiveResizing == true) Interlocked.Increment(ref _roomCount);
+            var prevRoom = _waitingRoom;
+            _waitingRoom = new WaitingRoom<Guid>();
+            return prevRoom.TrySetResult(id);
         }
 
         public bool ContainsKey(Guid id) => IdNodeMap.ContainsKey(id);
@@ -36,6 +57,29 @@
             return true;
         }
 
+        public Task<Guid> GetNextIdAsync(Guid? id, CancellationToken cancellationToken)
+        {
+            if (!GetNextId(id, out var nextId))
+            {
+                // unexpected. Handle appropriately
+            }
+            if (nextId != null)
+            {
+                return Task.FromResult(nextId.Value);
+            }
+            return _waitingRoom.Join(cancellationToken);
+        }
+
+        public bool GenerateNextId(out Guid nextId)
+        {
+            if (TailId.HasValue)
+            {
+                idGenerator.InitializeFrom(TailId.Value);
+            }
+            nextId = idGenerator.GetNext();
+            return true;
+        }
+
         public bool GetIdsThrough(Guid id, out IEnumerable<Guid> ids)
         {
             // (Empty store || if id preceeds the head) = do nothing
@@ -48,7 +92,7 @@
             // If id is at/after the tail -> whole list
             if (id >= TailId)
             {
-                ids = Enumerate(CurrentOrder.First!, CurrentOrder.Last!);
+                ids = Enumerate(CurrentOrder.First!, CurrentOrder.Last!).ToArray();
                 return true;
             }
 
@@ -60,7 +104,7 @@
                 return false;
             }
 
-            ids = Enumerate(CurrentOrder.First!, end);
+            ids = Enumerate(CurrentOrder.First!, end).ToArray();
             return true;
 
             static IEnumerable<Guid> Enumerate(LinkedListNode<Guid> start, LinkedListNode<Guid> endInclusive)

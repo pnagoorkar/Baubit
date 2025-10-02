@@ -77,12 +77,6 @@ namespace Baubit.Caching
         bool AddCapacity(int additionalCapacity);
 
         /// <summary>
-        /// Removes all entries from the store.
-        /// </summary>
-        /// <returns><c>true</c> on success; otherwise <c>false</c>.</returns>
-        bool Clear();
-
-        /// <summary>
         /// Decreases the store capacity by the specified amount or to a new target (implementation-defined).
         /// </summary>
         /// <param name="cap">The shrink step or target, depending on implementation.</param>

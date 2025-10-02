@@ -28,8 +28,6 @@ namespace Baubit.Test.Caching.Setup
             return Add(entry);
         }
 
-        public override bool Clear() => true;
-
         public override bool GetCount(out long count)
         {
             count = 0;

@@ -30,11 +30,8 @@ namespace Baubit.Caching
         #region PrivateMembers
         private bool disposedValue;
 
-        private long _roomCount;
         private IMetadata _metadata;
 
-        // Coordinates awaiters for the next entry produced.
-        private WaitingRoom<IEntry<TValue>> _waitingRoom = new WaitingRoom<IEntry<TValue>>();
         private Task<bool>? adaptionRunner;
         private CancellationTokenSource? adaptionCTS;
         private readonly ILogger<OrderedCache<TValue>> _logger;
@@ -43,7 +40,6 @@ namespace Baubit.Caching
         private IStore<TValue> _l2Store;
         private readonly IList<ICacheEnumerator<IEntry<TValue>>> _activeEnumerators = new ConcurrentList<ICacheEnumerator<IEntry<TValue>>>();
         private int additionsSinceLastEviction = 0;
-        private GuidV7Generator idGenerator;
         #endregion
 
         /// <summary>
@@ -65,8 +61,6 @@ namespace Baubit.Caching
             _l1Store = l1Store;
             _l2Store = l2Store;
             _metadata = metadata;
-            idGenerator = GuidV7Generator.CreateNew();
-            if (_l2Store.TailId.HasValue) idGenerator.InitializeFrom(_l2Store.TailId.Value);
             if (_l1Store != null && !_l1Store.Uncapped && Configuration?.RunAdaptiveResizing == true)
             {
                 // Start a background loop that adjusts L1 capacity based on production rate.
@@ -88,8 +82,8 @@ namespace Baubit.Caching
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(Configuration.AdaptionWindowMS, cancellationToken).ConfigureAwait(false);
-                    _logger.LogDebug($"Rooms this cycle: {_roomCount}");
-                    var roomsThisCycle = Interlocked.Exchange(ref _roomCount, 0);
+                    var roomsThisCycle = _metadata.ResetRoomCount();
+                    _logger.LogDebug($"Rooms this cycle: {roomsThisCycle}");
 
                     double roomRate = roomsThisCycle * 1_000.0 / Configuration.AdaptionWindowMS;
 
@@ -130,32 +124,17 @@ namespace Baubit.Caching
             try
             {
                 if (disposedValue) { entry = default; return false; }
-                if (!_l2Store.Add(idGenerator.GetNext(), value, out entry)) return false;
+                if (!_metadata.GenerateNextId(out var nextId)) { entry = default; return false; }
+                if (!_l2Store.Add(nextId, value, out entry)) return false;
                 if (_l1Store?.HasCapacity == true)
                 {
                     if (!_l1Store.Add(entry)) return false;
                 }
                 if (!_metadata.AddTail(entry.Id)) return false;
-                if (!SignalAwaiters(entry)) return false;
                 if (!TryEvict()) return false;
                 return true;
             }
             finally { Locker.ExitWriteLock(); }
-        }
-
-        /// <summary>
-        /// Notifies any waiters created by <see cref="GetNextAsync(long?, CancellationToken)"/> that a new entry is available.
-        /// Also feeds the adaptive-resizing counters when enabled.
-        /// </summary>
-        /// <param name="entry">The entry that was just appended.</param>
-        /// <returns><c>true</c> if signals were delivered successfully; otherwise <c>false</c>.</returns>
-        private bool SignalAwaiters(IEntry<TValue> entry)
-        {
-            if (!_waitingRoom.HasGuests) return true;
-            if (Configuration?.RunAdaptiveResizing == true) Interlocked.Increment(ref _roomCount);
-            var prevRoom = _waitingRoom;
-            _waitingRoom = new WaitingRoom<IEntry<TValue>>();
-            return prevRoom.TrySetResult(entry);
         }
 
         private bool TryEvict()
@@ -321,8 +300,14 @@ namespace Baubit.Caching
         private Task<IEntry<TValue>> GetFutureFirstOrDefaultAsyncInternal(CancellationToken cancellationToken = default)
         {
             if (cancellationToken.IsCancellationRequested) { Task.FromCanceled<IEntry<TValue>>(cancellationToken); }
-            mostRecentWaitingId = _metadata.TailId;
-            return _waitingRoom.Join(cancellationToken);
+            var currentTailId = _metadata.TailId;
+            return _metadata.GetNextIdAsync(currentTailId, cancellationToken)
+                            .ContinueWith(task =>
+                            {
+                                if (task.IsCanceled) throw new TaskCanceledException(string.Empty, default, cancellationToken);
+                                GetEntryOrDefault(task.Result, out var nextEntry);
+                                return nextEntry!;
+                            });
         }
 
         /// <inheritdoc/>
@@ -371,10 +356,21 @@ namespace Baubit.Caching
             Locker.EnterWriteLock();
             try
             {
-                if (disposedValue) { return false; }
-                return _l2Store.Clear() && _l1Store == null ? true : _l1Store.Clear() && _metadata.Clear();
+                return ClearInternal();
+                //return _l2Store.Clear() && (_l1Store == null ? true : _l1Store.Clear()) && _metadata.Clear();
             }
             finally { Locker.ExitWriteLock(); }
+        }
+
+        private bool ClearInternal()
+        {
+            if (disposedValue) { return false; }
+            _metadata.GetIdsThrough(_metadata.TailId.Value, out var ids);
+            foreach (var id in ids)
+            {
+                RemoveInternal(id, out _);
+            }
+            return true;
         }
 
         /// <summary>
@@ -392,8 +388,6 @@ namespace Baubit.Caching
                     {
                         adaptionCTS?.Cancel();
                         adaptionRunner?.Wait(true);
-                        _ = _l2Store.Clear() && _l1Store == null ? true : _l1Store.Clear() && _metadata.Clear();
-                        _waitingRoom.TrySetCanceled();
                         _l1Store?.Dispose();
                         _l2Store?.Dispose();
                     }

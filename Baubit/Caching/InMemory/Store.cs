@@ -36,12 +36,6 @@ namespace Baubit.Caching.InMemory
             return Add(entry);
         }
 
-        public override bool Clear()
-        {
-            _data.Clear();
-            return true;
-        }
-
         public override bool GetCount(out long count)
         {
             count = _data.Count;

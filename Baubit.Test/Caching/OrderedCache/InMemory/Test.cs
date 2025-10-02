@@ -2,11 +2,13 @@
 using Baubit.Caching.InMemory.DI;
 using Baubit.Collections;
 using Baubit.DI;
+using MessagePack;
+using MessagePack.Resolvers;
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-namespace Baubit.Test.Caching.OrderedCache
+namespace Baubit.Test.Caching.OrderedCache.InMemory
 {
     public class Test
     {
@@ -26,24 +28,14 @@ namespace Baubit.Test.Caching.OrderedCache
         {
             var inMemoryCache = ComponentBuilder<IOrderedCache<int>>.Create().Bind(componentBuilder => componentBuilder.WithFeatures(inMemoryCacheFeatures)).Bind(componentBuilder => componentBuilder.Build()).Value;
 
-            IEntry<int> nextEntry = null;
-            var autoResetEvent = new AutoResetEvent(false);
-
-            Parallel.Invoke(async () =>
-            {
-                nextEntry = await inMemoryCache.GetNextAsync().ConfigureAwait(false);
-                autoResetEvent.Set();
-            });
-
-            await Task.Delay(100); //to ensure the GetNextAsync resets internal awaiter before the Add sets it
-            Assert.Null(nextEntry);
+            var nextEntryTask = inMemoryCache.GetNextAsync();
 
             var addResult = inMemoryCache.Add(Random.Shared.Next(0, 10), out var entry);
             Assert.True(addResult);
 
-            autoResetEvent.WaitOne();
-            Assert.Equal(entry.Value, nextEntry.Value);
+            var nextEntry = await nextEntryTask;
 
+            Assert.Equal(entry.Value, nextEntry.Value);
         }
 
         [Fact]
@@ -53,13 +45,11 @@ namespace Baubit.Test.Caching.OrderedCache
 
             var cancellationTokenSource = new CancellationTokenSource();
 
-            var cancellationRunner = Task.Run(async () => { await Task.Delay(500).ConfigureAwait(false); cancellationTokenSource.Cancel(); });
+            var asyncGetter = inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token);
 
-            var task = Task.Run(async () => await inMemoryCache.GetNextAsync(null, cancellationTokenSource.Token));
+            await Task.Delay(500).ContinueWith(_ => cancellationTokenSource.Cancel());
 
-            await cancellationRunner;
-
-            await Assert.ThrowsAsync<TaskCanceledException>(() => task);
+            await Assert.ThrowsAsync<TaskCanceledException>(() => asyncGetter);
         }
 
         [Fact]

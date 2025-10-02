@@ -39,8 +39,6 @@ namespace Baubit.Caching
             return true;
         }
 
-        public abstract bool Clear();
-
         public bool CutCapacity(int cap)
         {
             if (Uncapped) return true;
