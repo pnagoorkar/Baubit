@@ -61,6 +61,50 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
             Assert.Equal(entry.Value, nextEntry.Value);
         }
 
+        [Fact]
+        public async Task CanCancelGetNextAsync()
+        {
+            var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
+                                                                    .Bind(componentBuilder => componentBuilder.Build()).Value;
+
+            var cancellationTokenSource = new CancellationTokenSource();
+
+            var asyncGetter = redisCache.GetNextAsync(null, cancellationTokenSource.Token);
+
+            await Task.Delay(500).ContinueWith(_ => cancellationTokenSource.Cancel());
+
+            await Assert.ThrowsAsync<TaskCanceledException>(() => asyncGetter);
+        }
+
+        [Fact]
+        public async Task ReaderCancellationsAreIsolated()
+        {
+            var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
+                                                                    .Bind(componentBuilder => componentBuilder.Build()).Value;
+
+            var cancellationTokenSource1 = new CancellationTokenSource();
+            var cancellationTokenSource2 = new CancellationTokenSource();
+
+            var res2 = redisCache.GetNextAsync(null, cancellationTokenSource2.Token);
+
+            var cancellationRunner = Task.Run(async () =>
+            {
+                await Task.Delay(500).ConfigureAwait(false);
+                cancellationTokenSource1.Cancel();
+                redisCache.Add(1, out _);
+            });
+
+            await Assert.ThrowsAsync<TaskCanceledException>(() => redisCache.GetNextAsync(null, cancellationTokenSource1.Token));
+
+            var entry = await res2;
+            Assert.NotNull(entry);
+            Assert.Equal(1, entry.Value);
+        }
+
         [Theory]
         //[InlineData(1000, 100, 5, 20)]
         //[InlineData(10, 1, 1, 1)]

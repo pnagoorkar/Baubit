@@ -81,7 +81,7 @@ namespace Baubit.Test.Caching.OrderedCache.InMemory
         public async Task UsesL1CacheForFastLookup(int numOfItems)
         {
             var cacheWithDummyL2 = ComponentBuilder<IOrderedCache<int>>.Create()
-                                                                       .Bind(componentBuilder => componentBuilder.WithModules(new Setup.DummyL2.DI.Module<int>(new Setup.DummyL2.DI.Configuration { IncludeL1Caching = true, L1MaxCap = numOfItems, L1MinCap = numOfItems }, [], [])))
+                                                                       .Bind(componentBuilder => componentBuilder.WithModules(new Setup.InMemory.DummyL2.DI.Module<int>(new Setup.InMemory.DummyL2.DI.Configuration { IncludeL1Caching = true, L1MaxCap = numOfItems, L1MinCap = numOfItems }, [], [])))
                                                                        .Bind(componentBuilder => componentBuilder.WithFeatures(new Baubit.Logging.Features.F000()))
                                                                        .Bind(componentBuilder => componentBuilder.Build()).Value;
 

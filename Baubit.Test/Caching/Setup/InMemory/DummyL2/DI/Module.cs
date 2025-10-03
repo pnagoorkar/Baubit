@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Baubit.Test.Caching.Setup.DummyL2.DI
+namespace Baubit.Test.Caching.Setup.InMemory.DummyL2.DI
 {
     public class Module<TValue> : AModule<Configuration, TValue>
     {
