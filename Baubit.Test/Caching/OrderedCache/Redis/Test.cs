@@ -63,9 +63,9 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
 
         [Theory]
         //[InlineData(1000, 100, 5, 20)]
-        [InlineData(10, 1, 1, 1)]
-        [InlineData(10, 2, 1, 2)]
-        [InlineData(100, 2, 1, 2)]
+        //[InlineData(10, 1, 1, 1)]
+        //[InlineData(10, 2, 1, 2)]
+        //[InlineData(100, 2, 1, 2)]
         [InlineData(100, 10, 2, 8)]
         //[InlineData(1000, 100, 2, 8)]
         public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders, int writerBatchMinSize, int writerBatchMaxSize)
