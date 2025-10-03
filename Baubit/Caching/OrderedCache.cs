@@ -365,6 +365,7 @@ namespace Baubit.Caching
         private bool ClearInternal()
         {
             if (disposedValue) { return false; }
+            if (_metadata.TailId == null) return true;
             _metadata.GetIdsThrough(_metadata.TailId.Value, out var ids);
             foreach (var id in ids)
             {

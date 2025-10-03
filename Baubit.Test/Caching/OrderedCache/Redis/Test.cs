@@ -1,16 +1,19 @@
 ﻿using Baubit.Caching;
 using Baubit.Collections;
 using Baubit.DI;
+using Testcontainers.Redis;
+using Testcontainers.Xunit;
+using Xunit.Abstractions;
 using RedisModuleConfig = Baubit.Caching.Redis.DI.Configuration;
 
 namespace Baubit.Test.Caching.OrderedCache.Redis
 {
-    public class Test
+    public class Test : ContainerTest<RedisBuilder, RedisContainer>
     {
-        public static RedisModuleConfig RedisModuleConfig = new RedisModuleConfig
+        private RedisModuleConfig redisModuleConfig = new RedisModuleConfig
         {
-            Host = "127.0.0.1",
-            Port = 6379,
+            Host = "", // will be set at initialization for each test
+            Port = 0, // will be set at initialization for each test
             SynchronizationOptions = new Baubit.Caching.Redis.SynchronizationOptions
             {
                 GlobalTailIdKey = "baubit:metadata:tailId",
@@ -20,11 +23,29 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
                 ConsumerName = $"{Environment.MachineName}:aee7f0f0-eb1d-4579-acb5-e5f0c2635b24"
             }
         };
+
+        public Test(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
+        {
+
+        }
+
+        protected override RedisBuilder Configure(RedisBuilder builder)
+        {
+            return builder.WithImage("redis:8.2.1");
+        }
+
+        protected override async Task InitializeAsync()
+        {
+            await base.InitializeAsync();
+            var connectionString = Container.GetConnectionString();
+            var connStrParts = connectionString.Split(":");
+            redisModuleConfig = redisModuleConfig with { Host = connStrParts[0], Port = int.Parse(connStrParts[1]) };
+        }
         [Fact]
         public async Task CanAwaitValues()
         {
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
-                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(RedisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -50,7 +71,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
         public async Task CanReadAndWriteSimultaneously(int numOfItems, int numOfReaders, int writerBatchMinSize, int writerBatchMaxSize)
         {
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
-                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(RedisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 

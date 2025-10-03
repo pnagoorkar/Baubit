@@ -5,7 +5,7 @@ workflows:
   version: 2
   build:
     jobs:
-      - build_and_test:
+      - build:
           dotnet_solution_folder: "Baubit"
           dotnet_project_name: "Baubit"
           context:
@@ -13,12 +13,17 @@ workflows:
           filters:
             tags:
               ignore: /.*/ #ignore any builds triggered by tags
-            branches:
-              ignore:
-                - master
-                - release
 
-      - build_test_and_pack:
+      - test:
+          dotnet_solution_folder: "Baubit"
+          dotnet_project_name: "Baubit"
+          context:
+            - Context_Prashant
+          filters:
+            tags:
+              ignore: /.*/ #ignore any builds triggered by tags
+
+      - pack_and_publish:
           dotnet_solution_folder: "Baubit"
           dotnet_project_name: "Baubit"
           context:
@@ -42,6 +47,158 @@ workflows:
                 - release
 #======================================= End Workflows ===================================
 jobs:
+#======================================= Build ====================================
+
+  build:
+    parameters:
+      dotnet_solution_folder:
+        type: string
+        default: ""
+      dotnet_project_name:
+        type: string
+        default: ""
+    docker:
+      - image: $DOCKER_HUB_USERNAME/baubit:base
+        auth:
+            username: $DOCKER_HUB_USERNAME
+            password: $DOCKER_HUB_PASSWORD
+    steps:
+      - run:
+          name: Parameter check
+          command: |
+              # Check all parameters are passed
+              if [ -z "<< parameters.dotnet_solution_folder >>" ]; then
+                echo "dotnet_solution_folder must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export SOLUTION_FOLDER="<< parameters.dotnet_solution_folder >>"
+              fi
+
+              if [ -z "<< parameters.dotnet_project_name >>" ]; then
+                echo "dotnet_project_name must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export PROJECT_NAME="<< parameters.dotnet_project_name >>"
+              fi
+
+              echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
+              echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+      - checkout
+          
+      - run:
+          name: Add github as a nuget package source
+          command: nuget_add_github
+          
+      - run:
+          name: Build
+          command: dotnet_sign_and_build
+
+#======================================= End Build ====================================
+
+#======================================= Test ====================================
+  test:
+    parameters:
+      dotnet_solution_folder:
+        type: string
+        default: ""
+      dotnet_project_name:
+        type: string
+        default: ""
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - run:
+          name: Parameter check
+          command: |
+              # Check all parameters are passed
+              if [ -z "<< parameters.dotnet_solution_folder >>" ]; then
+                echo "dotnet_solution_folder must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export SOLUTION_FOLDER="<< parameters.dotnet_solution_folder >>"
+              fi
+
+              if [ -z "<< parameters.dotnet_project_name >>" ]; then
+                echo "dotnet_project_name must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export PROJECT_NAME="<< parameters.dotnet_project_name >>"
+              fi
+
+              echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
+              echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+      - checkout
+
+      # Docker must be reachable for Testcontainers
+      - run: docker version
+      - run: docker info
+      - run: docker pull redis:8.2.1
+  
+      # Install .NET SDK (fast, no sudo/repos needed)
+      - run: |
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
+          bash dotnet-install.sh --channel 9.0
+          echo 'export PATH="$PATH:$HOME/.dotnet:$HOME/.dotnet/tools"' >> "$BASH_ENV"
+      - run: dotnet --info
+          
+      - run:
+          name: Test
+          command: |
+            SOLUTION_FILE="${SOLUTION_FOLDER}.sln"                
+            dotnet test ${SOLUTION_FILE}
+
+#======================================= End Test ====================================
+
+#======================================= PackAndPublish ====================================
+  pack_and_publish:
+    parameters:
+      dotnet_solution_folder:
+        type: string
+        default: ""
+      dotnet_project_name:
+        type: string
+        default: ""
+    docker:
+      - image: $DOCKER_HUB_USERNAME/baubit:base
+        auth:
+            username: $DOCKER_HUB_USERNAME
+            password: $DOCKER_HUB_PASSWORD
+    steps:
+      - run:
+          name: Parameter check
+          command: |
+              # Check all parameters are passed
+              if [ -z "<< parameters.dotnet_solution_folder >>" ]; then
+                echo "dotnet_solution_folder must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export SOLUTION_FOLDER="<< parameters.dotnet_solution_folder >>"
+              fi
+
+              if [ -z "<< parameters.dotnet_project_name >>" ]; then
+                echo "dotnet_project_name must be passed as a parameter!"
+                circleci-agent step halt
+              else
+                export PROJECT_NAME="<< parameters.dotnet_project_name >>"
+              fi
+
+              echo "export SOLUTION_FOLDER=$SOLUTION_FOLDER" >> "$BASH_ENV"
+              echo "export PROJECT_NAME=$PROJECT_NAME" >> "$BASH_ENV"
+      - checkout
+
+      - run:
+          name: Check for ignored files
+          command: check_for_processable_changes
+          
+      - run:
+          name: Add github as a nuget package source
+          command: nuget_add_github
+
+      - run:
+          name: Pack_and_publish
+          command: pack_and_publish_signed
+#======================================= End PackAndPublish ====================================
+
 #======================================= BuildAndTest ====================================
   build_and_test:
     parameters:
