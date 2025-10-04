@@ -15,6 +15,8 @@ workflows:
               ignore: /.*/ #ignore any builds triggered by tags
 
       - test:
+          requires:
+            - build
           dotnet_solution_folder: "Baubit"
           dotnet_project_name: "Baubit"
           context:
@@ -24,6 +26,8 @@ workflows:
               ignore: /.*/ #ignore any builds triggered by tags
 
       - pack_and_publish:
+          requires:
+            - test
           dotnet_solution_folder: "Baubit"
           dotnet_project_name: "Baubit"
           context:
@@ -36,6 +40,8 @@ workflows:
                 - master
 
       - release:
+          requires:
+            - test
           dotnet_project_name: "Baubit"
           context:
             - Context_Prashant
