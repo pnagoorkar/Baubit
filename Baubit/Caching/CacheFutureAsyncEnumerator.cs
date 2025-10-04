@@ -3,7 +3,7 @@
     public class CacheFutureAsyncEnumerator<TValue> : ACacheAsyncEnumerator<TValue>
     {
         public CacheFutureAsyncEnumerator(IOrderedCache<TValue> cache,
-                                          Action<ICacheEnumerator<IEntry<TValue>>> onDispose,
+                                          Action<ICacheEnumerator> onDispose,
                                           CancellationToken cancellationToken = default) : base(cache, onDispose, cancellationToken)
         {
             cache.GetLastOrDefault(out var lastEntry);

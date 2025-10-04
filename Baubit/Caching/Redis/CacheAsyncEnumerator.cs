@@ -7,7 +7,7 @@ namespace Baubit.Caching.Redis
         private IDatabase _database;
         private string EnumerationHeadKey = "";
         public CacheAsyncEnumerator(IOrderedCache<TValue> cache, 
-                                    Action<ICacheEnumerator<IEntry<TValue>>> onDispose, 
+                                    Action<ICacheEnumerator> onDispose, 
                                     IDatabase database,
                                     CancellationToken cancellationToken = default) : base(cache, onDispose, cancellationToken)
         {

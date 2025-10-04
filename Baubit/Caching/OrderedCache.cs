@@ -38,7 +38,7 @@ namespace Baubit.Caching
 
         private IStore<TValue>? _l1Store;
         private IStore<TValue> _l2Store;
-        private readonly IList<ICacheEnumerator<IEntry<TValue>>> _activeEnumerators = new ConcurrentList<ICacheEnumerator<IEntry<TValue>>>();
+        private readonly IList<ICacheEnumerator> _activeEnumerators = new ConcurrentList<ICacheEnumerator>();
         private int additionsSinceLastEviction = 0;
         #endregion
 

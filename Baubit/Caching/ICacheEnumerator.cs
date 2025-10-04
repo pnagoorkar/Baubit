@@ -1,6 +1,6 @@
 ﻿namespace Baubit.Caching
 {
-    public interface ICacheEnumerator<TValue>
+    public interface ICacheEnumerator
     {
         public Guid? CurrentId { get; }
     }

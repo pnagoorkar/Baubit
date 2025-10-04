@@ -1,16 +1,16 @@
 ﻿namespace Baubit.Caching
 {
-    public abstract class ACacheAsyncEnumerator<TValue> : IAsyncEnumerator<IEntry<TValue>>, ICacheEnumerator<IEntry<TValue>>
+    public abstract class ACacheAsyncEnumerator<TValue> : IAsyncEnumerator<IEntry<TValue>>, ICacheEnumerator
     {
         public IEntry<TValue>? Current { get; protected set; }
         public Guid? CurrentId => Current?.Id;
 
         protected readonly IOrderedCache<TValue> _cache;
-        private Action<ICacheEnumerator<IEntry<TValue>>> _onDispose;
+        private Action<ICacheEnumerator> _onDispose;
         private CancellationToken _cancellationToken;
         private CancellationTokenRegistration cancellationTokenRegistration;
         public ACacheAsyncEnumerator(IOrderedCache<TValue> cache,
-                                    Action<ICacheEnumerator<IEntry<TValue>>> onDispose,
+                                    Action<ICacheEnumerator> onDispose,
                                     CancellationToken cancellationToken = default)
         {
             _cache = cache;
