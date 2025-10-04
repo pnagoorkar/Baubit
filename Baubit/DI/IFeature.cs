@@ -10,3 +10,4 @@ namespace Baubit.DI
 
     public record FeatureDescriptor(string Function, string Variant);
 }
+
