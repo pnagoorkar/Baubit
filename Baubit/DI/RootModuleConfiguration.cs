@@ -2,7 +2,7 @@
 
 namespace Baubit.DI
 {
-    public sealed class RootModuleConfiguration : ARootModuleConfiguration
+    public sealed record RootModuleConfiguration : ARootModuleConfiguration
     {
         public ServiceProviderOptions ServiceProviderOptions { get; init; } = new ServiceProviderOptions();
     }

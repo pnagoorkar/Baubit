@@ -27,7 +27,7 @@ namespace Baubit.Tasks
         {
             try
             {
-                await task;
+                await task.ConfigureAwait(false);
                 return Result.Ok();
             }
             catch (AggregateException aExp)
@@ -41,6 +41,12 @@ namespace Baubit.Tasks
                     return Result.Fail(new ExceptionalError(aExp));
                 }
             }
+        }
+
+        public static Result RegisterCancellationToken<T>(this TaskCompletionSource<T> taskCompletionSource, CancellationToken cancellationToken)
+        {
+            return Result.Try(() => cancellationToken.Register(() => taskCompletionSource.TrySetCanceled(cancellationToken), useSynchronizationContext: false))
+                         .Bind(registration => Result.Try(() => { taskCompletionSource.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default); }));
         }
     }
 }

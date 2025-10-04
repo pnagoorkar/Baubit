@@ -18,7 +18,7 @@ namespace Baubit.Test.DI.RootModuleFactory.Setup
         {
         }
 
-        public Module(Configuration configuration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        public Module(Configuration configuration, List<Baubit.DI.IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
     }
@@ -32,7 +32,7 @@ namespace Baubit.Test.DI.RootModuleFactory.Setup
         protected override IEnumerable<Expression<Func<Module, Result>>> GetRules() => Enumerable.Empty<Expression<Func<Module, Result>>>();
     }
 
-    public class AnotherModuleConfiguration : Baubit.DI.AConfiguration
+    public record AnotherModuleConfiguration : Baubit.DI.AConfiguration
     {
 
     }
@@ -47,7 +47,7 @@ namespace Baubit.Test.DI.RootModuleFactory.Setup
         {
         }
 
-        public AnotherModule(AnotherModuleConfiguration configuration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        public AnotherModule(AnotherModuleConfiguration configuration, List<Baubit.DI.IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 

@@ -2,6 +2,7 @@
 using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace Baubit.DI
 {
@@ -15,7 +16,7 @@ namespace Baubit.DI
         {
         }
 
-        public RootModule(RootModuleConfiguration moduleConfiguration, List<AModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
+        public RootModule(RootModuleConfiguration moduleConfiguration, List<IModule> nestedModules, List<IConstraint> constraints) : base(moduleConfiguration, nestedModules, constraints)
         {
         }
 
@@ -46,6 +47,20 @@ namespace Baubit.DI
                                     }
                                     return section.TryAsModule<IRootModule>();
                                 });
+        }
+        public static Result<IRootModule> Create(IConfiguration configuration, params IFeature[] withFeatures)
+        {
+            if (withFeatures.Any())
+            {
+                return withFeatures.SelectMany(feature => feature.Modules)
+                                   .SerializeAsJsonObject(new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                                   .Bind(jsonString => Configuration.ConfigurationBuilder.CreateNew().Bind(configBuilder => configBuilder.WithRawJsonStrings(jsonString)).Bind(configBuilder => configBuilder.Build()))
+                                   .Bind(Create);
+            }
+            else
+            {
+                return Create(configuration);
+            }
         }
         public static Result<IRootModule> Create(ConfigurationSource configSource)
         {

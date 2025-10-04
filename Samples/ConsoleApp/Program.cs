@@ -4,4 +4,5 @@ using Microsoft.Extensions.Hosting;
 await Host.CreateApplicationBuilder()
           .UseConfiguredServiceProviderFactory()
           .Build()
-          .RunAsync();
+          .RunAsync()
+          .ConfigureAwait(false);

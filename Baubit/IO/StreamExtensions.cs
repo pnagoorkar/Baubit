@@ -12,7 +12,7 @@ namespace Baubit.IO
                 if (stream == null) return Result.Fail("Cannot read from a null stream !");
                 using (var reader = new StreamReader(stream))
                 {
-                    var str = await reader.ReadToEndAsync();
+                    var str = await reader.ReadToEndAsync().ConfigureAwait(false);
                     return Result.Ok(str);
                 }
             }
@@ -26,7 +26,7 @@ namespace Baubit.IO
             char[] buffer = new char[1];
             while (!cancellationToken.IsCancellationRequested)
             {
-                var numRead = await streamReader.ReadAsync(buffer, 0, buffer.Length);
+                var numRead = await streamReader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
                 if (numRead == 0) break;
                 yield return buffer[0];
             }
@@ -40,7 +40,7 @@ namespace Baubit.IO
 
             var pendingTriads = kmpTriads.Where(triad => !triad.Found);
             int index = -1;
-            await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token))
+            await foreach (var currentChar in streamReader.EnumerateAsync(enumerationCancellationTokenSource.Token).ConfigureAwait(false))
             {
                 index++;
                 Parallel.ForEach(pendingTriads, kmpTriad => kmpTriad.Process(currentChar, index));

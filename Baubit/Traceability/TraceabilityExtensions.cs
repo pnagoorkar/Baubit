@@ -22,6 +22,11 @@ namespace Baubit.Traceability
             return result;
         }
 
+        public static async Task<TResult> ThrowIfFailed<TResult>(this Task<TResult> result) where TResult : IResultBase
+        {
+            return (await result.ConfigureAwait(false)).ThrowIfFailed();
+        }
+
         public static TResult AddSuccessIfPassed<TResult, T>(this TResult result, params ISuccess[] successes) where TResult : Result<T>
         {
             return result.AddSuccessIfPassed((r, s) => r.WithSuccesses(s));

@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <None Remove="Configuration\ConfigurationSource\config.json" />
+    <None Remove="DI\AModule\Setup\configWithModuleConstraints.json" />
     <None Remove="DI\ServiceProviderFactoryRegistrar\config.json" />
     <None Remove="DI\Setup\Config\module.json" />
     <None Remove="DI\Setup\Config\moduleConfig.json" />
@@ -24,6 +25,7 @@
     <EmbeddedResource Include="Configuration\AConfiguration\configWithOutValidator.json" />
     <EmbeddedResource Include="Configuration\AConfiguration\config.json" />
     <EmbeddedResource Include="Configuration\ConfigurationSource\config.json" />
+    <EmbeddedResource Include="DI\AModule\configHavingFeaturesSection.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleHavingDependency.json" />
     <EmbeddedResource Include="DI\AModule\configWithModuleConstraints.json" />
     <EmbeddedResource Include="DI\AModule\configHavingManyModulesIndirectlyDefined.json" />
@@ -53,10 +55,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0-preview-25107-01" />
-    <PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.12.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.13.0" />
+    <PackageReference Include="Testcontainers.Redis" Version="4.7.0" />
+    <PackageReference Include="Testcontainers.Xunit" Version="4.7.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -68,6 +72,10 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="DI\ComponentBuilder\Setup\" />
   </ItemGroup>
 
 </Project>

@@ -21,7 +21,7 @@ namespace Baubit.Logging.Telemetry.DI
         {
         }
 
-        protected AModule(TConfiguration configuration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        protected AModule(TConfiguration configuration, List<Baubit.DI.IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 

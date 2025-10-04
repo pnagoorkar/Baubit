@@ -9,4 +9,4 @@ app.MapGet("/", () => "Hello World!");
 
 app.MapGet("/myComponent", (MyComponent myComponent) => myComponent.DoSomething());
 
-await app.RunAsync();
+await app.RunAsync().ConfigureAwait(false);

@@ -6,6 +6,7 @@ using FluentResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
+using System.Text.Json;
 
 namespace Baubit.DI
 {
@@ -13,6 +14,7 @@ namespace Baubit.DI
     {
         private IConfiguration _configuration;
         private List<Func<IServiceCollection, IServiceCollection>> _handlers = new List<Func<IServiceCollection, IServiceCollection>>();
+        private List<IModule> _modules = new List<IModule>();
         private bool _isDisposed;
         private IServiceCollection _services = null;
 
@@ -46,13 +48,33 @@ namespace Baubit.DI
             return Result.Try(() => _services = services).Bind(_ => Result.Ok(this));
         }
 
+        public Result<ComponentBuilder<T>> WithModules(params IModule[] modules)
+        {
+            return Result.Try(() => _modules.AddRange(modules))
+                         .Bind(() => Result.Ok(this));
+        }
+
+        public Result<ComponentBuilder<T>> WithFeatures(params IFeature[] features)
+        {
+            return WithModules(features.SelectMany(feature => feature.Modules).ToArray());
+        }
+
         public Result<T> Build(bool requireComponent = true)
         {
-            return FailIfDisposed().Bind(() => Result.Try(() => _services ?? new ServiceCollection()))
-                                   .Bind(services => _handlers.Aggregate(Result.Ok(services), (seed, next) => seed.Bind(svcs => Result.Try(() => next(svcs)))))
-                                   .Bind(svcs => RootModuleFactory.Create(_configuration)
-                                                                  .Bind(rootModule => Result.Try(() => rootModule.BuildServiceProvider(svcs))))
+            return FailIfDisposed().Bind(() => CreateRootModule())
+                                   .Bind(rootModule => InvokeCustomRegistrations().Bind(services => Result.Try(() => rootModule.BuildServiceProvider(services))))
                                    .Bind(serviceProvider => Result.Try(() => requireComponent ? serviceProvider.GetRequiredService<T>() : serviceProvider.GetService<T>()!));
+        }
+
+        private Result<IServiceCollection> InvokeCustomRegistrations()
+        {
+            return Result.Try(() => _services ?? new ServiceCollection())
+                         .Bind(services => _handlers.Aggregate(Result.Ok(services), (seed, next) => seed.Bind(svcs => Result.Try(() => next(svcs)))));
+        }
+
+        private Result<IRootModule> CreateRootModule()
+        {
+            return _configuration.AddModules(_modules).Bind(config => RootModuleFactory.Create(config));
         }
 
         private Result FailIfDisposed()

@@ -16,6 +16,7 @@ namespace Baubit.Configuration
     /// </summary>
     public class ConfigurationSource
     {
+        public static ConfigurationSource Empty => new ConfigurationSource();
         public List<string> RawJsonStrings { get; init; }
         [URI]
         public List<string> JsonUriStrings { get; init; }

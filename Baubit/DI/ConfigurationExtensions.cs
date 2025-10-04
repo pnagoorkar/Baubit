@@ -5,19 +5,28 @@ using Baubit.Traceability;
 using Baubit.Validation;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
+using System.Reflection;
+using System.Text.Json;
 
 namespace Baubit.DI
 {
     public static class ConfigurationExtensions
     {
-        public static Result<List<TModule>> LoadModules<TModule>(this IConfiguration configuration) where TModule : class, IModule
+        public static Result<List<IModule>> LoadModules<TModule>(this IConfiguration configuration)
         {
-            List<TModule> directlyDefinedModules = new List<TModule>();
-            List<TModule> indirectlyDefinedModules = new List<TModule>();
+            List<IModule> featurizedModules = new List<IModule>();
+            List<IModule> directlyDefinedModules = new List<IModule>();
+            List<IModule> indirectlyDefinedModules = new List<IModule>();
+
+            var directlyProvidedModulesExtractionResult = configuration.GetFeaturesSectionOrDefault()
+                                                                       .Bind(modulesSection => Result.Try(() => modulesSection?.GetChildren() ?? new List<IConfigurationSection>()))
+                                                                       .Bind(sections => Result.Merge(sections.AsParallel().Select(sec => GetFeatures(sec.Get<FeatureDescriptor>())).ToArray()))
+                                                                       .Bind(features => Result.Try(() => featurizedModules = features.SelectMany(feature => feature.Modules).ToList()))
+                                                                       .Bind(_ => Result.Ok());
 
             var directlyDefinedModulesExtractionResult = configuration.GetModulesSectionOrDefault()
                                                                       .Bind(modulesSection => Result.Try(() => modulesSection?.GetChildren() ?? new List<IConfigurationSection>()))
-                                                                      .Bind(sections => Result.Merge(sections.Select(section => section.TryAsModule<TModule>()).ToArray()))
+                                                                      .Bind(sections => Result.Merge(sections.Select(section => section.TryAsModule<IModule>()).ToArray()))
                                                                       .Bind(modules => { directlyDefinedModules = modules.ToList(); return Result.Ok(); });
 
             var indirectlyDefinedModulesExtractionResult = configuration.GetModuleSourcesSectionOrDefault()
@@ -27,8 +36,17 @@ namespace Baubit.DI
                                                                         .Bind(modules => { indirectlyDefinedModules = modules.SelectMany(x => x).ToList(); return Result.Ok(); });
 
             return directlyDefinedModulesExtractionResult.IsSuccess && indirectlyDefinedModulesExtractionResult.IsSuccess ?
-                   Result.Ok<List<TModule>>([.. directlyDefinedModules, .. indirectlyDefinedModules]) :
+                   Result.Ok<List<IModule>>([.. featurizedModules,  ..directlyDefinedModules, .. indirectlyDefinedModules]) :
                    Result.Fail(Enumerable.Empty<IError>()).WithReasons(directlyDefinedModulesExtractionResult.Reasons).WithReasons(indirectlyDefinedModulesExtractionResult.Reasons);
+        }
+
+        public static Result<IConfiguration> AddModules(this IConfiguration configuration, IEnumerable<IModule> modules)
+        {
+            if (!modules.Any()) return Result.Ok(configuration);
+            return modules.SerializeAsJsonObject(new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                          .Bind(jsonStr => Baubit.Configuration.ConfigurationBuilder.CreateNew().Bind(configBuilder => configBuilder.WithRawJsonStrings(jsonStr)))
+                          .Bind(configBuilder => configBuilder.WithAdditionalConfigurations(configuration))
+                          .Bind(configBuilder => configBuilder.Build());
         }
 
         public static Result<List<IConstraint>> LoadConstraints(this IConfiguration configuration)
@@ -38,6 +56,23 @@ namespace Baubit.DI
                                                                                       .Select(constraintSection => constraintSection.TryAs<IConstraint>()
                                                                                                                                    .ThrowIfFailed()
                                                                                                                                    .Value).ToList() ?? new List<IConstraint>()));
+        }
+
+        public static Result<IFeature> GetFeatures(FeatureDescriptor featureDescriptor)
+        {
+            return Result.Try(() => AppDomain.CurrentDomain
+                                             .GetAssemblies()
+                                             .AsParallel()
+                                             .SelectMany(assembly => assembly.GetTypes()
+                                                                         .AsParallel()
+                                                                         .Where(type => type is not null &&
+                                                                                                  type.IsClass &&
+                                                                                                  type.IsPublic &&
+                                                                                                  !type.IsAbstract &&
+                                                                                                  typeof(IFeature).IsAssignableFrom(type) &&
+                                                                                                  type.GetCustomAttribute<FeatureIdAttribute>()?.Function == featureDescriptor.Function && 
+                                                                                                  type.GetCustomAttribute<FeatureIdAttribute>()?.Variant == featureDescriptor.Variant).ToArray()).SingleOrDefault())
+                         .Bind(type => Result.Try(() => (IFeature)Activator.CreateInstance(type)!));
         }
 
         public static Result<TModule> TryAsModule<TModule>(this IConfiguration configuration) where TModule : class, IModule
@@ -89,6 +124,14 @@ namespace Baubit.DI
                    Result.Fail(Enumerable.Empty<IError>()).WithReason(new ModuleSourcesNotDefined());
         }
 
+        public static Result<IConfigurationSection> GetFeaturesSection(this IConfiguration configurationSection)
+        {
+            var moduleSourcesSection = configurationSection.GetSection("features");
+            return moduleSourcesSection.Exists() ?
+                   Result.Ok(moduleSourcesSection) :
+                   Result.Fail(Enumerable.Empty<IError>()).WithReason(new ModuleSourcesNotDefined());
+        }
+
         public static Result<IConfigurationSection> GetObjectConfigurationSection(this IConfiguration configurationSection)
         {
             var objectConfigurationSection = configurationSection.GetSection("configuration");
@@ -113,6 +156,11 @@ namespace Baubit.DI
         public static Result<IConfigurationSection> GetModuleSourcesSectionOrDefault(this IConfiguration configuration)
         {
             return Result.Ok(configuration.GetModuleSourcesSection().ValueOrDefault);
+        }
+
+        public static Result<IConfigurationSection> GetFeaturesSectionOrDefault(this IConfiguration configuration)
+        {
+            return Result.Ok(configuration.GetFeaturesSection().ValueOrDefault);
         }
 
         public static Result<ConfigurationSource> GetObjectConfigurationSourceOrDefault(this IConfiguration configuration)

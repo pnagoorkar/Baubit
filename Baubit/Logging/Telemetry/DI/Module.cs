@@ -14,7 +14,7 @@ namespace Baubit.Logging.Telemetry.DI
         {
         }
 
-        public Module(Configuration configuration, List<AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        public Module(Configuration configuration, List<IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
     }

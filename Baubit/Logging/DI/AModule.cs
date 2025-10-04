@@ -15,7 +15,7 @@ namespace Baubit.Logging.DI
         {
         }
 
-        protected AModule(TConfiguration configuration, List<Baubit.DI.AModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
+        protected AModule(TConfiguration configuration, List<Baubit.DI.IModule> nestedModules, List<IConstraint> constraints) : base(configuration, nestedModules, constraints)
         {
         }
 
@@ -29,19 +29,19 @@ namespace Baubit.Logging.DI
         {
             if (Configuration.AddConsole)
             {
-                loggingBuilder.AddConsole();
+                loggingBuilder.AddConsole().SetMinimumLevel(Configuration.ConsoleLogLevel);
             }
             if (Configuration.AddDebug)
             {
-                loggingBuilder.AddDebug();
+                loggingBuilder.AddDebug().SetMinimumLevel(Configuration.DebugLogLevel);
             }
             if (Configuration.AddEventSource)
             {
-                loggingBuilder.AddEventSourceLogger();
+                loggingBuilder.AddEventSourceLogger().SetMinimumLevel(Configuration.EventSourceLogLevel);
             }
             if (Configuration.AddEventLog)
             {
-                loggingBuilder.AddEventLog();
+                loggingBuilder.AddEventLog().SetMinimumLevel(Configuration.EventLogLogLevel);
             }
         }
     }
