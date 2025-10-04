@@ -14,10 +14,8 @@ namespace Baubit.Caching.Redis
         [Key(1)]
         public TValue Value { get; init; }
 
-        private DateTime _createdOnUTC = DateTime.UtcNow;
-
         [Key(2)]
-        public DateTime CreatedOnUTC { get => _createdOnUTC; private set => _createdOnUTC = value; }
+        public DateTime CreatedOnUTC { get; init; } = DateTime.UtcNow;
 
         [SerializationConstructor]
         public Entry(Guid id, TValue value, DateTime createdOn = default)
