@@ -32,15 +32,27 @@ namespace Baubit.Caching.Redis
             _internal = @internal;
             _database = database;
             _logger = loggerFactory.CreateLogger<Metadata>();
-            FetchKeys();
+            if (synchronizationOptions.ResumeSession)
+            {
+                // if ResumeSession is enabled, keys starting from the last know headId will be loaded.
+                FetchKeys();
+            }
+            else
+            {
+                // every session is concerned with items
+                // that were generated in its own lifetime
+                SetInstanceHeadIdInternal(null);
+            }
             InitializeConsumerGroup();
             _syncer = BeginSyncAsync(_syncerCTS.Token);
         }
 
         private void FetchKeys()
         {
+            var instanceHeadId = GetInstanceHeadIdInternal();
             foreach (var key in _database.GetSetKeys().Order())
             {
+                if (key < instanceHeadId) continue;
                 AddTailInternal(key);
             }
         }
@@ -91,12 +103,10 @@ namespace Baubit.Caching.Redis
                 {
                     switch (descriptor.EventType)
                     {
-                        case EventType.Create:
+                        case EventType.Add:
                             AddTailInternal(descriptor.MetadataId);
                             break;
-                        case EventType.Delete:
-                            Remove(descriptor.MetadataId);
-                            break;
+                        default: break;
                     }
                 }
             }
@@ -115,7 +125,7 @@ namespace Baubit.Caching.Redis
                     _database.StreamAdd(_synchronizationOptions.StreamKey, new[]
                     {
                         new NameValueEntry(nameof(EventDescriptor.Source), _synchronizationOptions.ConsumerName),
-                        new NameValueEntry(nameof(EventDescriptor.EventType), EventType.Create.ToString()),
+                        new NameValueEntry(nameof(EventDescriptor.EventType), EventType.Add.ToString()),
                         new NameValueEntry(nameof(EventDescriptor.EventId), Guid.NewGuid().ToString("N")),
                         new NameValueEntry(nameof(EventDescriptor.MetadataId), id.ToString())
                     });
@@ -133,7 +143,14 @@ namespace Baubit.Caching.Redis
 
         private bool AddTailInternal(Guid id)
         {
-            return _internal.AddTail(id);
+            var retVal = _internal.AddTail(id);
+
+            if (GetInstanceHeadIdInternal() == null)
+            {
+                SetInstanceHeadIdInternal(_internal.HeadId);
+            }
+
+            return retVal;
         }
 
         public bool ContainsKey(Guid id)
@@ -191,17 +208,7 @@ namespace Baubit.Caching.Redis
             try
             {
                 var retVal = _internal.Remove(id);
-
-                if (retVal)
-                {
-                    _database.StreamAdd(_synchronizationOptions.StreamKey, new[]
-                    {
-                        new NameValueEntry(nameof(EventDescriptor.Source), _synchronizationOptions.ConsumerName),
-                        new NameValueEntry(nameof(EventDescriptor.EventType), EventType.Delete.ToString()),
-                        new NameValueEntry(nameof(EventDescriptor.EventId), Guid.NewGuid().ToString("N")),
-                        new NameValueEntry(nameof(EventDescriptor.MetadataId), id.ToString())
-                    });
-                }
+                SetInstanceHeadIdInternal(_internal.HeadId);
                 return retVal;
             }
             finally { _locker.ExitWriteLock(); }
@@ -256,6 +263,20 @@ namespace Baubit.Caching.Redis
             return _database.StringSet(_synchronizationOptions.GlobalTailIdKey, newId.ToString("N"));
         }
 
+        private Guid? GetInstanceHeadIdInternal()
+        {
+            Guid? instanceHeadId = null;
+            var headRaw = _database.StringGet(_synchronizationOptions.InstanceHeadIdKey);
+
+            if (headRaw.HasValue && Guid.TryParse(headRaw.ToString(), out var parsed)) instanceHeadId = parsed;
+            return instanceHeadId;
+        }
+
+        private bool SetInstanceHeadIdInternal(Guid? newId)
+        {
+            return _database.StringSet(_synchronizationOptions.InstanceHeadIdKey, newId?.ToString("N"));
+        }
+
         private long GetCountInternal()
         {
             _locker.EnterReadLock();
@@ -274,6 +295,8 @@ namespace Baubit.Caching.Redis
         public string ConsumerName { get; init; }
         public string LockKey { get; init; }
         public string GlobalTailIdKey { get; init; }
+        public string InstanceHeadIdKey { get => $"{ConsumerName}:headId"; }
+        public bool ResumeSession { get; init; } = false;
         public int IdSeedLockTtlMs { get; init; } = 5000; // 5 second default
         public TimeSpan IdSeedLockTtl => TimeSpan.FromMilliseconds(IdSeedLockTtlMs);
     }
@@ -335,7 +358,6 @@ namespace Baubit.Caching.Redis
     public enum EventType
     {
         None,
-        Create,
-        Delete
+        Add
     }
 }

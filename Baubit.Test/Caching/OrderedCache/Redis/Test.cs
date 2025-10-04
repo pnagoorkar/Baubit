@@ -61,6 +61,41 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
             Assert.Equal(entry.Value, nextEntry.Value);
         }
 
+        [Theory]
+        [InlineData(1)]
+        public async Task CanEvictAfterEveryX(int x)
+        {
+            var configuration = redisModuleConfig with { CacheConfiguration = new Baubit.Caching.Configuration { EvictAfterEveryX = x } };
+
+            var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(configuration, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
+                                                                    .Bind(componentBuilder => componentBuilder.Build()).Value;
+
+            var enumerator = redisCache.GetAsyncEnumerator();
+
+            redisCache.Add(Random.Shared.Next(), out var entry);
+            Assert.Equal(redisCache.Count, 1);
+
+            Assert.Null(enumerator.Current);
+
+            await enumerator.MoveNextAsync();
+            Assert.Equal(entry.Value, enumerator.Current.Value);
+
+            redisCache.Add(Random.Shared.Next(), out entry);
+            Assert.Equal(redisCache.Count, 1);
+
+            await enumerator.MoveNextAsync();
+            Assert.Equal(entry.Value, enumerator.Current.Value);
+
+            redisCache.Add(Random.Shared.Next(), out entry);
+            Assert.Equal(redisCache.Count, 1);
+
+            await enumerator.MoveNextAsync();
+            Assert.Equal(entry.Value, enumerator.Current.Value);
+
+        }
+
         [Fact]
         public async Task CanCancelGetNextAsync()
         {

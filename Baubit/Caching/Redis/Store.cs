@@ -91,16 +91,9 @@ namespace Baubit.Caching.Redis
 
         public override bool Remove(Guid id, out IEntry<TValue>? entry)
         {
-            // Best-effort: return the prior value (if any) and delete the key.
-            GetEntryOrDefault(id, out entry);
-            try
-            {
-                return _database.KeyDelete(id.ToString());
-            }
-            catch
-            {
-                return false;
-            }
+            // Nodes will not delete anything.
+            // They will only adjust (soft delete) their headIds
+            return GetEntryOrDefault(id, out entry);
         }
 
         public override bool Update(IEntry<TValue> entry)
