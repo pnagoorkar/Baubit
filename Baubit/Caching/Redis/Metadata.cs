@@ -85,7 +85,10 @@ namespace Baubit.Caching.Redis
                     continue;
                 }
 
-                ProcessEvents(entries.Parse(_synchronizationOptions.ConsumerName));
+                // we want to process events sent by peers only
+                // Any events sent by us will also show up here. we want to ignore them
+                // Any events having this consumer as a destination (includes broadcast events) are the ones we care about
+                ProcessEvents(entries.Parse(_synchronizationOptions.ConsumerName, _synchronizationOptions.ConsumerName));
 
                 _database.StreamAcknowledge(_synchronizationOptions.StreamKey,
                                             _synchronizationOptions.GroupName,
@@ -301,20 +304,21 @@ namespace Baubit.Caching.Redis
         public TimeSpan IdSeedLockTtl => TimeSpan.FromMilliseconds(IdSeedLockTtlMs);
     }
 
-    public record EventDescriptor(string Source, EventType EventType, Guid EventId, Guid MetadataId);
+    public record EventDescriptor(string Source, string Destination, EventType EventType, Guid EventId, Guid MetadataId);
 
     public static class StreamEntryExtensions
     {
-        public static IEnumerable<EventDescriptor> Parse(this IEnumerable<StreamEntry> entries, string ignoreSource)
+        public static IEnumerable<EventDescriptor> Parse(this IEnumerable<StreamEntry> entries, string skipSource, string acceptDestination)
         {
             foreach (var entry in entries)
             {
-                if (entry.TryParse(ignoreSource, out var descriptor)) yield return descriptor;
+                if (entry.TryParse(skipSource, acceptDestination, out var descriptor)) yield return descriptor;
             }
         }
-        public static bool TryParse(this StreamEntry entry, string ignoreSource, out EventDescriptor? descriptor)
+        public static bool TryParse(this StreamEntry entry, string skipSource, string acceptDestination, out EventDescriptor? descriptor)
         {
             var source = string.Empty;
+            var destination = "*";
             var eventType = EventType.None;
             var eventId = Guid.NewGuid();
             var metadataId = Guid.NewGuid();
@@ -324,6 +328,9 @@ namespace Baubit.Caching.Redis
                 {
                     case nameof(EventDescriptor.Source):
                         source = value.Value;
+                        break;
+                    case nameof(EventDescriptor.Destination):
+                        destination = value.Value;
                         break;
                     case nameof(EventDescriptor.EventType):
                         Enum.TryParse<EventType>(value.Value, out eventType);
@@ -336,8 +343,15 @@ namespace Baubit.Caching.Redis
                         break;
                 }
             }
-            if (source == ignoreSource) { descriptor = null; return false; }
-            descriptor = new EventDescriptor(source, eventType, eventId, metadataId);
+            if (destination == "*" || destination == acceptDestination)
+            {
+                if (source == skipSource)
+                {
+                    descriptor = null;
+                    return false;
+                }
+            }
+            descriptor = new EventDescriptor(source, destination, eventType, eventId, metadataId);
             return true;
         }
         public static IEnumerable<Guid> GetSetKeys(this IDatabase database, int pageSize = 1000)
