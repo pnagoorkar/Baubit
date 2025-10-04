@@ -199,6 +199,10 @@ jobs:
       - run:
           name: Add github as a nuget package source
           command: nuget_add_github
+          
+      - run:
+          name: Build
+          command: dotnet_sign_and_build
 
       - run:
           name: Pack_and_publish
