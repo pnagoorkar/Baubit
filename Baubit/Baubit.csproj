@@ -16,6 +16,7 @@
     <Authors>Prashant Nagoorkar</Authors>
     <SignAssembly>$(SignAssembly)</SignAssembly>
     <AssemblyOriginatorKeyFile>$(KeyFilePath)</AssemblyOriginatorKeyFile>
+    <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 
   <ItemGroup>
