@@ -11,17 +11,20 @@ namespace Baubit.Caching.Redis
         private IServer _server;
         private IDatabase _database;
         private ISerializer _serializer;
+        private RedisSettings _redisSettings;
 
         public Store(long? minCap,
                      long? maxCap,
                      IDatabase database,
                      IServer server,
                      ISerializer serializer,
+                     RedisSettings redisSettings,
                      ILoggerFactory loggerFactory) : base(minCap, maxCap, loggerFactory)
         {
             _server = server;
             _database = database;
             _serializer = serializer;
+            _redisSettings = redisSettings;
         }
 
         // No inherent ordering is tracked with per-id Sets.
@@ -31,7 +34,7 @@ namespace Baubit.Caching.Redis
         public override bool Add(IEntry<TValue> entry)
         {
             if (!_serializer.TrySerialize((Entry<TValue>)entry, out var bytes)) return false;
-            if (!_database.SetAdd(entry.Id.ToString(), bytes)) return false;
+            if (!_database.SetAdd(GetPrefixedKey(entry.Id.ToString()), bytes)) return false;
             return true;
         }
 
@@ -53,7 +56,7 @@ namespace Baubit.Caching.Redis
             entry = default;
             if (id == null) return true; // "OrDefault": treat null/missing as not-found, but not an error.
 
-            var key = id.Value.ToString();
+            var key = GetPrefixedKey(id.Value.ToString());
 
             try
             {
@@ -107,7 +110,7 @@ namespace Baubit.Caching.Redis
             {
                 // Ensure replacement (avoid multiple members in the Set)
                 _database.KeyDelete(key);
-                return _database.SetAdd(key, bytes);
+                return _database.SetAdd(GetPrefixedKey(key), bytes);
             }
             catch
             {
@@ -119,6 +122,11 @@ namespace Baubit.Caching.Redis
         {
             var e = new Entry<TValue>(id, value);
             return Update(e);
+        }
+
+        private string GetPrefixedKey(string suffix)
+        {
+            return $"{_redisSettings.DataKey}:{suffix}";
         }
 
         protected override void DisposeInternal()

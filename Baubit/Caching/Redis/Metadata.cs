@@ -17,22 +17,29 @@ namespace Baubit.Caching.Redis
         private IDatabase _database;
         private ILogger<Metadata> _logger;
         private CancellationTokenSource _syncerCTS = new CancellationTokenSource();
-        private Task<bool> _syncer;
         private ReaderWriterLockSlim _locker = new ReaderWriterLockSlim();
 
-        private SynchronizationOptions _synchronizationOptions;
+        private RedisSettings _redisSettings;
 
         private DistributedLock? _distributedLock;
-        public Metadata(SynchronizationOptions synchronizationOptions,
+        private Thread synchronizer;
+        private bool disposedValue;
+        private Guid? synchronizeAfter;
+
+        public Metadata(RedisSettings redisSettings,
                         IMetadata @internal,
                         IDatabase database,
                         ILoggerFactory loggerFactory)
         {
-            _synchronizationOptions = synchronizationOptions;
+            _redisSettings = redisSettings;
             _internal = @internal;
             _database = database;
             _logger = loggerFactory.CreateLogger<Metadata>();
-            if (synchronizationOptions.ResumeSession)
+
+            // Take the lock here to keep others from adding into the database
+            // This will ensure wqe dont miss any items between FetchKeys and ReadeStreamEntries
+            _distributedLock = DistributedLock.Take(_database, _redisSettings.LockKey, _redisSettings.IdSeedLockTtl);
+            if (redisSettings.ResumeSession)
             {
                 // if ResumeSession is enabled, keys starting from the last know headId will be loaded.
                 FetchKeys();
@@ -44,13 +51,29 @@ namespace Baubit.Caching.Redis
                 SetInstanceHeadIdInternal(null);
             }
             InitializeConsumerGroup();
-            _syncer = BeginSyncAsync(_syncerCTS.Token);
+
+            // this is to ensure we are registered with redis for stream events
+            ReadStreamEntries();
+            synchronizeAfter = GetGlobalTailIdInternal();
+            // release the lock.
+            // Any additions after this are ensured to arrive to this node.
+            _distributedLock.Dispose();
+            _distributedLock = null;
+
+            synchronizer = new Thread(() => BeginSync(_syncerCTS.Token))
+            {
+                Name = $"RedisSyncer_{_redisSettings.ConsumerName}",
+                Priority = ThreadPriority.Highest
+            };
+
+            synchronizer.Start();
+            //_syncer = BeginSyncAsync(_syncerCTS.Token);
         }
 
         private void FetchKeys()
         {
             var instanceHeadId = GetInstanceHeadIdInternal();
-            foreach (var key in _database.GetSetKeys().Order())
+            foreach (var key in _database.GetSetKeys(_redisSettings).Order())
             {
                 if (key < instanceHeadId) continue;
                 AddTailInternal(key);
@@ -61,40 +84,44 @@ namespace Baubit.Caching.Redis
         {
             try
             {
-                _database.StreamCreateConsumerGroup(_synchronizationOptions.StreamKey,
-                                                    _synchronizationOptions.GroupName,
+                _database.StreamCreateConsumerGroup(_redisSettings.StreamKey,
+                                                    _redisSettings.ConsumerGroupKey,
                                                     StreamPosition.NewMessages,
                                                     createStream: true);
             }
             catch (RedisServerException ex) when (ex.Message.Contains("BUSYGROUP")) { /* ok */ }
         }
 
-        private async Task<bool> BeginSyncAsync(CancellationToken cancellationToken = default)
+        private void BeginSync(CancellationToken cancellationToken = default)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var entries = _database.StreamReadGroup(_synchronizationOptions.StreamKey,
-                                                        _synchronizationOptions.GroupName,
-                                                        _synchronizationOptions.ConsumerName,
-                                                        ">", // read new messages
-                                                        count: 128);
+                var entries = ReadStreamEntries();
 
                 if (entries is null || entries.Length == 0)
                 {
-                    await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+                    Thread.Sleep(150);
                     continue;
                 }
 
                 // we want to process events sent by peers only
                 // Any events sent by us will also show up here. we want to ignore them
                 // Any events having this consumer as a destination (includes broadcast events) are the ones we care about
-                ProcessEvents(entries.Parse(_synchronizationOptions.ConsumerName, _synchronizationOptions.ConsumerName));
+                ProcessEvents(entries.Parse(_redisSettings.ConsumerName, _redisSettings.ConsumerName));
 
-                _database.StreamAcknowledge(_synchronizationOptions.StreamKey,
-                                            _synchronizationOptions.GroupName,
+                _database.StreamAcknowledge(_redisSettings.StreamKey,
+                                            _redisSettings.ConsumerGroupKey,
                                             entries.Select(e => e.Id).ToArray());
             }
-            return true;
+        }
+
+        private StreamEntry[] ReadStreamEntries()
+        {
+            return _database.StreamReadGroup(_redisSettings.StreamKey,
+                                             _redisSettings.ConsumerGroupKey,
+                                             _redisSettings.ConsumerName,
+                                             ">", // read new messages
+                                             count: 128);
         }
 
         private void ProcessEvents(IEnumerable<EventDescriptor> descriptors)
@@ -125,9 +152,9 @@ namespace Baubit.Caching.Redis
 
                 if (retVal)
                 {
-                    _database.StreamAdd(_synchronizationOptions.StreamKey, new[]
+                    _database.StreamAdd(_redisSettings.StreamKey, new[]
                     {
-                        new NameValueEntry(nameof(EventDescriptor.Source), _synchronizationOptions.ConsumerName),
+                        new NameValueEntry(nameof(EventDescriptor.Source), _redisSettings.ConsumerName),
                         new NameValueEntry(nameof(EventDescriptor.EventType), EventType.Add.ToString()),
                         new NameValueEntry(nameof(EventDescriptor.EventId), Guid.NewGuid().ToString("N")),
                         new NameValueEntry(nameof(EventDescriptor.MetadataId), id.ToString())
@@ -192,9 +219,9 @@ namespace Baubit.Caching.Redis
 
             // take the lock here and release it after adding the id to the store
             // this will ensure order is maintained throughout the system
-            _distributedLock = DistributedLock.Take(_database, _synchronizationOptions.LockKey, _synchronizationOptions.IdSeedLockTtl);
+            _distributedLock = DistributedLock.Take(_database, _redisSettings.LockKey, _redisSettings.IdSeedLockTtl);
 
-            while (GetGlobalTailIdInternal() > TailId) 
+            while (IsSynchronizationRequired()) 
             {
                 // local tail is lagging.
                 // Allow synchronizer to run and update the the local tail.
@@ -203,6 +230,24 @@ namespace Baubit.Caching.Redis
             }
 
             return _internal.GenerateNextId(out nextId);
+        }
+
+        private bool IsSynchronizationRequired()
+        {
+            var globalTailId = GetGlobalTailIdInternal();
+            // Synchronization not need if global tail is null
+            if (globalTailId == null) return false;
+            // Synchronization is not needed if global tail is less than
+            // the tailId (from previous session) at the time of metadata initialization
+            else if (globalTailId <= synchronizeAfter) return false;
+            // Synchronization is needed the global tail id greater than synchronizeAfter
+            // and tail id is null
+            else if (TailId == null) return true;
+            // Synchronization is not required  if the local tail is at global tail
+            else if (globalTailId == TailId) return false;
+            // The code should never come to this line
+            // but have to put it for syntactical correctness
+            else return true;
         }
 
         public bool Remove(Guid id)
@@ -255,7 +300,7 @@ namespace Baubit.Caching.Redis
         private Guid? GetGlobalTailIdInternal()
         {
             Guid? globalTailId = null;
-            var tailRaw = _database.StringGet(_synchronizationOptions.GlobalTailIdKey);
+            var tailRaw = _database.StringGet(_redisSettings.GlobalTailIdKey);
 
             if (tailRaw.HasValue && Guid.TryParse(tailRaw.ToString(), out var parsed)) globalTailId = parsed;
             return globalTailId;
@@ -263,13 +308,13 @@ namespace Baubit.Caching.Redis
 
         private bool SetGlobalTailIdInternal(Guid newId)
         {
-            return _database.StringSet(_synchronizationOptions.GlobalTailIdKey, newId.ToString("N"));
+            return _database.StringSet(_redisSettings.GlobalTailIdKey, newId.ToString("N"));
         }
 
         private Guid? GetInstanceHeadIdInternal()
         {
             Guid? instanceHeadId = null;
-            var headRaw = _database.StringGet(_synchronizationOptions.InstanceHeadIdKey);
+            var headRaw = _database.StringGet(_redisSettings.InstanceHeadIdKey);
 
             if (headRaw.HasValue && Guid.TryParse(headRaw.ToString(), out var parsed)) instanceHeadId = parsed;
             return instanceHeadId;
@@ -277,7 +322,7 @@ namespace Baubit.Caching.Redis
 
         private bool SetInstanceHeadIdInternal(Guid? newId)
         {
-            return _database.StringSet(_synchronizationOptions.InstanceHeadIdKey, newId?.ToString("N"));
+            return _database.StringSet(_redisSettings.InstanceHeadIdKey, newId?.ToString("N"));
         }
 
         private long GetCountInternal()
@@ -289,16 +334,45 @@ namespace Baubit.Caching.Redis
             }
             finally { _locker.ExitReadLock(); }
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    _syncerCTS.Cancel();
+                    synchronizer.Join();
+                    _syncerCTS = null;
+                    synchronizer = null;
+                    _internal.Dispose();
+                    _internal = null;
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 
-    public class SynchronizationOptions
+    public record RedisSettings
     {
-        public string StreamKey { get; init; }
-        public string GroupName { get; init; }
-        public string ConsumerName { get; init; }
-        public string LockKey { get; init; }
-        public string GlobalTailIdKey { get; init; }
-        public string InstanceHeadIdKey { get => $"{ConsumerName}:headId"; }
+        public string AppName { get; init; }
+        public string MetadataKey => $"{AppName}:metadata";
+        public string DataKey => $"{AppName}:data";
+        public string StreamKey => $"{MetadataKey}:stream";
+        //public string ConsumerGroup { get; init; } = "default";
+        public string ConsumerGroupKey => $"{AppName}:consumerGroups:{ConsumerName}";
+        public string ConsumerNameSuffix { get; init; } = "default";
+        public string ConsumerName => $"{Environment.MachineName}:{ConsumerNameSuffix}";
+        public string LockKey => $"{MetadataKey}:lock";
+        public string GlobalTailIdKey => $"{MetadataKey}:tailId";
+        public string InstanceHeadIdKey { get => $"{MetadataKey}:headId:{ConsumerName}"; }
         public bool ResumeSession { get; init; } = false;
         public int IdSeedLockTtlMs { get; init; } = 5000; // 5 second default
         public TimeSpan IdSeedLockTtl => TimeSpan.FromMilliseconds(IdSeedLockTtlMs);
@@ -315,7 +389,10 @@ namespace Baubit.Caching.Redis
                 if (entry.TryParse(skipSource, acceptDestination, out var descriptor)) yield return descriptor;
             }
         }
-        public static bool TryParse(this StreamEntry entry, string skipSource, string acceptDestination, out EventDescriptor? descriptor)
+        public static bool TryParse(this StreamEntry entry, 
+                                    string skipSource, 
+                                    string acceptDestination, 
+                                    out EventDescriptor? descriptor)
         {
             var source = string.Empty;
             var destination = "*";
@@ -354,7 +431,9 @@ namespace Baubit.Caching.Redis
             descriptor = new EventDescriptor(source, destination, eventType, eventId, metadataId);
             return true;
         }
-        public static IEnumerable<Guid> GetSetKeys(this IDatabase database, int pageSize = 1000)
+        public static IEnumerable<Guid> GetSetKeys(this IDatabase database, 
+                                                   RedisSettings redisSettings, 
+                                                   int pageSize = 1000)
         {
             var cursor = "0";
             do
@@ -363,7 +442,15 @@ namespace Baubit.Caching.Redis
 
                 cursor = (string)res[0];
 
-                foreach (var k in (RedisResult[])res[1]) yield return Guid.Parse(k.ToString());
+                foreach (var k in (RedisResult[])res[1])
+                {
+                    var strKey = k.ToString();
+                    if (strKey.StartsWith(redisSettings.DataKey))
+                    {
+                        // skipping datakey length + 1 because there is a : after datakey
+                        yield return Guid.Parse(strKey.Substring(redisSettings.DataKey.Length + 1));
+                    }
+                }
 
             } while (cursor != "0");
         }

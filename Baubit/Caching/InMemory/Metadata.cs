@@ -24,6 +24,8 @@ namespace Baubit.Caching.InMemory
         private WaitingRoom<Guid> _waitingRoom = new WaitingRoom<Guid>();
 
         private GuidV7Generator idGenerator = GuidV7Generator.CreateNew();
+        private bool disposedValue;
+
         public long ResetRoomCount()
         {
             return Interlocked.Exchange(ref _roomCount, 0);
@@ -129,6 +131,25 @@ namespace Baubit.Caching.InMemory
                 return true;
             }
             return false;
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

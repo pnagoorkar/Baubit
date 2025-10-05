@@ -71,12 +71,13 @@ namespace Baubit.Caching.Redis.DI
                                      serviceProvider.GetRequiredService<IDatabase>(),
                                      serviceProvider.GetRequiredService<IServer>(),
                                      serviceProvider.GetRequiredService<ISerializer>(),
+                                     Configuration.RedisSettings,
                                      serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         protected override IMetadata BuildMetadata(IServiceProvider serviceProvider)
         {
-            return new Metadata(Configuration.SynchronizationOptions,
+            return new Metadata(Configuration.RedisSettings,
                                 serviceProvider.GetRequiredKeyedService<IMetadata>(Configuration.InternalMetadataDIKey),
                                 serviceProvider.GetRequiredService<IDatabase>(),
                                 serviceProvider.GetRequiredService<ILoggerFactory>());

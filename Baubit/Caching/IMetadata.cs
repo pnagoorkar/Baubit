@@ -2,7 +2,7 @@
 
 namespace Baubit.Caching
 {
-    public interface IMetadata
+    public interface IMetadata : IDisposable
     {
         long Count { get; }
         Guid? HeadId { get; }
