@@ -40,7 +40,7 @@ namespace Baubit.MCP
         public async Task<AgentResponse> HandleAsyncAsync(AgentRequest request)
         {
             var updates = new List<ChatResponseUpdate>();
-            await foreach (var update in _chatClient.GetStreamingResponseAsync(request.Messages, new() { Tools = [.. _tools] }))
+            await foreach (var update in _chatClient.GetStreamingResponseAsync(request.Messages, new() { Tools = [.. _tools] }).ConfigureAwait(false))
             {
                 updates.Add(update);
             }

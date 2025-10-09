@@ -46,7 +46,7 @@ namespace Baubit.MCP.Clients.Ollama.DI
             var tools = new List<McpClientTool>();
             foreach (var mcpClient in serviceProvider.GetRequiredService<IEnumerable<McpClient>>())
             {
-                tools.AddRange(await mcpClient.ListToolsAsync());
+                tools.AddRange(await mcpClient.ListToolsAsync().ConfigureAwait(false));
             }
             return tools;
         }
