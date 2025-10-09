@@ -42,7 +42,7 @@ namespace AIConsole
             {
                 OllamaApiClientConfig = new OllamaSharp.OllamaApiClient.Configuration
                 {
-                    Uri = new Uri("http://localhost:11434")
+                    Uri = new Uri("http://localhost:11434"),
                     Model = "gpt-oss:20b"
                 }
             };
