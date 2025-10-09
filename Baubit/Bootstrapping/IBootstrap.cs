@@ -1,6 +1,6 @@
 ﻿namespace Baubit.Bootstrapping
 {
-    public interface IBootstrap
+    public interface IBootstrap : IDisposable
     {
     }
 }
