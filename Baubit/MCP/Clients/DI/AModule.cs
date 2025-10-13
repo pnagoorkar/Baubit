@@ -27,21 +27,37 @@ namespace Baubit.MCP.Clients.DI
         public override void Load(IServiceCollection services)
         {
             // build the MCP client first, so AI tools are made available first
-            services.AddSingleton<McpClient>(BuildMcpClientAsync);
+            services.AddSingleton<McpClient>(BuildMcpClient);
             // then build the chat client with UseFunctionInvocation
             services.AddSingleton(BuildChatClient);
+            // then build the chat options that will be used during the chat session
+            services.AddSingleton<ChatOptions>(CreateChatOptions);
             // then build the agent that will recieve the chat client and tools for use during the chat session
             services.AddSingleton<TAgent>(BuildAgent);
             // register the agent as a bootstrap for bootstrapping
             services.AddSingleton<IBootstrap>(serviceProvider => serviceProvider.GetRequiredService<TAgent>());
         }
 
-        private McpClient BuildMcpClientAsync(IServiceProvider serviceProvider)
+        private McpClient BuildMcpClient(IServiceProvider serviceProvider)
         {
             return McpClient.CreateAsync(BuildClientTransport(serviceProvider),
                                                serviceProvider.GetRequiredService<IOptions<McpClientOptions>>().Value,
                                                serviceProvider.GetRequiredService<ILoggerFactory>())
-                     .GetAwaiter().GetResult();
+                            .ConfigureAwait(false)
+                            .GetAwaiter()
+                            .GetResult();
+        }
+
+        private ChatOptions CreateChatOptions(IServiceProvider serviceProvider)
+        {
+            var options = new ChatOptions();
+            var tools = new List<McpClientTool>();
+            foreach (var mcpClient in serviceProvider.GetRequiredService<IEnumerable<McpClient>>())
+            {
+                tools.AddRange(mcpClient.ListToolsAsync().ConfigureAwait(false).GetAwaiter().GetResult());
+            }
+            options.Tools = [.. tools];
+            return options;
         }
 
         protected abstract TAgent BuildAgent(IServiceProvider serviceProvider);
@@ -50,7 +66,7 @@ namespace Baubit.MCP.Clients.DI
 
         private IChatClient BuildChatClient(IServiceProvider serviceProvider)
         {
-            return new ChatClientBuilder(BuildInnerClient).UseFunctionInvocation(serviceProvider.GetRequiredService<ILoggerFactory>(), 
+            return new ChatClientBuilder(BuildInnerClient).UseFunctionInvocation(serviceProvider.GetRequiredService<ILoggerFactory>(),
                                                                                  functionInvokingChatClient => ConfigureFunctionInvokingChatClient(functionInvokingChatClient, serviceProvider))
                                                           .Build();
         }

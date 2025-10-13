@@ -12,13 +12,29 @@ namespace Baubit.Serialization.MessagePack
 
         public bool TryDeserialize<T>(byte[] bytes, out T obj, CancellationToken cancellationToken = default)
         {
-            obj = (T)MessagePackSerializer.Typeless.Deserialize(bytes, cancellationToken: cancellationToken)!;
+            try
+            {
+                obj = (T)MessagePackSerializer.Typeless.Deserialize(bytes, cancellationToken: cancellationToken)!;
+            }
+            catch (Exception exp)
+            {
+                obj = default!;
+                return false;
+            }
             return true;
         }
 
         public bool TrySerialize<T>(T value, out byte[] serializedValue, CancellationToken cancellationToken = default)
         {
-            serializedValue = MessagePackSerializer.Typeless.Serialize(value, cancellationToken: cancellationToken);
+            try
+            {
+                serializedValue = MessagePackSerializer.Typeless.Serialize(value, cancellationToken: cancellationToken);
+            }
+            catch (Exception exp)
+            {
+                serializedValue = [];
+                return false;
+            }
             return true;
         }
     }

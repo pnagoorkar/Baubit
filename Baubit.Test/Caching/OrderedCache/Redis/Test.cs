@@ -1,5 +1,6 @@
 ﻿using Baubit.Caching;
 using Baubit.Collections;
+using Baubit.Configuration;
 using Baubit.DI;
 using System.Reflection.Metadata.Ecma335;
 using Testcontainers.Redis;
@@ -41,6 +42,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
         {
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                     .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Serialization.MessagePack.DI.Module(ConfigurationSource.Empty)]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -65,6 +67,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
 
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                     .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(configuration, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Serialization.MessagePack.DI.Module(ConfigurationSource.Empty)]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -100,6 +103,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
         {
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                     .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Serialization.MessagePack.DI.Module(ConfigurationSource.Empty)]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -120,6 +124,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
         {
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                     .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Serialization.MessagePack.DI.Module(ConfigurationSource.Empty)]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -156,6 +161,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
         {
             var redisCache = ComponentBuilder<IOrderedCache<int>>.Create()
                                                                     .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(redisModuleConfig, [], [])]))
+                                                                    .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Serialization.MessagePack.DI.Module(ConfigurationSource.Empty)]))
                                                                     .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                                     .Bind(componentBuilder => componentBuilder.Build()).Value;
 
@@ -199,6 +205,7 @@ namespace Baubit.Test.Caching.OrderedCache.Redis
                 var moduleConfig = redisModuleConfig with { RedisSettings = redisModuleConfig.RedisSettings with { ResumeSession = false, ConsumerNameSuffix = Guid.NewGuid().ToString() } };
                 return ComponentBuilder<IOrderedCache<int>>.Create()
                                                            .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Caching.Redis.DI.Module<int>(moduleConfig, [], [])]))
+                                                           .Bind(componentBuilder => componentBuilder.WithModules([new Baubit.Serialization.MessagePack.DI.Module(ConfigurationSource.Empty)]))
                                                            .Bind(componentBuilder => componentBuilder.WithFeatures([new Baubit.Logging.Features.F001()]))
                                                            .Bind(componentBuilder => componentBuilder.Build())
                                                            .Value;

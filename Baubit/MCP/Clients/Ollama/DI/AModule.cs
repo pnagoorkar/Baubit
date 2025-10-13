@@ -31,7 +31,7 @@ namespace Baubit.MCP.Clients.Ollama.DI
         protected override Agent BuildAgent(IServiceProvider serviceProvider)
         {
             return new Agent(serviceProvider.GetRequiredService<IChatClient>(),
-                             GetToolsAsync(serviceProvider).GetAwaiter().GetResult(),
+                             serviceProvider.GetRequiredService<ChatOptions>(),
                              serviceProvider.GetRequiredService<IHub>(),
                              serviceProvider.GetRequiredService<ILoggerFactory>());
         }

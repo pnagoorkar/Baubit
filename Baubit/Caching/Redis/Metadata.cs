@@ -117,11 +117,18 @@ namespace Baubit.Caching.Redis
 
         private StreamEntry[] ReadStreamEntries()
         {
-            return _database.StreamReadGroup(_redisSettings.StreamKey,
-                                             _redisSettings.ConsumerGroupKey,
-                                             _redisSettings.ConsumerName,
-                                             ">", // read new messages
-                                             count: 128);
+            try
+            {
+                return _database.StreamReadGroup(_redisSettings.StreamKey,
+                                                 _redisSettings.ConsumerGroupKey,
+                                                 _redisSettings.ConsumerName,
+                                                 ">", // read new messages
+                                                 count: 128);
+            }
+            catch
+            {
+                return [];
+            }
         }
 
         private void ProcessEvents(IEnumerable<EventDescriptor> descriptors)
@@ -221,7 +228,7 @@ namespace Baubit.Caching.Redis
             // this will ensure order is maintained throughout the system
             _distributedLock = DistributedLock.Take(_database, _redisSettings.LockKey, _redisSettings.IdSeedLockTtl);
 
-            while (IsSynchronizationRequired()) 
+            while (IsSynchronizationRequired())
             {
                 // local tail is lagging.
                 // Allow synchronizer to run and update the the local tail.
@@ -363,13 +370,13 @@ namespace Baubit.Caching.Redis
     public record RedisSettings
     {
         public string AppName { get; init; }
+        public string InstanceKey { get; init; }
         public string MetadataKey => $"{AppName}:metadata";
         public string DataKey => $"{AppName}:data";
         public string StreamKey => $"{MetadataKey}:stream";
-        //public string ConsumerGroup { get; init; } = "default";
-        public string ConsumerGroupKey => $"{AppName}:consumerGroups:{ConsumerName}";
         public string ConsumerNameSuffix { get; init; } = "default";
-        public string ConsumerName => $"{Environment.MachineName}:{ConsumerNameSuffix}";
+        public string ConsumerName => $"{InstanceKey}:{ConsumerNameSuffix}";
+        public string ConsumerGroupKey => $"{AppName}:consumerGroups:{ConsumerName}";
         public string LockKey => $"{MetadataKey}:lock";
         public string GlobalTailIdKey => $"{MetadataKey}:tailId";
         public string InstanceHeadIdKey { get => $"{MetadataKey}:headId:{ConsumerName}"; }
@@ -389,9 +396,9 @@ namespace Baubit.Caching.Redis
                 if (entry.TryParse(skipSource, acceptDestination, out var descriptor)) yield return descriptor;
             }
         }
-        public static bool TryParse(this StreamEntry entry, 
-                                    string skipSource, 
-                                    string acceptDestination, 
+        public static bool TryParse(this StreamEntry entry,
+                                    string skipSource,
+                                    string acceptDestination,
                                     out EventDescriptor? descriptor)
         {
             var source = string.Empty;
@@ -431,8 +438,8 @@ namespace Baubit.Caching.Redis
             descriptor = new EventDescriptor(source, destination, eventType, eventId, metadataId);
             return true;
         }
-        public static IEnumerable<Guid> GetSetKeys(this IDatabase database, 
-                                                   RedisSettings redisSettings, 
+        public static IEnumerable<Guid> GetSetKeys(this IDatabase database,
+                                                   RedisSettings redisSettings,
                                                    int pageSize = 1000)
         {
             var cursor = "0";

@@ -83,7 +83,25 @@ namespace Baubit.Events
             return true;
         }
 
-        public bool Subscribe<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler, 
+        public async IAsyncEnumerable<TType> EnumerateAsync<TType>([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var enumerator = _cache.GetAsyncEnumerator(cancellationToken);
+            while (await enumerator.MoveNextAsync().ConfigureAwait(false))
+            {
+                if (enumerator.Current.Value is TType tItem) yield return tItem;
+            }
+        }
+
+        public async IAsyncEnumerable<TType> EnumerateFutureAsync<TType>([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var enumerator = _cache.GetFutureAsyncEnumerator(cancellationToken);
+            while (await enumerator.MoveNextAsync().ConfigureAwait(false))
+            {
+                if (enumerator.Current.Value is TType tItem) yield return tItem;
+            }
+        }
+
+        public bool Subscribe<TRequest, TResponse>(IRequestHandler<TRequest, TResponse> requestHandler,
                                                    CancellationToken cancellationToken)
             where TRequest : IRequest<TResponse>
             where TResponse : IResponse

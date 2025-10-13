@@ -38,7 +38,7 @@
                 // expected when _cancellationToken is cancelled
                 return false;
             }
-            return true;
+            return !_cancellationToken.IsCancellationRequested;
         }
     }
 }

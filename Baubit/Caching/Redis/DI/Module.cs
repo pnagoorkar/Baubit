@@ -33,20 +33,7 @@ namespace Baubit.Caching.Redis.DI
             services.AddSingleton<IServer>(serviceProvider => serviceProvider.GetRequiredService<IConnectionMultiplexer>().GetServer(Configuration.Host, Configuration.Port));
             services.AddSingleton<IDatabase>(serviceProvider => serviceProvider.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
             services.AddKeyedSingleton<IMetadata, Baubit.Caching.InMemory.Metadata>(Configuration.InternalMetadataDIKey);
-            services.AddSingleton<ISerializer>(BuildMessagePackSerializer);
             base.Load(services);
-        }
-
-        private Serializer BuildMessagePackSerializer(IServiceProvider serviceProvider)
-        {
-            IFormatterResolver[] formatterResolvers =
-            [
-                Baubit.Serialization.MessagePack.MessagePackResolver.Instance,
-                NativeGuidResolver.Instance, // optional: fastest Guid
-                StandardResolver.Instance, // built-ins (Guid, DateTime, etc.)
-            ];
-            var options = MessagePackSerializerOptions.Standard.WithResolver(CompositeResolver.Create(formatterResolvers));
-            return new Serializer(options);
         }
 
         private ConfigurationOptions BuildRedisConfigurationOptions(IServiceProvider serviceProvider)

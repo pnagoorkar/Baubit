@@ -23,9 +23,20 @@ namespace Baubit.Serialization.MessagePack.DI
 
         public override void Load(IServiceCollection services)
         {
-            var options = MessagePackSerializerOptions.Standard.WithResolver(CompositeResolver.Create(Configuration.FormatResolvers.ToArray()));
-            services.AddSingleton(serviceProvider => options);
-            services.AddSingleton<ISerializer, Serializer>();
+            services.AddSingleton<ISerializer>(BuildMessagePackSerializer);
+        }
+
+        private Serializer BuildMessagePackSerializer(IServiceProvider serviceProvider)
+        {
+            IFormatterResolver[] formatterResolvers =
+            [
+                Baubit.Serialization.MessagePack.MessagePackResolver.Instance, // default - required for generated resolvers
+                NativeGuidResolver.Instance, // optional: fastest Guid
+                StandardResolver.Instance, // built-ins (Guid, DateTime, etc.)
+            ];
+
+            var options = MessagePackSerializerOptions.Standard.WithResolver(CompositeResolver.Create(formatterResolvers.ToArray()));
+            return new Serializer(options);
         }
     }
 }
