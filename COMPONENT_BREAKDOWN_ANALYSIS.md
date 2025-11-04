@@ -55,14 +55,14 @@ These components have NO internal Baubit dependencies and can be moved to separa
 - **Tests**: None currently
 
 #### 4. **Observation** (2 files)
-- **Dependencies**: None (uses FluentResults only)
+- **Internal Baubit Dependencies**: None
 - **External packages**: FluentResults
 - **Purpose**: Publisher/Subscriber interfaces
 - **Effort**: Very Low
 - **Tests**: None currently
 
 #### 5. **Tasks** (5 files)
-- **Dependencies**: None (uses FluentResults only)
+- **Internal Baubit Dependencies**: None
 - **External packages**: FluentResults
 - **Purpose**: Task extensions, cancellation token utilities
 - **Effort**: Low
@@ -70,7 +70,7 @@ These components have NO internal Baubit dependencies and can be moved to separa
 - **Note**: Used by IO and Collections, but they could depend on this as external package
 
 #### 6. **Traceability** (5 files)
-- **Dependencies**: None (uses FluentResults only)
+- **Internal Baubit Dependencies**: None
 - **External packages**: FluentResults
 - **Purpose**: Error handling, success types, reasons
 - **Effort**: Low
@@ -169,12 +169,13 @@ These are core framework components with multiple interdependencies:
 - **Effort**: High
 - **Strategy**: Built as a Baubit module, depends on DI framework
 
-#### 18. **Caching** (34 files - second largest)
+#### 18. **Caching** (34 files)
 - **Internal Dependencies**: Collections, Configuration, DI, Identity, Serialization, Tasks
 - **External packages**: MessagePack, NRedisStack
 - **Purpose**: In-memory and Redis caching
 - **Effort**: Very High
 - **Strategy**: Heavily integrated with framework - uses 6 internal components
+- **Note**: Second largest component after DI (30 files)
 
 #### 19. **MCP** (13 files)
 - **Internal Dependencies**: Configuration, DI, Events
@@ -302,15 +303,16 @@ These can become "Baubit.{ComponentName}" packages that depend on the core frame
 
 ## Testing Strategy
 
-**Current State**: Tests exist for only some components:
-- ✅ Identity, Configuration, DI, Events, Collections, Reflection, IO, Logging, Testing, Traceability, Validation, Caching
+**Current State**: Tests exist for some components (but coverage varies):
+- **With Tests**: Identity, Configuration, DI, Events, Collections, Reflection, IO, Logging, Testing, Traceability, Validation, Caching
+- **Without Tests**: Compression, Networking, Observation, Serialization, Tasks, Bootstrapping, MCP
 
-**Missing Tests**:
-- Compression, Networking, Observation, Serialization, Tasks, Bootstrapping, MCP
+**Note**: Having tests doesn't necessarily mean adequate coverage - many components have minimal test coverage.
 
 **Recommendation**: 
+- Add comprehensive tests for components with minimal coverage before extraction
 - Add basic tests for untested components before extraction
-- Each extracted repo should include its own test project
+- Each extracted repo should include its own test project with adequate coverage
 - Core components (DI, Configuration) need comprehensive integration tests
 
 ---
